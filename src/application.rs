@@ -216,6 +216,10 @@ impl SwayOSDApplication {
 	}
 
 	fn action_activated(&self, action: &SimpleAction, variant: Option<&Variant>) {
+		if self.started.borrow().to_owned() != true {
+			eprintln!("Please start the executable separately before running with args!...");
+			return;
+		}
 		match self.action_id.take() {
 			Some(action_id) => action.disconnect(action_id),
 			None => return,
