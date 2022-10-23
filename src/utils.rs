@@ -1,8 +1,160 @@
+use gtk::gdk;
 use gtk::glib;
+
+use std::fs;
+use std::io::prelude::*;
+
+use pulse::volume::Volume;
+use pulsectl::controllers::{types::DeviceInfo, DeviceControl, SinkController, SourceController};
 
 pub fn spawn<F>(future: F)
 where
-    F: std::future::Future<Output = ()> + 'static,
+	F: std::future::Future<Output = ()> + 'static,
 {
-    glib::MainContext::default().spawn_local(future);
+	glib::MainContext::default().spawn_local(future);
+}
+
+pub fn get_caps_lock_state() -> bool {
+	match fs::read_dir("/sys/class/leds") {
+		Ok(paths) => {
+			let mut state: bool = false;
+			for path in paths {
+				if let Ok(path) = path {
+					let path_str = path.path().display().to_string();
+					if path_str.contains("capslock") {
+						if let Ok(content) = read_file(path_str + "/brightness") {
+							if content.trim().eq("1") {
+								state = true;
+								break;
+							}
+						}
+					}
+				}
+			}
+			return state;
+		}
+		Err(_) => false,
+	}
+}
+
+fn read_file(path: String) -> std::io::Result<String> {
+	let file = fs::File::open(path)?;
+	let mut buf_reader = std::io::BufReader::new(file);
+	let mut contents = String::new();
+	buf_reader.read_to_string(&mut contents)?;
+	Ok(contents)
+}
+
+pub enum VolumeChangeType {
+	Raise,
+	Lower,
+	MuteToggle,
+}
+
+pub enum VolumeDeviceType {
+	Sink,
+	Source,
+}
+
+pub fn change_sink_volume(change_type: VolumeChangeType) -> Option<DeviceInfo> {
+	let mut controller = SinkController::create().unwrap();
+
+	let server_info = controller.get_server_info();
+	let device_name = &match server_info {
+		Ok(info) => info.default_sink_name.unwrap_or("".to_string()),
+		Err(e) => {
+			eprintln!("Pulse Error: {}", e);
+			return None;
+		}
+	};
+	let device = match controller.get_device_by_name(device_name) {
+		Ok(device) => device,
+		Err(e) => {
+			eprintln!("Pulse Error: {}", e);
+			return None;
+		}
+	};
+
+	const VOLUME_CHANGE_DELTA: f64 = 0.05;
+	match change_type {
+		VolumeChangeType::Raise => {
+			controller.increase_device_volume_by_percent(device.index, VOLUME_CHANGE_DELTA)
+		}
+		VolumeChangeType::Lower => {
+			controller.decrease_device_volume_by_percent(device.index, VOLUME_CHANGE_DELTA)
+		}
+		VolumeChangeType::MuteToggle => {
+			let op = controller.handler.introspect.set_sink_mute_by_index(
+				device.index,
+				!device.mute,
+				None,
+			);
+			controller.handler.wait_for_operation(op).ok();
+		}
+	}
+
+	match controller.get_device_by_name(device_name) {
+		Ok(device) => Some(device),
+		Err(e) => {
+			eprintln!("Pulse Error: {}", e);
+			None
+		}
+	}
+}
+
+pub fn change_source_volume(change_type: VolumeChangeType) -> Option<DeviceInfo> {
+	let mut controller = SourceController::create().unwrap();
+
+	let server_info = controller.get_server_info();
+	let device_name = &match server_info {
+		Ok(info) => info.default_source_name.unwrap_or("".to_string()),
+		Err(e) => {
+			eprintln!("Pulse Error: {}", e);
+			return None;
+		}
+	};
+	let device = match controller.get_device_by_name(device_name) {
+		Ok(device) => device,
+		Err(e) => {
+			eprintln!("Pulse Error: {}", e);
+			return None;
+		}
+	};
+
+	const VOLUME_CHANGE_DELTA: f64 = 0.05;
+	match change_type {
+		VolumeChangeType::Raise => {
+			controller.increase_device_volume_by_percent(device.index, VOLUME_CHANGE_DELTA)
+		}
+		VolumeChangeType::Lower => {
+			controller.decrease_device_volume_by_percent(device.index, VOLUME_CHANGE_DELTA)
+		}
+		VolumeChangeType::MuteToggle => {
+			let op = controller.handler.introspect.set_source_mute_by_index(
+				device.index,
+				!device.mute,
+				None,
+			);
+			controller.handler.wait_for_operation(op).ok();
+		}
+	}
+
+	match controller.get_device_by_name(device_name) {
+		Ok(device) => Some(device),
+		Err(e) => {
+			eprintln!("Pulse Error: {}", e);
+			None
+		}
+	}
+}
+
+pub fn volume_to_f64(volume: &Volume) -> f64 {
+	let tmp_vol = f64::from(volume.0 - Volume::MUTED.0);
+	(100.0 * tmp_vol / f64::from(Volume::NORMAL.0 - Volume::MUTED.0)).round()
+}
+
+pub fn is_dark_mode(fg: &gdk::RGBA, bg: &gdk::RGBA) -> bool {
+	let text_avg = fg.red() / 256.0 + fg.green() / 256.0 + fg.blue() / 256.0;
+	let bg_avg = bg.red() / 256.0 + bg.green() / 256.0 + bg.blue() / 256.0;
+	text_avg > bg_avg
 }
