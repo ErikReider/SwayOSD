@@ -1,18 +1,10 @@
 use gtk::gdk;
-use gtk::glib;
 
 use std::fs;
 use std::io::prelude::*;
 
 use pulse::volume::Volume;
 use pulsectl::controllers::{types::DeviceInfo, DeviceControl, SinkController, SourceController};
-
-pub fn spawn<F>(future: F)
-where
-	F: std::future::Future<Output = ()> + 'static,
-{
-	glib::MainContext::default().spawn_local(future);
-}
 
 pub fn get_caps_lock_state() -> bool {
 	match fs::read_dir("/sys/class/leds") {

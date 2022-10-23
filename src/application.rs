@@ -1,8 +1,6 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use async_channel::Sender;
-
 use gtk::gio::{ApplicationFlags, Cancellable};
 use gtk::glib::variant::DictEntry;
 use gtk::glib::{clone, OptionArg, OptionFlags, SignalHandlerId, Variant, VariantTy};
@@ -54,13 +52,6 @@ impl OsdTypes {
 			_ => OsdTypes::None,
 		}
 	}
-}
-
-pub enum DisplayEvent {
-	Opened(gdk::Display),
-	Closed(bool),
-	Added(gdk::Display, gdk::Monitor),
-	Removed(gdk::Display),
 }
 
 #[derive(Clone, Shrinkwrap)]
@@ -158,7 +149,14 @@ impl SwayOSDApplication {
 
 	pub fn start(&self) -> i32 {
 		let s = self.clone();
-		self.app.connect_activate(move |_| s.activate());
+		self.app.connect_activate(move |_| {
+			if s.started.borrow().to_owned() == true {
+				return;
+			}
+			s.started.replace(true);
+
+			s.initialize();
+		});
 
 		match VariantTy::new(ACTION_FORMAT) {
 			Ok(variant_ty) => {
@@ -177,42 +175,6 @@ impl SwayOSDApplication {
 		}
 
 		return self.app.run();
-	}
-
-	fn activate(&self) {
-		if self.started.borrow().to_owned() == true {
-			return;
-		}
-		self.started.replace(true);
-
-		let (tx, rx) = async_channel::unbounded();
-
-		self.initialize(&tx);
-
-		// Processes all application events received from signals
-		let s = self.clone();
-		let event_handler = async move {
-			while let Ok(event) = rx.recv().await {
-				match event {
-					DisplayEvent::Opened(d) => {
-						s.init_windows(&d);
-					}
-					DisplayEvent::Closed(is_error) => {
-						if is_error {
-							eprintln!("Display closed due to errors...");
-						}
-						s.close_all_windows();
-					}
-					DisplayEvent::Added(d, mon) => {
-						s.add_window(&d, &mon);
-					}
-					DisplayEvent::Removed(d) => {
-						s.init_windows(&d);
-					}
-				}
-			}
-		};
-		spawn(event_handler);
 	}
 
 	fn action_activated(&self, action: &SimpleAction, variant: Option<&Variant>) {
@@ -298,7 +260,7 @@ impl SwayOSDApplication {
 		self.action_id.replace(Some(id));
 	}
 
-	fn initialize(&self, tx: &Sender<DisplayEvent>) {
+	fn initialize(&self) {
 		let display: gdk::Display = match gdk::Display::default() {
 			Some(x) => x,
 			_ => return,
@@ -306,28 +268,25 @@ impl SwayOSDApplication {
 
 		self.init_windows(&display);
 
-		display.connect_opened(clone!(@strong tx => move |d| {
-			spawn(clone!(@strong tx, @strong d => async move {
-				let _ = (&tx).send(DisplayEvent::Opened(d)).await;
-			}));
+		let _self = self;
+
+		display.connect_opened(clone!(@strong _self => move |d| {
+			_self.init_windows(&d);
 		}));
 
-		display.connect_closed(clone!(@strong tx => move |_d, is_error| {
-			spawn(clone!(@strong tx => async move {
-				let _ = tx.send(DisplayEvent::Closed(is_error)).await;
-			}));
+		display.connect_closed(clone!(@strong _self => move |_d, is_error| {
+			if is_error {
+				eprintln!("Display closed due to errors...");
+			}
+			_self.close_all_windows();
 		}));
 
-		display.connect_monitor_added(clone!(@strong tx => move |d, mon| {
-			spawn(clone!(@strong tx, @strong d, @strong mon => async move {
-				let _ = tx.send(DisplayEvent::Added(d, mon)).await;
-			}));
+		display.connect_monitor_added(clone!(@strong _self => move |d, mon| {
+			_self.add_window(&d, &mon);
 		}));
 
-		display.connect_monitor_removed(clone!(@strong tx => move |d, _mon| {
-			spawn(clone!(@strong tx, @strong d => async move {
-				let _ = tx.send(DisplayEvent::Removed(d)).await;
-			}));
+		display.connect_monitor_removed(clone!(@strong _self => move |d, _mon| {
+			_self.init_windows(&d);
 		}));
 	}
 

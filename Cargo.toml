@@ -8,9 +8,7 @@ edition = "2021"
 [dependencies]
 gtk = "0.15.5"
 gtk-layer-shell = "0.4.4"
-async-channel = "1.7.1"
 shrinkwraprs = "0.3.0"
 cascade = "1.0.1"
 pulse = { version = "2.26.0", package = "libpulse-binding" }
-# pulse_glib = { version = "2.25.1", package = "libpulse-glib-binding" }
 pulsectl-rs = "0.3.2"
