@@ -82,7 +82,7 @@ impl SwayOSDApplication {
 			glib::Char::from(0),
 			OptionFlags::NONE,
 			OptionArg::None,
-			"Shows capslock osd",
+			"Shows capslock osd. Note: Doesn't toggle CapsLock, just display the status",
 			None,
 		);
 		// Sink volume cmdline arg
