@@ -4,6 +4,14 @@ A OSD window for common actions like volume and capslock.
 
 This is my first time coding in Rust so fixes and improvements are appreciated :)
 
+## Features:
+
+- Input and output volume change indicator
+- Input and output mute change indicator
+- Capslock change (Note: doesn't change the caps lock state)
+
+## Usage:
+
 ```zsh
 # OSD window
 exec swayosd
