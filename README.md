@@ -29,6 +29,12 @@ bindsym XF86AudioMicMute exec swayosd --input-volume mute-toggle
 bindsym --release Caps_Lock exec swayosd --caps-lock
 ```
 
+## Install
+
+Available on the AUR thanks to @jgmdev!
+
+- [swayosd-git](https://aur.archlinux.org/packages/swayosd-git)
+
 ## Images
 
 ![image](https://user-images.githubusercontent.com/35975961/200685357-fb9697ae-a32d-4c60-a2ae-7791e70097b9.png)
