@@ -27,6 +27,9 @@ bindsym XF86AudioMicMute exec swayosd --input-volume mute-toggle
 
 # Capslock
 bindsym --release Caps_Lock exec swayosd --caps-lock
+
+# Capslock but specific LED name (/sys/class/leds/)
+bindsym --release Caps_Lock exec swayosd --caps-lock-led input19::capslock
 ```
 
 ## Install
