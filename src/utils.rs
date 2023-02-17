@@ -8,15 +8,30 @@ use std::{
 use pulse::volume::Volume;
 use pulsectl::controllers::{types::DeviceInfo, DeviceControl, SinkController, SourceController};
 
-pub fn get_caps_lock_state() -> bool {
-	match fs::read_dir("/sys/class/leds") {
+pub fn get_caps_lock_state(led: Option<String>) -> bool {
+	const BASE_PATH: &str = "/sys/class/leds";
+	match fs::read_dir(BASE_PATH) {
 		Ok(paths) => {
-			for path in paths.take_while(|x| x.is_ok()) {
-				let path_str = path.unwrap().path().display().to_string();
-				if !path_str.contains("capslock") {
+			let mut paths: Vec<String> = paths
+				.map_while(|path| {
+					path.map_or_else(|_| None, |p| Some(p.path().display().to_string()))
+				})
+				.collect();
+
+			if let Some(led) = led {
+				let led = format!("{}/{}", BASE_PATH, led);
+				if paths.contains(&led) {
+					paths.insert(0, led);
+				} else {
+					eprintln!("LED device {led} does not exist!... Trying other LEDs");
+				}
+			}
+
+			for path in paths {
+				if !path.contains("capslock") {
 					continue;
 				}
-				if let Ok(content) = read_file(path_str + "/brightness") {
+				if let Ok(content) = read_file(path + "/brightness") {
 					if content.trim().eq("1") {
 						return true;
 					}

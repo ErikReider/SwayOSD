@@ -13,7 +13,7 @@ use crate::utils::*;
 use gtk::gio::SimpleAction;
 
 const ACTION_NAME: &str = "action";
-const ACTION_FORMAT: &str = "s";
+const ACTION_FORMAT: &str = "(ss)";
 
 #[derive(Debug, PartialEq)]
 pub enum OsdTypes {
@@ -40,16 +40,19 @@ impl OsdTypes {
 		}
 	}
 
-	pub fn parse(value: &str) -> Self {
-		match value {
-			"CAPSLOCK" => OsdTypes::CapsLock,
-			"SINK-VOLUME-RAISE" => OsdTypes::SinkVolumeRaise,
-			"SINK-VOLUME-LOWER" => OsdTypes::SinkVolumeLower,
-			"SINK-VOLUME-MUTE-TOGGLE" => OsdTypes::SinkVolumeMuteToggle,
-			"SOURCE-VOLUME-RAISE" => OsdTypes::SourceVolumeRaise,
-			"SOURCE-VOLUME-LOWER" => OsdTypes::SourceVolumeLower,
-			"SOURCE-VOLUME-MUTE-TOGGLE" => OsdTypes::SourceVolumeMuteToggle,
-			_ => OsdTypes::None,
+	pub fn parse(osd_type: Option<String>, value: Option<String>) -> (Self, Option<String>) {
+		match osd_type {
+			Some(osd_type) => match osd_type.as_str() {
+				"CAPSLOCK" => (OsdTypes::CapsLock, value),
+				"SINK-VOLUME-RAISE" => (OsdTypes::SinkVolumeRaise, value),
+				"SINK-VOLUME-LOWER" => (OsdTypes::SinkVolumeLower, value),
+				"SINK-VOLUME-MUTE-TOGGLE" => (OsdTypes::SinkVolumeMuteToggle, value),
+				"SOURCE-VOLUME-RAISE" => (OsdTypes::SourceVolumeRaise, value),
+				"SOURCE-VOLUME-LOWER" => (OsdTypes::SourceVolumeLower, value),
+				"SOURCE-VOLUME-MUTE-TOGGLE" => (OsdTypes::SourceVolumeMuteToggle, value),
+				_ => (OsdTypes::None, None),
+			},
+			None => (OsdTypes::None, None),
 		}
 	}
 }
@@ -75,6 +78,15 @@ impl SwayOSDApplication {
 			OptionArg::None,
 			"Shows capslock osd. Note: Doesn't toggle CapsLock, just display the status",
 			None,
+		);
+		// Capslock with specific LED cmdline arg
+		app.add_main_option(
+			"caps-lock-led",
+			glib::Char::from(0),
+			OptionFlags::NONE,
+			OptionArg::String,
+			"Shows capslock osd. Uses LED class name. Note: Doesn't toggle CapsLock, just display the status",
+			Some("LED class name (/sys/class/leds/NAME)"),
 		);
 		// Sink volume cmdline arg
 		app.add_main_option(
@@ -110,21 +122,28 @@ impl SwayOSDApplication {
 				return 1;
 			}
 			let child: DictEntry<String, Variant> = variant.child_get(0);
-			let action_type: OsdTypes = match child.key().as_str() {
-				"caps-lock" => OsdTypes::CapsLock,
+			let (osd_type, value): (OsdTypes, Option<String>) = match child.key().as_str() {
+				"caps-lock" => (OsdTypes::CapsLock, None),
+				"caps-lock-led" => match child.value().str() {
+					Some(led) => (OsdTypes::CapsLock, Some(led.to_owned())),
+					None => {
+						eprintln!("Value for caps-lock-led isn't a string!...");
+						return 1;
+					}
+				},
 				"output-volume" => match child.value().str().unwrap_or("") {
-					"raise" => OsdTypes::SinkVolumeRaise,
-					"lower" => OsdTypes::SinkVolumeLower,
-					"mute-toggle" => OsdTypes::SinkVolumeMuteToggle,
+					"raise" => (OsdTypes::SinkVolumeRaise, None),
+					"lower" => (OsdTypes::SinkVolumeLower, None),
+					"mute-toggle" => (OsdTypes::SinkVolumeMuteToggle, None),
 					e => {
 						eprintln!("Unknown output volume mode: \"{}\"!...", e);
 						return 1;
 					}
 				},
 				"input-volume" => match child.value().str().unwrap_or("") {
-					"raise" => OsdTypes::SourceVolumeRaise,
-					"lower" => OsdTypes::SourceVolumeLower,
-					"mute-toggle" => OsdTypes::SourceVolumeMuteToggle,
+					"raise" => (OsdTypes::SourceVolumeRaise, None),
+					"lower" => (OsdTypes::SourceVolumeLower, None),
+					"mute-toggle" => (OsdTypes::SourceVolumeMuteToggle, None),
 					e => {
 						eprintln!("Unknown input volume mode: \"{}\"!...", e);
 						return 1;
@@ -135,7 +154,11 @@ impl SwayOSDApplication {
 					return 1;
 				}
 			};
-			app.activate_action(ACTION_NAME, Some(&action_type.as_str().to_variant()));
+			let variant = Variant::tuple_from_iter([
+				osd_type.as_str().to_variant(),
+				value.unwrap_or(String::new()).to_variant(),
+			]);
+			app.activate_action(ACTION_NAME, Some(&variant));
 			return 0;
 		});
 
@@ -188,8 +211,17 @@ impl SwayOSDApplication {
 		}
 
 		if let Some(variant) = variant {
-			match OsdTypes::parse(&variant.str().unwrap_or("")) {
-				OsdTypes::SinkVolumeRaise => match change_sink_volume(VolumeChangeType::Raise) {
+			let osd_type = variant.try_child_get::<String>(0);
+			let value = variant.try_child_get::<String>(1);
+			let (osd_type, value) = match (osd_type, value) {
+				(Ok(osd_type), Ok(Some(value))) => {
+					(osd_type, if value.is_empty() { None } else { Some(value) })
+				}
+				_ => (None, None),
+			};
+			match OsdTypes::parse(osd_type, value) {
+				(OsdTypes::SinkVolumeRaise, _) => match change_sink_volume(VolumeChangeType::Raise)
+				{
 					Some(device) => {
 						for window in self.windows.borrow().to_owned() {
 							window.changed_volume(&device, VolumeDeviceType::Sink);
@@ -197,7 +229,8 @@ impl SwayOSDApplication {
 					}
 					None => return,
 				},
-				OsdTypes::SinkVolumeLower => match change_sink_volume(VolumeChangeType::Lower) {
+				(OsdTypes::SinkVolumeLower, _) => match change_sink_volume(VolumeChangeType::Lower)
+				{
 					Some(device) => {
 						for window in self.windows.borrow().to_owned() {
 							window.changed_volume(&device, VolumeDeviceType::Sink);
@@ -205,7 +238,7 @@ impl SwayOSDApplication {
 					}
 					None => return,
 				},
-				OsdTypes::SinkVolumeMuteToggle => {
+				(OsdTypes::SinkVolumeMuteToggle, _) => {
 					match change_sink_volume(VolumeChangeType::MuteToggle) {
 						Some(device) => {
 							for window in self.windows.borrow().to_owned() {
@@ -215,7 +248,7 @@ impl SwayOSDApplication {
 						None => return,
 					}
 				}
-				OsdTypes::SourceVolumeRaise => {
+				(OsdTypes::SourceVolumeRaise, _) => {
 					match change_source_volume(VolumeChangeType::Raise) {
 						Some(device) => {
 							for window in self.windows.borrow().to_owned() {
@@ -225,7 +258,7 @@ impl SwayOSDApplication {
 						None => return,
 					}
 				}
-				OsdTypes::SourceVolumeLower => {
+				(OsdTypes::SourceVolumeLower, _) => {
 					match change_source_volume(VolumeChangeType::Lower) {
 						Some(device) => {
 							for window in self.windows.borrow().to_owned() {
@@ -235,7 +268,7 @@ impl SwayOSDApplication {
 						None => return,
 					}
 				}
-				OsdTypes::SourceVolumeMuteToggle => {
+				(OsdTypes::SourceVolumeMuteToggle, _) => {
 					match change_source_volume(VolumeChangeType::MuteToggle) {
 						Some(device) => {
 							for window in self.windows.borrow().to_owned() {
@@ -245,13 +278,15 @@ impl SwayOSDApplication {
 						None => return,
 					}
 				}
-				OsdTypes::CapsLock => {
-					let state = get_caps_lock_state();
+				(OsdTypes::CapsLock, led) => {
+					let state = get_caps_lock_state(led);
 					for window in self.windows.borrow().to_owned() {
 						window.changed_capslock(state)
 					}
 				}
-				OsdTypes::None => eprintln!("Failed to parse variant: {}!...", variant.print(true)),
+				(OsdTypes::None, _) => {
+					eprintln!("Failed to parse variant: {}!...", variant.print(true))
+				}
 			};
 		}
 
