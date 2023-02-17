@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use gtk::gio::{ApplicationFlags, Cancellable};
@@ -58,7 +58,7 @@ impl OsdTypes {
 pub struct SwayOSDApplication {
 	#[shrinkwrap(main_field)]
 	app: gtk::Application,
-	started: Rc<RefCell<bool>>,
+	started: Rc<Cell<bool>>,
 	action_id: Rc<RefCell<Option<SignalHandlerId>>>,
 	windows: Rc<RefCell<Vec<SwayosdWindow>>>,
 }
@@ -141,7 +141,7 @@ impl SwayOSDApplication {
 
 		SwayOSDApplication {
 			app,
-			started: Rc::new(RefCell::new(false)),
+			started: Rc::new(Cell::new(false)),
 			action_id: Rc::new(RefCell::new(None)),
 			windows: Rc::new(RefCell::new(Vec::new())),
 		}
@@ -150,10 +150,10 @@ impl SwayOSDApplication {
 	pub fn start(&self) -> i32 {
 		let s = self.clone();
 		self.app.connect_activate(move |_| {
-			if s.started.borrow().to_owned() == true {
+			if s.started.get() {
 				return;
 			}
-			s.started.replace(true);
+			s.started.set(true);
 
 			s.initialize();
 		});
@@ -178,7 +178,7 @@ impl SwayOSDApplication {
 	}
 
 	fn action_activated(&self, action: &SimpleAction, variant: Option<&Variant>) {
-		if self.started.borrow().to_owned() != true {
+		if !self.started.get() {
 			eprintln!("Please start the executable separately before running with args!...");
 			return;
 		}
