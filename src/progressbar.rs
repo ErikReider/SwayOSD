@@ -34,13 +34,13 @@ impl ProgressBar {
 					let style = win.style_context();
 					let fg = style
 						.style_property_for_state(
-							gtk::STYLE_PROPERTY_COLOR.to_string().as_str(),
+							&gtk::STYLE_PROPERTY_COLOR.to_string(),
 							StateFlags::NORMAL,
 						)
 						.get::<gdk::RGBA>();
 					let bg = style
 						.style_property_for_state(
-							gtk::STYLE_PROPERTY_BACKGROUND_COLOR.to_string().as_str(),
+							&gtk::STYLE_PROPERTY_BACKGROUND_COLOR.to_string(),
 							StateFlags::NORMAL,
 						)
 						.get::<gdk::RGBA>();

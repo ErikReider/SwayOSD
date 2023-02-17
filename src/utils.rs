@@ -1,7 +1,9 @@
 use gtk::gdk;
 
-use std::fs;
-use std::io::prelude::*;
+use std::{
+	fs::{self, File},
+	io::{prelude::*, BufReader},
+};
 
 use pulse::volume::Volume;
 use pulsectl::controllers::{types::DeviceInfo, DeviceControl, SinkController, SourceController};
@@ -9,29 +11,29 @@ use pulsectl::controllers::{types::DeviceInfo, DeviceControl, SinkController, So
 pub fn get_caps_lock_state() -> bool {
 	match fs::read_dir("/sys/class/leds") {
 		Ok(paths) => {
-			let mut state: bool = false;
-			for path in paths {
-				if let Ok(path) = path {
-					let path_str = path.path().display().to_string();
-					if path_str.contains("capslock") {
-						if let Ok(content) = read_file(path_str + "/brightness") {
-							if content.trim().eq("1") {
-								state = true;
-								break;
-							}
-						}
+			for path in paths.take_while(|x| x.is_ok()) {
+				let path_str = path.unwrap().path().display().to_string();
+				if !path_str.contains("capslock") {
+					continue;
+				}
+				if let Ok(content) = read_file(path_str + "/brightness") {
+					if content.trim().eq("1") {
+						return true;
 					}
 				}
 			}
-			return state;
+			return false;
 		}
-		Err(_) => false,
+		Err(_) => {
+			eprintln!("No LEDS found!...");
+			false
+		}
 	}
 }
 
 fn read_file(path: String) -> std::io::Result<String> {
-	let file = fs::File::open(path)?;
-	let mut buf_reader = std::io::BufReader::new(file);
+	let file = File::open(path)?;
+	let mut buf_reader = BufReader::new(file);
 	let mut contents = String::new();
 	buf_reader.read_to_string(&mut contents)?;
 	Ok(contents)
