@@ -2,15 +2,51 @@ use gtk::gdk;
 
 use std::{
 	fs::{self, File},
-	io::{prelude::*, BufReader},
+	io::{prelude::*, BufReader, Result},
 };
 
 use pulse::volume::Volume;
 use pulsectl::controllers::{types::DeviceInfo, DeviceControl, SinkController, SourceController};
 
-pub fn get_caps_lock_state(led: Option<String>) -> bool {
-	const BASE_PATH: &str = "/sys/class/leds";
-	match fs::read_dir(BASE_PATH) {
+pub enum LightDevice {
+	LED,
+	BACKLIGHT,
+}
+
+impl LightDevice {
+	pub fn get_path(&self) -> String {
+		format!(
+			"/sys/class/{}",
+			match self {
+				LightDevice::LED => "leds",
+				LightDevice::BACKLIGHT => "backlight",
+			}
+		)
+	}
+}
+
+#[derive(Debug)]
+pub struct LightProps {
+	brightness: i32,
+	max_brightness: i32,
+}
+
+impl LightProps {
+	pub fn get_binary_device_state(&self) -> Option<bool> {
+		if self.max_brightness > 1 {
+			return None;
+		}
+		return Some(self.brightness == 1);
+	}
+}
+
+pub fn get_light_state(
+	device_type: LightDevice,
+	light: Option<String>,
+	find: &str,
+) -> Option<LightProps> {
+	let base_path: &str = &device_type.get_path();
+	match fs::read_dir(base_path) {
 		Ok(paths) => {
 			let mut paths: Vec<String> = paths
 				.map_while(|path| {
@@ -18,35 +54,43 @@ pub fn get_caps_lock_state(led: Option<String>) -> bool {
 				})
 				.collect();
 
-			if let Some(led) = led {
-				let led = format!("{}/{}", BASE_PATH, led);
-				if paths.contains(&led) {
-					paths.insert(0, led);
+			if let Some(light) = light {
+				let light = format!("{}/{}", base_path, light);
+				if paths.ends_with(&[light.clone()]) {
+					paths.insert(0, light);
 				} else {
-					eprintln!("LED device {led} does not exist!... Trying other LEDs");
+					eprintln!("LED device {light} does not exist!... Trying other LEDs");
 				}
 			}
 
 			for path in paths {
-				if !path.contains("capslock") {
+				if !path.contains(find) {
 					continue;
 				}
-				if let Ok(content) = read_file(path + "/brightness") {
-					if content.trim().eq("1") {
-						return true;
+
+				match (
+					read_file(format!("{}/brightness", &path)).map(|x| x.trim().parse::<i32>()),
+					read_file(format!("{}/max_brightness", &path)).map(|x| x.trim().parse::<i32>()),
+				) {
+					(Ok(Ok(a)), Ok(Ok(b))) => {
+						return Some(LightProps {
+							brightness: a,
+							max_brightness: b,
+						});
 					}
-				}
+					_ => continue,
+				};
 			}
-			return false;
+			return None;
 		}
 		Err(_) => {
 			eprintln!("No LEDS found!...");
-			false
+			None
 		}
 	}
 }
 
-fn read_file(path: String) -> std::io::Result<String> {
+fn read_file(path: String) -> Result<String> {
 	let file = File::open(path)?;
 	let mut buf_reader = BufReader::new(file);
 	let mut contents = String::new();

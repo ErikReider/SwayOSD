@@ -27,7 +27,9 @@ impl SwayosdWindow {
 	/// Create a new window and assign it to the given application.
 	pub fn new(app: &gtk::Application, display: &gdk::Display, monitor: &gdk::Monitor) -> Self {
 		let window = gtk::ApplicationWindow::new(app);
-		window.style_context().add_class(&gtk::STYLE_CLASS_OSD.to_string());
+		window
+			.style_context()
+			.add_class(&gtk::STYLE_CLASS_OSD.to_string());
 
 		gtk_layer_shell::init_for_window(&window);
 		gtk_layer_shell::set_monitor(&window, &monitor);

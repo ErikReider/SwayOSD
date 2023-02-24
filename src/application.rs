@@ -279,9 +279,19 @@ impl SwayOSDApplication {
 					}
 				}
 				(OsdTypes::CapsLock, led) => {
-					let state = get_caps_lock_state(led);
-					for window in self.windows.borrow().to_owned() {
-						window.changed_capslock(state)
+					let props = get_light_state(LightDevice::LED, led, "capslock");
+					if let Some(props) = props {
+						match props.get_binary_device_state() {
+							Some(state) => {
+								for window in self.windows.borrow().to_owned() {
+									window.changed_capslock(state)
+								}
+							}
+							None => {
+								eprintln!("Max brightness of LED isn't \"1\"");
+								return;
+							}
+						};
 					}
 				}
 				(OsdTypes::None, _) => {
