@@ -167,17 +167,17 @@ pub fn change_brightness(change_type: BrightnessChangeType) {
 
 	const BRIGHTNESS_CHANGE_DELTA: u16 = 5;
 	match change_type {
-		BrightnessChangeType::Raise => {
+	BrightnessChangeType::Raise => {
             match change_bl(BRIGHTNESS_CHANGE_DELTA, Change::Regular, Direction::Inc, None) {
                 Err(e) => eprintln!("Brightness Error: {}", e),
                 _ => ()
             }
 		}
-		BrightnessChangeType::Lower => {
+	BrightnessChangeType::Lower => {
             match change_bl(BRIGHTNESS_CHANGE_DELTA, Change::Regular, Direction::Dec, None) {
                 Err(e) => eprintln!("Brightness Error: {}", e),
                 _ => ()
-            }
+			}
 		}
 	}
 }
