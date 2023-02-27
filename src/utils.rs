@@ -183,8 +183,7 @@ pub fn change_brightness(change_type: BrightnessChangeType) {
 }
 
 pub fn brightness_to_f64(dev: &Device) -> f64 {
-	let tmp_bright = dev.current() as f64;
-	tmp_bright / 255.0
+    dev.current() as f64
 }
 
 

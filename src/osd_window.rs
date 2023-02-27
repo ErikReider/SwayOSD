@@ -161,17 +161,29 @@ impl SwayosdWindow {
 
 		let bl = Device::new(None).unwrap();
         let brightness = brightness_to_f64(&bl);
+        // in some theme they have this notification display.
+        //let icon_prefix = "notification-display-brightness";
+        //let mut icon_name = String::new();
 
-		// let icon = self.build_icon_widget(icon_name);
-		let progress = self.build_progress_widget(brightness);
+        //if brightness > 0.0 && brightness <= 82.5
+        //{
+        //    icon_name = format!("{}-low", icon_prefix);
+        //} 
+        //else if brightness > 82.5 && brightness <= 165.0 {
+        //    icon_name = format!("{}-medium", icon_prefix);
+        //}
+        //else if brightness > 165.0 {
+        //    icon_name = format!("{}-medium", icon_prefix);
+        //}
+        //
+        
+        // Using the icon from Adwaita for now?
+        let icon_name = "display-brightness-symbolic";
+			
+		let icon = self.build_icon_widget(&icon_name);
+		let progress = self.build_progress_widget(brightness / 255.0);
 
-		//if device.mute {
-		//	progress.set_opacity(DISABLED_OPACITY);
-		//} else {
-		//	progress.set_opacity(1.0);
-		//}
-
-		// self.container.add(&icon);
+		self.container.add(&icon);
 		self.container.add(&progress.bar);
 
 		self.run_timeout();
