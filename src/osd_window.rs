@@ -6,7 +6,8 @@ use std::time::Duration;
 use gtk::{cairo, gdk, glib, prelude::*};
 use pulsectl::controllers::types::DeviceInfo;
 
-use crate::utils::{volume_to_f64, VolumeDeviceType};
+use crate::utils::{brightness_to_f64, volume_to_f64, VolumeDeviceType};
+use blight::Device;
 
 const DISABLED_OPACITY: f64 = 0.5;
 const ICON_SIZE: i32 = 32;
@@ -150,6 +151,27 @@ impl SwayosdWindow {
 		}
 
 		self.container.add(&icon);
+		self.container.add(&progress.bar);
+
+		self.run_timeout();
+	}
+
+	pub fn changed_brightness(&self) {
+		self.clear_osd();
+
+		let bl = Device::new(None).unwrap();
+        let brightness = brightness_to_f64(&bl);
+
+		// let icon = self.build_icon_widget(icon_name);
+		let progress = self.build_progress_widget(brightness);
+
+		//if device.mute {
+		//	progress.set_opacity(DISABLED_OPACITY);
+		//} else {
+		//	progress.set_opacity(1.0);
+		//}
+
+		// self.container.add(&icon);
 		self.container.add(&progress.bar);
 
 		self.run_timeout();

@@ -7,6 +7,7 @@ use std::{
 
 use pulse::volume::Volume;
 use pulsectl::controllers::{types::DeviceInfo, DeviceControl, SinkController, SourceController};
+use blight:: { change_bl, Change, Device, Direction };
 
 pub fn get_caps_lock_state(led: Option<String>) -> bool {
 	const BASE_PATH: &str = "/sys/class/leds";
@@ -63,6 +64,11 @@ pub enum VolumeChangeType {
 pub enum VolumeDeviceType {
 	Sink,
 	Source,
+}
+
+pub enum BrightnessChangeType {
+	Raise,
+	Lower,
 }
 
 pub fn change_sink_volume(change_type: VolumeChangeType) -> Option<DeviceInfo> {
@@ -156,6 +162,31 @@ pub fn change_source_volume(change_type: VolumeChangeType) -> Option<DeviceInfo>
 		}
 	}
 }
+
+pub fn change_brightness(change_type: BrightnessChangeType) {
+
+	const BRIGHTNESS_CHANGE_DELTA: u16 = 5;
+	match change_type {
+		BrightnessChangeType::Raise => {
+            match change_bl(BRIGHTNESS_CHANGE_DELTA, Change::Regular, Direction::Inc, None) {
+                Err(e) => eprintln!("Brightness Error: {}", e),
+                _ => ()
+            }
+		}
+		BrightnessChangeType::Lower => {
+            match change_bl(BRIGHTNESS_CHANGE_DELTA, Change::Regular, Direction::Dec, None) {
+                Err(e) => eprintln!("Brightness Error: {}", e),
+                _ => ()
+            }
+		}
+	}
+}
+
+pub fn brightness_to_f64(dev: &Device) -> f64 {
+	let tmp_bright = dev.current() as f64;
+	tmp_bright / 255.0
+}
+
 
 pub fn volume_to_f64(volume: &Volume) -> f64 {
 	let tmp_vol = f64::from(volume.0 - Volume::MUTED.0);
