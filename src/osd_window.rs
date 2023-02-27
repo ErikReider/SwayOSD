@@ -6,7 +6,7 @@ use std::time::Duration;
 use gtk::{cairo, gdk, glib, prelude::*};
 use pulsectl::controllers::types::DeviceInfo;
 
-use crate::utils::{brightness_to_f64, volume_to_f64, VolumeDeviceType};
+use crate::utils::{volume_to_f64, VolumeDeviceType};
 use blight::Device;
 
 const DISABLED_OPACITY: f64 = 0.5;
@@ -160,23 +160,8 @@ impl SwayosdWindow {
 		self.clear_osd();
 
 		let bl = Device::new(None).unwrap();
-        let brightness = brightness_to_f64(&bl);
-        // in some theme they have this notification display.
-        //let icon_prefix = "notification-display-brightness";
-        //let mut icon_name = String::new();
+        let brightness = bl.current() as f64;
 
-        //if brightness > 0.0 && brightness <= 82.5
-        //{
-        //    icon_name = format!("{}-low", icon_prefix);
-        //} 
-        //else if brightness > 82.5 && brightness <= 165.0 {
-        //    icon_name = format!("{}-medium", icon_prefix);
-        //}
-        //else if brightness > 165.0 {
-        //    icon_name = format!("{}-medium", icon_prefix);
-        //}
-        //
-        
         // Using the icon from Adwaita for now?
         let icon_name = "display-brightness-symbolic";
 			

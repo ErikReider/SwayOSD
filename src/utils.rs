@@ -7,7 +7,7 @@ use std::{
 
 use pulse::volume::Volume;
 use pulsectl::controllers::{types::DeviceInfo, DeviceControl, SinkController, SourceController};
-use blight:: { change_bl, Change, Device, Direction };
+use blight:: { change_bl, Change, Direction };
 
 pub fn get_caps_lock_state(led: Option<String>) -> bool {
 	const BASE_PATH: &str = "/sys/class/leds";
@@ -181,11 +181,6 @@ pub fn change_brightness(change_type: BrightnessChangeType) {
 		}
 	}
 }
-
-pub fn brightness_to_f64(dev: &Device) -> f64 {
-    dev.current() as f64
-}
-
 
 pub fn volume_to_f64(volume: &Volume) -> f64 {
 	let tmp_vol = f64::from(volume.0 - Volume::MUTED.0);
