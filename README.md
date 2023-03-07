@@ -38,6 +38,17 @@ bindsym XF86MonBrightnessUp exec swayosd --brightness raise
 bindsym XF86MonBrightnessDown exec swayosd --brightness lower
 ```
 
+## Brightness Control
+Some devices may not have permission to write `/sys/class/backlight/*/brightness`.
+Workaround will be adding a rule inside `udev`:
+
+`/etc/udev/rules.d/99-swayosd.rules`
+
+```
+ACTION=="add", SUBSYSTEM=="backlight", RUN+="/bin/chgrp video /sys/class/backlight/%k/brightness"
+ACTION=="add", SUBSYSTEM=="backlight", RUN+="/bin/chmod g+w /sys/class/backlight/%k/brightness"
+```
+
 ## Install
 
 Available on the AUR thanks to @jgmdev!
