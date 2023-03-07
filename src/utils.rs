@@ -5,9 +5,9 @@ use std::{
 	io::{prelude::*, BufReader},
 };
 
+use blight::{change_bl, err::BlibError, Change, Device, Direction};
 use pulse::volume::Volume;
 use pulsectl::controllers::{types::DeviceInfo, DeviceControl, SinkController, SourceController};
-use blight:: { change_bl, Change, Direction };
 
 pub fn get_caps_lock_state(led: Option<String>) -> bool {
 	const BASE_PATH: &str = "/sys/class/leds";
@@ -163,24 +163,30 @@ pub fn change_source_volume(change_type: VolumeChangeType) -> Option<DeviceInfo>
 	}
 }
 
-pub fn change_brightness(change_type: BrightnessChangeType) {
+pub fn change_brightness(change_type: BrightnessChangeType) -> Result<Option<Device>, BlibError> {
 
 	const BRIGHTNESS_CHANGE_DELTA: u16 = 5;
-	match change_type {
-	BrightnessChangeType::Raise => {
-            match change_bl(BRIGHTNESS_CHANGE_DELTA, Change::Regular, Direction::Inc, None) {
-                Err(e) => eprintln!("Brightness Error: {}", e),
-                _ => ()
-            }
-		}
-	BrightnessChangeType::Lower => {
-            match change_bl(BRIGHTNESS_CHANGE_DELTA, Change::Regular, Direction::Dec, None) {
-                Err(e) => eprintln!("Brightness Error: {}", e),
-                _ => ()
+	let direction = match change_type {
+		BrightnessChangeType::Raise => Direction::Inc,
+		BrightnessChangeType::Lower => {
+			let device = Device::new(None)?;
+			let change = device.calculate_change(BRIGHTNESS_CHANGE_DELTA, Direction::Dec) as f64;
+			let max = device.max() as f64;
+			// Limits the lowest brightness to 5%
+			if change / max < (BRIGHTNESS_CHANGE_DELTA as f64) * 0.01 {
+				return Ok(Some(device));
 			}
+			Direction::Dec
 		}
-	}
-}
+	};
+	match change_bl(BRIGHTNESS_CHANGE_DELTA, Change::Regular, direction, None) {
+		Err(e) => {
+			eprintln!("Brightness Error: {}", e);
+			Err(e)
+		}
+		_ => Ok(Some(Device::new(None)?)),
+ 	}
+ }
 
 pub fn volume_to_f64(volume: &Volume) -> f64 {
 	let tmp_vol = f64::from(volume.0 - Volume::MUTED.0);

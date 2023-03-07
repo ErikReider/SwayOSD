@@ -156,17 +156,16 @@ impl SwayosdWindow {
 		self.run_timeout();
 	}
 
-	pub fn changed_brightness(&self) {
+	pub fn changed_brightness(&self, device: &Device) {
 		self.clear_osd();
 
-		let bl = Device::new(None).unwrap();
-        let brightness = bl.current() as f64;
-
-        // Using the icon from Adwaita for now?
-        let icon_name = "display-brightness-symbolic";
-			
+		// Using the icon from Adwaita for now?
+		let icon_name = "display-brightness-symbolic";
 		let icon = self.build_icon_widget(&icon_name);
-		let progress = self.build_progress_widget(brightness / 255.0);
+
+		let brightness = device.current() as f64;
+		let max = device.max() as f64;
+		let progress = self.build_progress_widget(brightness / max);
 
 		self.container.add(&icon);
 		self.container.add(&progress.bar);

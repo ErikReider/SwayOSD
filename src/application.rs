@@ -122,7 +122,7 @@ impl SwayOSDApplication {
 			"Shows brightness osd and raises or loweres all available sources of brightness device",
 			Some("raise|lower"),
 		);
-        
+
 		// Parse args
 		app.connect_handle_local_options(|app, args| -> i32 {
 			let variant = args.to_variant();
@@ -303,16 +303,18 @@ impl SwayOSDApplication {
 					}
 				}
 				(OsdTypes::BrightnessRaise, _) => {
-					change_brightness(BrightnessChangeType::Raise);
-                    for window in self.windows.borrow().to_owned() {
-                        window.changed_brightness();
-                    }
+					if let Ok(Some(device)) = change_brightness(BrightnessChangeType::Raise) {
+						for window in self.windows.borrow().to_owned() {
+							window.changed_brightness(&device);
+						}
+					}
 				}
 				(OsdTypes::BrightnessLower, _) => {
-					change_brightness(BrightnessChangeType::Lower);
-                    for window in self.windows.borrow().to_owned() {
-                        window.changed_brightness();
-                    }
+					if let Ok(Some(device)) = change_brightness(BrightnessChangeType::Lower) {
+						for window in self.windows.borrow().to_owned() {
+							window.changed_brightness(&device);
+						}
+					}
 				}
 				(OsdTypes::CapsLock, led) => {
 					let state = get_caps_lock_state(led);
