@@ -25,6 +25,8 @@ pub enum OsdTypes {
 	SourceVolumeRaise = 5,
 	SourceVolumeLower = 6,
 	SourceVolumeMuteToggle = 7,
+	BrightnessRaise = 8,
+	BrightnessLower = 9,
 }
 impl OsdTypes {
 	pub fn as_str(&self) -> &'static str {
@@ -37,6 +39,8 @@ impl OsdTypes {
 			OsdTypes::SourceVolumeRaise => "SOURCE-VOLUME-RAISE",
 			OsdTypes::SourceVolumeLower => "SOURCE-VOLUME-LOWER",
 			OsdTypes::SourceVolumeMuteToggle => "SOURCE-VOLUME-MUTE-TOGGLE",
+			OsdTypes::BrightnessRaise => "BRIGHTNESS-RAISE",
+			OsdTypes::BrightnessLower => "BRIGHTNESS-LOWER",
 		}
 	}
 
@@ -50,6 +54,8 @@ impl OsdTypes {
 				"SOURCE-VOLUME-RAISE" => (OsdTypes::SourceVolumeRaise, value),
 				"SOURCE-VOLUME-LOWER" => (OsdTypes::SourceVolumeLower, value),
 				"SOURCE-VOLUME-MUTE-TOGGLE" => (OsdTypes::SourceVolumeMuteToggle, value),
+				"BRIGHTNESS-RAISE" => (OsdTypes::BrightnessRaise, value),
+				"BRIGHTNESS-LOWER" => (OsdTypes::BrightnessLower, value),
 				_ => (OsdTypes::None, None),
 			},
 			None => (OsdTypes::None, None),
@@ -107,6 +113,16 @@ impl SwayOSDApplication {
 			Some("raise|lower|mute-toggle"),
 		);
 
+		// Sink brightness cmdline arg
+		app.add_main_option(
+			"brightness",
+			glib::Char::from(0),
+			OptionFlags::NONE,
+			OptionArg::String,
+			"Shows brightness osd and raises or loweres all available sources of brightness device",
+			Some("raise|lower"),
+		);
+
 		// Parse args
 		app.connect_handle_local_options(|app, args| -> i32 {
 			let variant = args.to_variant();
@@ -146,6 +162,14 @@ impl SwayOSDApplication {
 					"mute-toggle" => (OsdTypes::SourceVolumeMuteToggle, None),
 					e => {
 						eprintln!("Unknown input volume mode: \"{}\"!...", e);
+						return 1;
+					}
+				},
+				"brightness" => match child.value().str().unwrap_or("") {
+					"raise" => (OsdTypes::BrightnessRaise, None),
+					"lower" => (OsdTypes::BrightnessLower, None),
+					e => {
+						eprintln!("Unknown brightness mode: \"{}\"!...", e);
 						return 1;
 					}
 				},
@@ -276,6 +300,20 @@ impl SwayOSDApplication {
 							}
 						}
 						None => return,
+					}
+				}
+				(OsdTypes::BrightnessRaise, _) => {
+					if let Ok(Some(device)) = change_brightness(BrightnessChangeType::Raise) {
+						for window in self.windows.borrow().to_owned() {
+							window.changed_brightness(&device);
+						}
+					}
+				}
+				(OsdTypes::BrightnessLower, _) => {
+					if let Ok(Some(device)) = change_brightness(BrightnessChangeType::Lower) {
+						for window in self.windows.borrow().to_owned() {
+							window.changed_brightness(&device);
+						}
 					}
 				}
 				(OsdTypes::CapsLock, led) => {

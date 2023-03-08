@@ -7,6 +7,7 @@ use gtk::{cairo, gdk, glib, prelude::*};
 use pulsectl::controllers::types::DeviceInfo;
 
 use crate::utils::{volume_to_f64, VolumeDeviceType};
+use blight::Device;
 
 const DISABLED_OPACITY: f64 = 0.5;
 const ICON_SIZE: i32 = 32;
@@ -148,6 +149,23 @@ impl SwayosdWindow {
 		} else {
 			progress.set_opacity(1.0);
 		}
+
+		self.container.add(&icon);
+		self.container.add(&progress.bar);
+
+		self.run_timeout();
+	}
+
+	pub fn changed_brightness(&self, device: &Device) {
+		self.clear_osd();
+
+		// Using the icon from Adwaita for now?
+		let icon_name = "display-brightness-symbolic";
+		let icon = self.build_icon_widget(&icon_name);
+
+		let brightness = device.current() as f64;
+		let max = device.max() as f64;
+		let progress = self.build_progress_widget(brightness / max);
 
 		self.container.add(&icon);
 		self.container.add(&progress.bar);

@@ -12,3 +12,4 @@ shrinkwraprs = "0.3.0"
 cascade = "1.0.1"
 pulse = { version = "2.26.0", package = "libpulse-binding" }
 pulsectl-rs = "0.3.2"
+blight = "0.4.1"
