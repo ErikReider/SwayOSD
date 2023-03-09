@@ -39,23 +39,22 @@ bindsym XF86MonBrightnessDown exec swayosd --brightness lower
 ```
 
 ## Brightness Control
+
 Some devices may not have permission to write `/sys/class/backlight/*/brightness`.
 
 Workaround will be adding a rule inside `udev`:
 
-### Add `udev` rules
+1. Add `udev` rules:
+
 `/etc/udev/rules.d/99-swayosd.rules`
 
-```
+```udevrules
 ACTION=="add", SUBSYSTEM=="backlight", RUN+="/bin/chgrp video /sys/class/backlight/%k/brightness"
 ACTION=="add", SUBSYSTEM=="backlight", RUN+="/bin/chmod g+w /sys/class/backlight/%k/brightness"
 ```
 
-### Add user to `video` group
-
-- Copy `sudo usermod -a -G video $LOGNAME` into a terminal
-- Logout and log back in
-- Fire up a terminal and type `groups` again, `video` should be listed alongside other groups.
+2. Add user to `video` group by running `sudo usermod -a -G video $USER`
+3. Reboot system for udev rules to take effect
 
 ## Install
 
