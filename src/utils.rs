@@ -93,12 +93,12 @@ pub fn change_sink_volume(
 		}
 	};
 
-	const VOLUME_CHANGE_DELTA: f64 = 0.05;
-	let volume_delta = if let Ok(step) = step.unwrap_or(String::new()).parse::<u8>() {
-		(step as f64) * 0.01
-	} else {
-		VOLUME_CHANGE_DELTA
-	};
+	const VOLUME_CHANGE_DELTA: u8 = 5;
+	let volume_delta = step
+		.unwrap_or(String::new())
+		.parse::<u8>()
+		.unwrap_or(VOLUME_CHANGE_DELTA) as f64
+		* 0.01;
 	match change_type {
 		VolumeChangeType::Raise => {
 			controller.increase_device_volume_by_percent(device.index, volume_delta)
@@ -147,12 +147,12 @@ pub fn change_source_volume(
 		}
 	};
 
-	const VOLUME_CHANGE_DELTA: f64 = 0.05;
-	let volume_delta = if let Ok(step) = step.unwrap_or(String::new()).parse::<u8>() {
-		(step as f64) * 0.01
-	} else {
-		VOLUME_CHANGE_DELTA
-	};
+	const VOLUME_CHANGE_DELTA: u8 = 5;
+	let volume_delta = step
+		.unwrap_or(String::new())
+		.parse::<u8>()
+		.unwrap_or(VOLUME_CHANGE_DELTA) as f64
+		* 0.01;
 	match change_type {
 		VolumeChangeType::Raise => {
 			controller.increase_device_volume_by_percent(device.index, volume_delta)
@@ -183,12 +183,11 @@ pub fn change_brightness(
 	change_type: BrightnessChangeType,
 	step: Option<String>,
 ) -> Result<Option<Device>, BlibError> {
-	const BRIGHTNESS_CHANGE_DELTA: u16 = 5;
-	let brightness_delta = if let Ok(step) = step.unwrap_or(String::new()).parse::<u8>() {
-		step as u16
-	} else {
-		BRIGHTNESS_CHANGE_DELTA
-	};
+	const BRIGHTNESS_CHANGE_DELTA: u8 = 5;
+	let brightness_delta: u16 = step
+		.unwrap_or(String::new())
+		.parse::<u8>()
+		.unwrap_or(BRIGHTNESS_CHANGE_DELTA) as u16;
 	let direction = match change_type {
 		BrightnessChangeType::Raise => Direction::Inc,
 		BrightnessChangeType::Lower => {

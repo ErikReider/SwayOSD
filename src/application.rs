@@ -281,63 +281,45 @@ impl SwayOSDApplication {
 			};
 			match OsdTypes::parse(osd_type, value) {
 				(OsdTypes::SinkVolumeRaise, step) => {
-					match change_sink_volume(VolumeChangeType::Raise, step) {
-						Some(device) => {
-							for window in self.windows.borrow().to_owned() {
-								window.changed_volume(&device, VolumeDeviceType::Sink);
-							}
+					if let Some(device) = change_sink_volume(VolumeChangeType::Raise, step) {
+						for window in self.windows.borrow().to_owned() {
+							window.changed_volume(&device, VolumeDeviceType::Sink);
 						}
-						None => (),
 					}
 				}
 				(OsdTypes::SinkVolumeLower, step) => {
-					match change_sink_volume(VolumeChangeType::Lower, step) {
-						Some(device) => {
-							for window in self.windows.borrow().to_owned() {
-								window.changed_volume(&device, VolumeDeviceType::Sink);
-							}
+					if let Some(device) = change_sink_volume(VolumeChangeType::Lower, step) {
+						for window in self.windows.borrow().to_owned() {
+							window.changed_volume(&device, VolumeDeviceType::Sink);
 						}
-						None => (),
 					}
 				}
 				(OsdTypes::SinkVolumeMuteToggle, _) => {
-					match change_sink_volume(VolumeChangeType::MuteToggle, None) {
-						Some(device) => {
-							for window in self.windows.borrow().to_owned() {
-								window.changed_volume(&device, VolumeDeviceType::Sink);
-							}
+					if let Some(device) = change_sink_volume(VolumeChangeType::MuteToggle, None) {
+						for window in self.windows.borrow().to_owned() {
+							window.changed_volume(&device, VolumeDeviceType::Sink);
 						}
-						None => (),
 					}
 				}
 				(OsdTypes::SourceVolumeRaise, step) => {
-					match change_source_volume(VolumeChangeType::Raise, step) {
-						Some(device) => {
-							for window in self.windows.borrow().to_owned() {
-								window.changed_volume(&device, VolumeDeviceType::Source);
-							}
+					if let Some(device) = change_source_volume(VolumeChangeType::Raise, step) {
+						for window in self.windows.borrow().to_owned() {
+							window.changed_volume(&device, VolumeDeviceType::Source);
 						}
-						None => (),
 					}
 				}
 				(OsdTypes::SourceVolumeLower, step) => {
-					match change_source_volume(VolumeChangeType::Lower, step) {
-						Some(device) => {
-							for window in self.windows.borrow().to_owned() {
-								window.changed_volume(&device, VolumeDeviceType::Source);
-							}
+					if let Some(device) = change_source_volume(VolumeChangeType::Lower, step) {
+						for window in self.windows.borrow().to_owned() {
+							window.changed_volume(&device, VolumeDeviceType::Source);
 						}
-						None => (),
 					}
 				}
 				(OsdTypes::SourceVolumeMuteToggle, _) => {
-					match change_source_volume(VolumeChangeType::MuteToggle, None) {
-						Some(device) => {
-							for window in self.windows.borrow().to_owned() {
-								window.changed_volume(&device, VolumeDeviceType::Source);
-							}
+					if let Some(device) = change_source_volume(VolumeChangeType::MuteToggle, None) {
+						for window in self.windows.borrow().to_owned() {
+							window.changed_volume(&device, VolumeDeviceType::Source);
 						}
-						None => (),
 					}
 				}
 				// TODO: Brightness
