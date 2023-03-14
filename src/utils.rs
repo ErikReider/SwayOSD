@@ -71,7 +71,10 @@ pub enum BrightnessChangeType {
 	Lower,
 }
 
-pub fn change_sink_volume(change_type: VolumeChangeType) -> Option<DeviceInfo> {
+pub fn change_sink_volume(
+	change_type: VolumeChangeType,
+	step: Option<String>,
+) -> Option<DeviceInfo> {
 	let mut controller = SinkController::create().unwrap();
 
 	let server_info = controller.get_server_info();
@@ -91,12 +94,17 @@ pub fn change_sink_volume(change_type: VolumeChangeType) -> Option<DeviceInfo> {
 	};
 
 	const VOLUME_CHANGE_DELTA: f64 = 0.05;
+	let volume_delta = if let Ok(step) = step.unwrap_or(String::new()).parse::<u8>() {
+		(step as f64) * 0.01
+	} else {
+		VOLUME_CHANGE_DELTA
+	};
 	match change_type {
 		VolumeChangeType::Raise => {
-			controller.increase_device_volume_by_percent(device.index, VOLUME_CHANGE_DELTA)
+			controller.increase_device_volume_by_percent(device.index, volume_delta)
 		}
 		VolumeChangeType::Lower => {
-			controller.decrease_device_volume_by_percent(device.index, VOLUME_CHANGE_DELTA)
+			controller.decrease_device_volume_by_percent(device.index, volume_delta)
 		}
 		VolumeChangeType::MuteToggle => {
 			let op = controller.handler.introspect.set_sink_mute_by_index(
@@ -117,7 +125,10 @@ pub fn change_sink_volume(change_type: VolumeChangeType) -> Option<DeviceInfo> {
 	}
 }
 
-pub fn change_source_volume(change_type: VolumeChangeType) -> Option<DeviceInfo> {
+pub fn change_source_volume(
+	change_type: VolumeChangeType,
+	step: Option<String>,
+) -> Option<DeviceInfo> {
 	let mut controller = SourceController::create().unwrap();
 
 	let server_info = controller.get_server_info();
@@ -137,12 +148,17 @@ pub fn change_source_volume(change_type: VolumeChangeType) -> Option<DeviceInfo>
 	};
 
 	const VOLUME_CHANGE_DELTA: f64 = 0.05;
+	let volume_delta = if let Ok(step) = step.unwrap_or(String::new()).parse::<u8>() {
+		(step as f64) * 0.01
+	} else {
+		VOLUME_CHANGE_DELTA
+	};
 	match change_type {
 		VolumeChangeType::Raise => {
-			controller.increase_device_volume_by_percent(device.index, VOLUME_CHANGE_DELTA)
+			controller.increase_device_volume_by_percent(device.index, volume_delta)
 		}
 		VolumeChangeType::Lower => {
-			controller.decrease_device_volume_by_percent(device.index, VOLUME_CHANGE_DELTA)
+			controller.decrease_device_volume_by_percent(device.index, volume_delta)
 		}
 		VolumeChangeType::MuteToggle => {
 			let op = controller.handler.introspect.set_source_mute_by_index(
@@ -163,30 +179,37 @@ pub fn change_source_volume(change_type: VolumeChangeType) -> Option<DeviceInfo>
 	}
 }
 
-pub fn change_brightness(change_type: BrightnessChangeType) -> Result<Option<Device>, BlibError> {
-
+pub fn change_brightness(
+	change_type: BrightnessChangeType,
+	step: Option<String>,
+) -> Result<Option<Device>, BlibError> {
 	const BRIGHTNESS_CHANGE_DELTA: u16 = 5;
+	let brightness_delta = if let Ok(step) = step.unwrap_or(String::new()).parse::<u8>() {
+		step as u16
+	} else {
+		BRIGHTNESS_CHANGE_DELTA
+	};
 	let direction = match change_type {
 		BrightnessChangeType::Raise => Direction::Inc,
 		BrightnessChangeType::Lower => {
 			let device = Device::new(None)?;
-			let change = device.calculate_change(BRIGHTNESS_CHANGE_DELTA, Direction::Dec) as f64;
+			let change = device.calculate_change(brightness_delta, Direction::Dec) as f64;
 			let max = device.max() as f64;
 			// Limits the lowest brightness to 5%
-			if change / max < (BRIGHTNESS_CHANGE_DELTA as f64) * 0.01 {
+			if change / max < (brightness_delta as f64) * 0.01 {
 				return Ok(Some(device));
 			}
 			Direction::Dec
 		}
 	};
-	match change_bl(BRIGHTNESS_CHANGE_DELTA, Change::Regular, direction, None) {
+	match change_bl(brightness_delta, Change::Regular, direction, None) {
 		Err(e) => {
 			eprintln!("Brightness Error: {}", e);
 			Err(e)
 		}
 		_ => Ok(Some(Device::new(None)?)),
- 	}
- }
+	}
+}
 
 pub fn volume_to_f64(volume: &Volume) -> f64 {
 	let tmp_vol = f64::from(volume.0 - Volume::MUTED.0);
