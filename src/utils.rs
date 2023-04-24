@@ -1,14 +1,29 @@
 use gtk::gdk;
+use lazy_static::lazy_static;
 use substring::Substring;
 
 use std::{
 	fs::{self, File},
 	io::{prelude::*, BufReader},
+	sync::Mutex,
 };
 
 use blight::{change_bl, err::BlibError, Change, Device, Direction};
 use pulse::volume::Volume;
 use pulsectl::controllers::{types::DeviceInfo, DeviceControl, SinkController, SourceController};
+
+lazy_static! {
+	static ref MAX_VOLUME: Mutex<u8> = { Mutex::new(150 as u8) };
+}
+
+pub fn get_max_volume() -> u8 {
+	MAX_VOLUME.lock().unwrap().clone()
+}
+
+pub fn set_max_volume(volume: u8) {
+	let mut vol = MAX_VOLUME.lock().unwrap();
+	*vol = volume;
+}
 
 pub fn get_caps_lock_state(led: Option<String>) -> bool {
 	const BASE_PATH: &str = "/sys/class/leds";
@@ -102,6 +117,7 @@ pub fn change_sink_volume(
 		* 0.01;
 	match change_type {
 		VolumeChangeType::Raise => {
+			let max_volume = get_max_volume();
 			let mut at_max_volume = false;
 			// iterate through all devices in the volume group
 			for v in device.volume.get() {
@@ -113,7 +129,7 @@ pub fn change_sink_volume(
 				volume_string = volume_string.substring(0, volume_string.len() - 1);
 
 				// parse the string to a u8, we do it this convoluted to get the % and I haven't found another way yet
-				if volume_string.parse::<u8>().unwrap() + VOLUME_CHANGE_DELTA > 150 {
+				if volume_string.parse::<u8>().unwrap() + VOLUME_CHANGE_DELTA > max_volume {
 					at_max_volume = true;
 					break;
 				}
