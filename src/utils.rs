@@ -13,7 +13,7 @@ use pulse::volume::Volume;
 use pulsectl::controllers::{types::DeviceInfo, DeviceControl, SinkController, SourceController};
 
 lazy_static! {
-	static ref MAX_VOLUME: Mutex<u8> = Mutex::new(150_u8);
+	static ref MAX_VOLUME: Mutex<u8> = Mutex::new(100_u8);
 }
 
 pub fn get_max_volume() -> u8 {
