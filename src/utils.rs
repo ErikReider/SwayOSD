@@ -13,16 +13,18 @@ use pulse::volume::Volume;
 use pulsectl::controllers::{types::DeviceInfo, DeviceControl, SinkController, SourceController};
 
 lazy_static! {
-	static ref MAX_VOLUME: Mutex<u8> = Mutex::new(150 as u8);
+	static ref MAX_VOLUME: Mutex<u8> = Mutex::new(150_u8);
 }
 
 pub fn get_max_volume() -> u8 {
-	MAX_VOLUME.lock().unwrap().clone()
+	*MAX_VOLUME.lock().unwrap()
 }
 
-pub fn set_max_volume(volume: u8) {
+pub fn set_max_volume(volume: Option<String>) {
+	let setter: u8 = volume.unwrap().parse().unwrap();
+
 	let mut vol = MAX_VOLUME.lock().unwrap();
-	*vol = volume;
+	*vol = setter;
 }
 
 pub fn get_caps_lock_state(led: Option<String>) -> bool {
