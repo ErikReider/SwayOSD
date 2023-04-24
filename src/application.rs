@@ -27,6 +27,7 @@ pub enum OsdTypes {
 	SourceVolumeMuteToggle = 7,
 	BrightnessRaise = 8,
 	BrightnessLower = 9,
+	MaxVolume = 10,
 }
 impl OsdTypes {
 	pub fn as_str(&self) -> &'static str {
@@ -41,6 +42,7 @@ impl OsdTypes {
 			OsdTypes::SourceVolumeMuteToggle => "SOURCE-VOLUME-MUTE-TOGGLE",
 			OsdTypes::BrightnessRaise => "BRIGHTNESS-RAISE",
 			OsdTypes::BrightnessLower => "BRIGHTNESS-LOWER",
+			OsdTypes::MaxVolume => "MAX-VOLUME",
 		}
 	}
 
@@ -56,6 +58,7 @@ impl OsdTypes {
 				"SOURCE-VOLUME-MUTE-TOGGLE" => (OsdTypes::SourceVolumeMuteToggle, value),
 				"BRIGHTNESS-RAISE" => (OsdTypes::BrightnessRaise, value),
 				"BRIGHTNESS-LOWER" => (OsdTypes::BrightnessLower, value),
+				"MAX-VOLUME" => (OsdTypes::MaxVolume, value),
 				_ => (OsdTypes::None, None),
 			},
 			None => (OsdTypes::None, None),
@@ -121,6 +124,14 @@ impl SwayOSDApplication {
 			OptionArg::String,
 			"Shows brightness osd and raises or loweres all available sources of brightness device",
 			Some("raise|lower|(±)number"),
+		);
+		app.add_main_option(
+			"max-volume",
+			glib::Char::from(0),
+			OptionFlags::NONE,
+			OptionArg::String,
+			"Sets the maximum Volume",
+			Some("(+)number"),
 		);
 
 		// Parse args
@@ -205,6 +216,16 @@ impl SwayOSDApplication {
 						("lower", _) => (OsdTypes::BrightnessLower, None),
 						(e, _) => {
 							eprintln!("Unknown brightness mode: \"{}\"!...", e);
+							return 1;
+						}
+					}
+				}
+				"max-volume" => {
+					let value = child.value().str().unwrap_or("150").trim();
+					match value.parse::<u8>() {
+						Ok(_) => (OsdTypes::MaxVolume, Some(value.to_string())),
+						Err(_) => {
+							eprintln!("{} is not a number between 0 and {}!", value, u8::MAX);
 							return 1;
 						}
 					}
@@ -343,6 +364,7 @@ impl SwayOSDApplication {
 						window.changed_capslock(state)
 					}
 				}
+				(OsdTypes::MaxVolume, max) => set_max_volume(max),
 				(OsdTypes::None, _) => {
 					eprintln!("Failed to parse variant: {}!...", variant.print(true))
 				}
