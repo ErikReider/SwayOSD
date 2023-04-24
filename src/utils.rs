@@ -1,4 +1,5 @@
 use gtk::gdk;
+use substring::Substring;
 
 use std::{
 	fs::{self, File},
@@ -101,7 +102,29 @@ pub fn change_sink_volume(
 		* 0.01;
 	match change_type {
 		VolumeChangeType::Raise => {
-			controller.increase_device_volume_by_percent(device.index, volume_delta)
+			let mut at_max_volume = false;
+			// iterate through all devices in the volume group
+			for v in device.volume.get() {
+				// the string looks like this: ' NUMBER% '
+				let volume_string = v.to_string();
+				// trim it to remove the empty space 'NUMBER%'
+				let mut volume_string = volume_string.trim();
+				// remove the '%'
+				volume_string = volume_string.substring(0, volume_string.len() - 1);
+
+				// parse the string to a u8, we do it this convoluted to get the % and I haven't found another way yet
+				if volume_string.parse::<u8>().unwrap() + VOLUME_CHANGE_DELTA > 150 {
+					at_max_volume = true;
+					break;
+				}
+			}
+			// if we aren't at max volume increase it by the given amount
+			if !at_max_volume {
+				controller.increase_device_volume_by_percent(device.index, volume_delta)
+			} else {
+				// still show the osd
+				controller.increase_device_volume_by_percent(device.index, 0.0)
+			}
 		}
 		VolumeChangeType::Lower => {
 			controller.decrease_device_volume_by_percent(device.index, volume_delta)
