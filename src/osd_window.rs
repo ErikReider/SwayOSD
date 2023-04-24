@@ -30,10 +30,10 @@ impl SwayosdWindow {
 		let window = gtk::ApplicationWindow::new(app);
 		window
 			.style_context()
-			.add_class(&gtk::STYLE_CLASS_OSD.to_string());
+			.add_class(gtk::STYLE_CLASS_OSD);
 
 		gtk_layer_shell::init_for_window(&window);
-		gtk_layer_shell::set_monitor(&window, &monitor);
+		gtk_layer_shell::set_monitor(&window, monitor);
 		gtk_layer_shell::set_namespace(&window, "swayosd");
 
 		gtk_layer_shell::set_layer(&window, gtk_layer_shell::Layer::Overlay);
@@ -112,7 +112,7 @@ impl SwayosdWindow {
 
 		s.calc_margin();
 
-		return s;
+		s
 	}
 
 	fn calc_margin(&self) {
@@ -163,7 +163,7 @@ impl SwayosdWindow {
 
 		// Using the icon from Adwaita for now?
 		let icon_name = "display-brightness-symbolic";
-		let icon = self.build_icon_widget(&icon_name);
+		let icon = self.build_icon_widget(icon_name);
 
 		let brightness = device.current() as f64;
 		let max = device.max() as f64;

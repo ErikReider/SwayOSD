@@ -219,7 +219,7 @@ impl SwayOSDApplication {
 				value.unwrap_or(String::new()).to_variant(),
 			]);
 			app.activate_action(ACTION_NAME, Some(&variant));
-			return 0;
+			0
 		});
 
 		SwayOSDApplication {
@@ -257,7 +257,7 @@ impl SwayOSDApplication {
 			}
 		}
 
-		return self.app.run().into();
+		self.app.run().into()
 	}
 
 	fn action_activated(&self, action: &SimpleAction, variant: Option<&Variant>) {
@@ -365,7 +365,7 @@ impl SwayOSDApplication {
 		let _self = self;
 
 		display.connect_opened(clone!(@strong _self => move |d| {
-			_self.init_windows(&d);
+			_self.init_windows(d);
 		}));
 
 		display.connect_closed(clone!(@strong _self => move |_d, is_error| {
@@ -376,16 +376,16 @@ impl SwayOSDApplication {
 		}));
 
 		display.connect_monitor_added(clone!(@strong _self => move |d, mon| {
-			_self.add_window(&d, &mon);
+			_self.add_window(d, mon);
 		}));
 
 		display.connect_monitor_removed(clone!(@strong _self => move |d, _mon| {
-			_self.init_windows(&d);
+			_self.init_windows(d);
 		}));
 	}
 
 	fn add_window(&self, display: &gdk::Display, monitor: &gdk::Monitor) {
-		let win = SwayosdWindow::new(&self.app, &display, &monitor);
+		let win = SwayosdWindow::new(&self.app, display, monitor);
 		self.windows.borrow_mut().push(win);
 	}
 
@@ -397,7 +397,7 @@ impl SwayOSDApplication {
 				Some(x) => x,
 				_ => continue,
 			};
-			self.add_window(&display, &monitor);
+			self.add_window(display, &monitor);
 		}
 	}
 

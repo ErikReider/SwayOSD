@@ -39,7 +39,7 @@ pub fn get_caps_lock_state(led: Option<String>) -> bool {
 					}
 				}
 			}
-			return false;
+			false
 		}
 		Err(_) => {
 			eprintln!("No LEDS found!...");
