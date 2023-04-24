@@ -221,7 +221,7 @@ impl SwayOSDApplication {
 					}
 				}
 				"max-volume" => {
-					let value = child.value().str().unwrap_or("150").trim();
+					let value = child.value().str().unwrap_or("").trim();
 					match value.parse::<u8>() {
 						Ok(_) => (OsdTypes::MaxVolume, Some(value.to_string())),
 						Err(_) => {
