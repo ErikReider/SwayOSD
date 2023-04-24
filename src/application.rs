@@ -257,7 +257,7 @@ impl SwayOSDApplication {
 			}
 		}
 
-		return self.app.run();
+		return self.app.run().into();
 	}
 
 	fn action_activated(&self, action: &SimpleAction, variant: Option<&Variant>) {
