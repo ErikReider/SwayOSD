@@ -16,7 +16,7 @@ const ACTION_NAME: &str = "action";
 const ACTION_FORMAT: &str = "(ss)";
 
 #[derive(Debug, PartialEq)]
-pub enum OsdTypes {
+pub enum ArgTypes {
 	None = 0,
 	CapsLock = 1,
 	SinkVolumeRaise = 2,
@@ -29,39 +29,39 @@ pub enum OsdTypes {
 	BrightnessLower = 9,
 	MaxVolume = 10,
 }
-impl OsdTypes {
+impl ArgTypes {
 	pub fn as_str(&self) -> &'static str {
 		match self {
-			OsdTypes::None => "NONE",
-			OsdTypes::CapsLock => "CAPSLOCK",
-			OsdTypes::SinkVolumeRaise => "SINK-VOLUME-RAISE",
-			OsdTypes::SinkVolumeLower => "SINK-VOLUME-LOWER",
-			OsdTypes::SinkVolumeMuteToggle => "SINK-VOLUME-MUTE-TOGGLE",
-			OsdTypes::SourceVolumeRaise => "SOURCE-VOLUME-RAISE",
-			OsdTypes::SourceVolumeLower => "SOURCE-VOLUME-LOWER",
-			OsdTypes::SourceVolumeMuteToggle => "SOURCE-VOLUME-MUTE-TOGGLE",
-			OsdTypes::BrightnessRaise => "BRIGHTNESS-RAISE",
-			OsdTypes::BrightnessLower => "BRIGHTNESS-LOWER",
-			OsdTypes::MaxVolume => "MAX-VOLUME",
+			ArgTypes::None => "NONE",
+			ArgTypes::CapsLock => "CAPSLOCK",
+			ArgTypes::SinkVolumeRaise => "SINK-VOLUME-RAISE",
+			ArgTypes::SinkVolumeLower => "SINK-VOLUME-LOWER",
+			ArgTypes::SinkVolumeMuteToggle => "SINK-VOLUME-MUTE-TOGGLE",
+			ArgTypes::SourceVolumeRaise => "SOURCE-VOLUME-RAISE",
+			ArgTypes::SourceVolumeLower => "SOURCE-VOLUME-LOWER",
+			ArgTypes::SourceVolumeMuteToggle => "SOURCE-VOLUME-MUTE-TOGGLE",
+			ArgTypes::BrightnessRaise => "BRIGHTNESS-RAISE",
+			ArgTypes::BrightnessLower => "BRIGHTNESS-LOWER",
+			ArgTypes::MaxVolume => "MAX-VOLUME",
 		}
 	}
 
 	pub fn parse(osd_type: Option<String>, value: Option<String>) -> (Self, Option<String>) {
 		match osd_type {
 			Some(osd_type) => match osd_type.as_str() {
-				"CAPSLOCK" => (OsdTypes::CapsLock, value),
-				"SINK-VOLUME-RAISE" => (OsdTypes::SinkVolumeRaise, value),
-				"SINK-VOLUME-LOWER" => (OsdTypes::SinkVolumeLower, value),
-				"SINK-VOLUME-MUTE-TOGGLE" => (OsdTypes::SinkVolumeMuteToggle, value),
-				"SOURCE-VOLUME-RAISE" => (OsdTypes::SourceVolumeRaise, value),
-				"SOURCE-VOLUME-LOWER" => (OsdTypes::SourceVolumeLower, value),
-				"SOURCE-VOLUME-MUTE-TOGGLE" => (OsdTypes::SourceVolumeMuteToggle, value),
-				"BRIGHTNESS-RAISE" => (OsdTypes::BrightnessRaise, value),
-				"BRIGHTNESS-LOWER" => (OsdTypes::BrightnessLower, value),
-				"MAX-VOLUME" => (OsdTypes::MaxVolume, value),
-				_ => (OsdTypes::None, None),
+				"CAPSLOCK" => (ArgTypes::CapsLock, value),
+				"SINK-VOLUME-RAISE" => (ArgTypes::SinkVolumeRaise, value),
+				"SINK-VOLUME-LOWER" => (ArgTypes::SinkVolumeLower, value),
+				"SINK-VOLUME-MUTE-TOGGLE" => (ArgTypes::SinkVolumeMuteToggle, value),
+				"SOURCE-VOLUME-RAISE" => (ArgTypes::SourceVolumeRaise, value),
+				"SOURCE-VOLUME-LOWER" => (ArgTypes::SourceVolumeLower, value),
+				"SOURCE-VOLUME-MUTE-TOGGLE" => (ArgTypes::SourceVolumeMuteToggle, value),
+				"BRIGHTNESS-RAISE" => (ArgTypes::BrightnessRaise, value),
+				"BRIGHTNESS-LOWER" => (ArgTypes::BrightnessLower, value),
+				"MAX-VOLUME" => (ArgTypes::MaxVolume, value),
+				_ => (ArgTypes::None, None),
 			},
-			None => (OsdTypes::None, None),
+			None => (ArgTypes::None, None),
 		}
 	}
 }
@@ -149,10 +149,10 @@ impl SwayOSDApplication {
 				return 1;
 			}
 			let child: DictEntry<String, Variant> = variant.child_get(0);
-			let (osd_type, value): (OsdTypes, Option<String>) = match child.key().as_str() {
-				"caps-lock" => (OsdTypes::CapsLock, None),
+			let (osd_type, value): (ArgTypes, Option<String>) = match child.key().as_str() {
+				"caps-lock" => (ArgTypes::CapsLock, None),
 				"caps-lock-led" => match child.value().str() {
-					Some(led) => (OsdTypes::CapsLock, Some(led.to_owned())),
+					Some(led) => (ArgTypes::CapsLock, Some(led.to_owned())),
 					None => {
 						eprintln!("Value for caps-lock-led isn't a string!...");
 						return 1;
@@ -164,15 +164,15 @@ impl SwayOSDApplication {
 						// Parse custom step values
 						(_, Ok(num)) => (
 							if num.is_positive() {
-								OsdTypes::SinkVolumeRaise
+								ArgTypes::SinkVolumeRaise
 							} else {
-								OsdTypes::SinkVolumeLower
+								ArgTypes::SinkVolumeLower
 							},
 							Some(num.abs().to_string()),
 						),
-						("raise", _) => (OsdTypes::SinkVolumeRaise, None),
-						("lower", _) => (OsdTypes::SinkVolumeLower, None),
-						("mute-toggle", _) => (OsdTypes::SinkVolumeMuteToggle, None),
+						("raise", _) => (ArgTypes::SinkVolumeRaise, None),
+						("lower", _) => (ArgTypes::SinkVolumeLower, None),
+						("mute-toggle", _) => (ArgTypes::SinkVolumeMuteToggle, None),
 						(e, _) => {
 							eprintln!("Unknown output volume mode: \"{}\"!...", e);
 							return 1;
@@ -185,15 +185,15 @@ impl SwayOSDApplication {
 						// Parse custom step values
 						(_, Ok(num)) => (
 							if num.is_positive() {
-								OsdTypes::SourceVolumeRaise
+								ArgTypes::SourceVolumeRaise
 							} else {
-								OsdTypes::SourceVolumeLower
+								ArgTypes::SourceVolumeLower
 							},
 							Some(num.abs().to_string()),
 						),
-						("raise", _) => (OsdTypes::SourceVolumeRaise, None),
-						("lower", _) => (OsdTypes::SourceVolumeLower, None),
-						("mute-toggle", _) => (OsdTypes::SourceVolumeMuteToggle, None),
+						("raise", _) => (ArgTypes::SourceVolumeRaise, None),
+						("lower", _) => (ArgTypes::SourceVolumeLower, None),
+						("mute-toggle", _) => (ArgTypes::SourceVolumeMuteToggle, None),
 						(e, _) => {
 							eprintln!("Unknown input volume mode: \"{}\"!...", e);
 							return 1;
@@ -206,14 +206,14 @@ impl SwayOSDApplication {
 						// Parse custom step values
 						(_, Ok(num)) => (
 							if num.is_positive() {
-								OsdTypes::BrightnessRaise
+								ArgTypes::BrightnessRaise
 							} else {
-								OsdTypes::BrightnessLower
+								ArgTypes::BrightnessLower
 							},
 							Some(num.abs().to_string()),
 						),
-						("raise", _) => (OsdTypes::BrightnessRaise, None),
-						("lower", _) => (OsdTypes::BrightnessLower, None),
+						("raise", _) => (ArgTypes::BrightnessRaise, None),
+						("lower", _) => (ArgTypes::BrightnessLower, None),
 						(e, _) => {
 							eprintln!("Unknown brightness mode: \"{}\"!...", e);
 							return 1;
@@ -223,7 +223,7 @@ impl SwayOSDApplication {
 				"max-volume" => {
 					let value = child.value().str().unwrap_or("").trim();
 					match value.parse::<u8>() {
-						Ok(_) => (OsdTypes::MaxVolume, Some(value.to_string())),
+						Ok(_) => (ArgTypes::MaxVolume, Some(value.to_string())),
 						Err(_) => {
 							eprintln!("{} is not a number between 0 and {}!", value, u8::MAX);
 							return 1;
@@ -300,43 +300,43 @@ impl SwayOSDApplication {
 				}
 				_ => (None, None),
 			};
-			match OsdTypes::parse(osd_type, value) {
-				(OsdTypes::SinkVolumeRaise, step) => {
+			match ArgTypes::parse(osd_type, value) {
+				(ArgTypes::SinkVolumeRaise, step) => {
 					if let Some(device) = change_sink_volume(VolumeChangeType::Raise, step) {
 						for window in self.windows.borrow().to_owned() {
 							window.changed_volume(&device, VolumeDeviceType::Sink);
 						}
 					}
 				}
-				(OsdTypes::SinkVolumeLower, step) => {
+				(ArgTypes::SinkVolumeLower, step) => {
 					if let Some(device) = change_sink_volume(VolumeChangeType::Lower, step) {
 						for window in self.windows.borrow().to_owned() {
 							window.changed_volume(&device, VolumeDeviceType::Sink);
 						}
 					}
 				}
-				(OsdTypes::SinkVolumeMuteToggle, _) => {
+				(ArgTypes::SinkVolumeMuteToggle, _) => {
 					if let Some(device) = change_sink_volume(VolumeChangeType::MuteToggle, None) {
 						for window in self.windows.borrow().to_owned() {
 							window.changed_volume(&device, VolumeDeviceType::Sink);
 						}
 					}
 				}
-				(OsdTypes::SourceVolumeRaise, step) => {
+				(ArgTypes::SourceVolumeRaise, step) => {
 					if let Some(device) = change_source_volume(VolumeChangeType::Raise, step) {
 						for window in self.windows.borrow().to_owned() {
 							window.changed_volume(&device, VolumeDeviceType::Source);
 						}
 					}
 				}
-				(OsdTypes::SourceVolumeLower, step) => {
+				(ArgTypes::SourceVolumeLower, step) => {
 					if let Some(device) = change_source_volume(VolumeChangeType::Lower, step) {
 						for window in self.windows.borrow().to_owned() {
 							window.changed_volume(&device, VolumeDeviceType::Source);
 						}
 					}
 				}
-				(OsdTypes::SourceVolumeMuteToggle, _) => {
+				(ArgTypes::SourceVolumeMuteToggle, _) => {
 					if let Some(device) = change_source_volume(VolumeChangeType::MuteToggle, None) {
 						for window in self.windows.borrow().to_owned() {
 							window.changed_volume(&device, VolumeDeviceType::Source);
@@ -344,28 +344,28 @@ impl SwayOSDApplication {
 					}
 				}
 				// TODO: Brightness
-				(OsdTypes::BrightnessRaise, step) => {
+				(ArgTypes::BrightnessRaise, step) => {
 					if let Ok(Some(device)) = change_brightness(BrightnessChangeType::Raise, step) {
 						for window in self.windows.borrow().to_owned() {
 							window.changed_brightness(&device);
 						}
 					}
 				}
-				(OsdTypes::BrightnessLower, step) => {
+				(ArgTypes::BrightnessLower, step) => {
 					if let Ok(Some(device)) = change_brightness(BrightnessChangeType::Lower, step) {
 						for window in self.windows.borrow().to_owned() {
 							window.changed_brightness(&device);
 						}
 					}
 				}
-				(OsdTypes::CapsLock, led) => {
+				(ArgTypes::CapsLock, led) => {
 					let state = get_caps_lock_state(led);
 					for window in self.windows.borrow().to_owned() {
 						window.changed_capslock(state)
 					}
 				}
-				(OsdTypes::MaxVolume, max) => set_max_volume(max),
-				(OsdTypes::None, _) => {
+				(ArgTypes::MaxVolume, max) => set_max_volume(max),
+				(ArgTypes::None, _) => {
 					eprintln!("Failed to parse variant: {}!...", variant.print(true))
 				}
 			};
