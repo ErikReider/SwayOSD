@@ -137,10 +137,7 @@ impl SwayOSDApplication {
 		// Parse args
 		app.connect_handle_local_options(|app, args| -> i32 {
 			let variant = args.to_variant();
-			if variant.n_children() > 1 {
-				eprintln!("Only run with one arg at once!...");
-				return 1;
-			} else if variant.n_children() == 0 {
+			if variant.n_children() == 0 {
 				return -1;
 			}
 
@@ -148,98 +145,110 @@ impl SwayOSDApplication {
 				eprintln!("VariantDict isn't a container!...");
 				return 1;
 			}
-			let child: DictEntry<String, Variant> = variant.child_get(0);
-			let (osd_type, value): (ArgTypes, Option<String>) = match child.key().as_str() {
-				"caps-lock" => (ArgTypes::CapsLock, None),
-				"caps-lock-led" => match child.value().str() {
-					Some(led) => (ArgTypes::CapsLock, Some(led.to_owned())),
-					None => {
-						eprintln!("Value for caps-lock-led isn't a string!...");
+
+			let mut option_flags = Vec::new();
+			let mut values = Vec::new();
+			for i in 0..variant.n_children() {
+				let child: DictEntry<String, Variant> = variant.child_get(i);
+
+				let (option, value): (ArgTypes, Option<String>) = match child.key().as_str() {
+					"caps-lock" => (ArgTypes::CapsLock, None),
+					"caps-lock-led" => match child.value().str() {
+						Some(led) => (ArgTypes::CapsLock, Some(led.to_owned())),
+						None => {
+							eprintln!("Value for caps-lock-led isn't a string!...");
+							return 1;
+						}
+					},
+					"output-volume" => {
+						let value = child.value().str().unwrap_or("");
+						match (value, value.parse::<i8>()) {
+							// Parse custom step values
+							(_, Ok(num)) => (
+								if num.is_positive() {
+									ArgTypes::SinkVolumeRaise
+								} else {
+									ArgTypes::SinkVolumeLower
+								},
+								Some(num.abs().to_string()),
+							),
+							("raise", _) => (ArgTypes::SinkVolumeRaise, None),
+							("lower", _) => (ArgTypes::SinkVolumeLower, None),
+							("mute-toggle", _) => (ArgTypes::SinkVolumeMuteToggle, None),
+							(e, _) => {
+								eprintln!("Unknown output volume mode: \"{}\"!...", e);
+								return 1;
+							}
+						}
+					}
+					"input-volume" => {
+						let value = child.value().str().unwrap_or("");
+						match (value, value.parse::<i8>()) {
+							// Parse custom step values
+							(_, Ok(num)) => (
+								if num.is_positive() {
+									ArgTypes::SourceVolumeRaise
+								} else {
+									ArgTypes::SourceVolumeLower
+								},
+								Some(num.abs().to_string()),
+							),
+							("raise", _) => (ArgTypes::SourceVolumeRaise, None),
+							("lower", _) => (ArgTypes::SourceVolumeLower, None),
+							("mute-toggle", _) => (ArgTypes::SourceVolumeMuteToggle, None),
+							(e, _) => {
+								eprintln!("Unknown input volume mode: \"{}\"!...", e);
+								return 1;
+							}
+						}
+					}
+					"brightness" => {
+						let value = child.value().str().unwrap_or("");
+						match (value, value.parse::<i8>()) {
+							// Parse custom step values
+							(_, Ok(num)) => (
+								if num.is_positive() {
+									ArgTypes::BrightnessRaise
+								} else {
+									ArgTypes::BrightnessLower
+								},
+								Some(num.abs().to_string()),
+							),
+							("raise", _) => (ArgTypes::BrightnessRaise, None),
+							("lower", _) => (ArgTypes::BrightnessLower, None),
+							(e, _) => {
+								eprintln!("Unknown brightness mode: \"{}\"!...", e);
+								return 1;
+							}
+						}
+					}
+					"max-volume" => {
+						let value = child.value().str().unwrap_or("").trim();
+						match value.parse::<u8>() {
+							Ok(_) => (ArgTypes::MaxVolume, Some(value.to_string())),
+							Err(_) => {
+								eprintln!("{} is not a number between 0 and {}!", value, u8::MAX);
+								return 1;
+							}
+						}
+					}
+					e => {
+						eprintln!("Unknown Variant Key: \"{}\"!...", e);
 						return 1;
 					}
-				},
-				"output-volume" => {
-					let value = child.value().str().unwrap_or("");
-					match (value, value.parse::<i8>()) {
-						// Parse custom step values
-						(_, Ok(num)) => (
-							if num.is_positive() {
-								ArgTypes::SinkVolumeRaise
-							} else {
-								ArgTypes::SinkVolumeLower
-							},
-							Some(num.abs().to_string()),
-						),
-						("raise", _) => (ArgTypes::SinkVolumeRaise, None),
-						("lower", _) => (ArgTypes::SinkVolumeLower, None),
-						("mute-toggle", _) => (ArgTypes::SinkVolumeMuteToggle, None),
-						(e, _) => {
-							eprintln!("Unknown output volume mode: \"{}\"!...", e);
-							return 1;
-						}
-					}
-				}
-				"input-volume" => {
-					let value = child.value().str().unwrap_or("");
-					match (value, value.parse::<i8>()) {
-						// Parse custom step values
-						(_, Ok(num)) => (
-							if num.is_positive() {
-								ArgTypes::SourceVolumeRaise
-							} else {
-								ArgTypes::SourceVolumeLower
-							},
-							Some(num.abs().to_string()),
-						),
-						("raise", _) => (ArgTypes::SourceVolumeRaise, None),
-						("lower", _) => (ArgTypes::SourceVolumeLower, None),
-						("mute-toggle", _) => (ArgTypes::SourceVolumeMuteToggle, None),
-						(e, _) => {
-							eprintln!("Unknown input volume mode: \"{}\"!...", e);
-							return 1;
-						}
-					}
-				}
-				"brightness" => {
-					let value = child.value().str().unwrap_or("");
-					match (value, value.parse::<i8>()) {
-						// Parse custom step values
-						(_, Ok(num)) => (
-							if num.is_positive() {
-								ArgTypes::BrightnessRaise
-							} else {
-								ArgTypes::BrightnessLower
-							},
-							Some(num.abs().to_string()),
-						),
-						("raise", _) => (ArgTypes::BrightnessRaise, None),
-						("lower", _) => (ArgTypes::BrightnessLower, None),
-						(e, _) => {
-							eprintln!("Unknown brightness mode: \"{}\"!...", e);
-							return 1;
-						}
-					}
-				}
-				"max-volume" => {
-					let value = child.value().str().unwrap_or("").trim();
-					match value.parse::<u8>() {
-						Ok(_) => (ArgTypes::MaxVolume, Some(value.to_string())),
-						Err(_) => {
-							eprintln!("{} is not a number between 0 and {}!", value, u8::MAX);
-							return 1;
-						}
-					}
-				}
-				e => {
-					eprintln!("Unknown Variant Key: \"{}\"!...", e);
-					return 1;
-				}
-			};
-			let variant = Variant::tuple_from_iter([
-				osd_type.as_str().to_variant(),
-				value.unwrap_or(String::new()).to_variant(),
-			]);
-			app.activate_action(ACTION_NAME, Some(&variant));
+				};
+				option_flags.push(option);
+				values.push(value)
+			}
+			let mut i = 0;
+			for option in option_flags {
+				let variant = Variant::tuple_from_iter([
+					option.as_str().to_variant(),
+					values[i].clone().unwrap_or(String::new()).to_variant(),
+				]);
+				app.activate_action(ACTION_NAME, Some(&variant));
+				i += 1;
+			}
 			0
 		});
 
