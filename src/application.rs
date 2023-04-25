@@ -240,14 +240,12 @@ impl SwayOSDApplication {
 				option_flags.push(option);
 				values.push(value)
 			}
-			let mut i = 0;
-			for option in option_flags {
+			for (i, option) in option_flags.into_iter().enumerate() {
 				let variant = Variant::tuple_from_iter([
 					option.as_str().to_variant(),
 					values[i].clone().unwrap_or(String::new()).to_variant(),
 				]);
 				app.activate_action(ACTION_NAME, Some(&variant));
-				i += 1;
 			}
 			0
 		});
