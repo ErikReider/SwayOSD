@@ -146,8 +146,6 @@ impl SwayOSDApplication {
 				return 1;
 			}
 
-			let mut option_flags = Vec::new();
-			let mut values = Vec::new();
 			for i in 0..variant.n_children() {
 				let child: DictEntry<String, Variant> = variant.child_get(i);
 
@@ -237,15 +235,13 @@ impl SwayOSDApplication {
 						return 1;
 					}
 				};
-				option_flags.push(option);
-				values.push(value)
-			}
-			for (i, option) in option_flags.into_iter().enumerate() {
-				let variant = Variant::tuple_from_iter([
-					option.as_str().to_variant(),
-					values[i].clone().unwrap_or(String::new()).to_variant(),
-				]);
-				app.activate_action(ACTION_NAME, Some(&variant));
+				if option != ArgTypes::None {
+					let variant = Variant::tuple_from_iter([
+						option.as_str().to_variant(),
+						value.unwrap_or(String::new()).to_variant(),
+					]);
+					app.activate_action(ACTION_NAME, Some(&variant));
+				}
 			}
 			0
 		});
