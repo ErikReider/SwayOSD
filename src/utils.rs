@@ -121,9 +121,9 @@ pub fn change_sink_volume(
 	match change_type {
 		VolumeChangeType::Raise => {
 			let max_volume = get_max_volume();
-			// if we are already exactly at or over the max volume 
+			// if we are already exactly at or over the max volume
 			let mut at_max_volume = false;
-			// if we are under the next volume but increasing by the given amount would be over the max 
+			// if we are under the next volume but increasing by the given amount would be over the max
 			let mut over_max_volume = false;
 
 			let mut volume_percent = max_volume;
@@ -223,9 +223,9 @@ pub fn change_source_volume(
 	match change_type {
 		VolumeChangeType::Raise => {
 			let max_volume = get_max_volume();
-			// if we are already exactly at or over the max volume 
+			// if we are already exactly at or over the max volume
 			let mut at_max_volume = false;
-			// if we are under the next volume but increasing by the given amount would be over the max 
+			// if we are under the next volume but increasing by the given amount would be over the max
 			let mut over_max_volume = false;
 
 			let mut volume_percent = max_volume;
