@@ -15,25 +15,27 @@ use gtk::gio::SimpleAction;
 const ACTION_NAME: &str = "action";
 const ACTION_FORMAT: &str = "(ss)";
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialOrd, Ord, PartialEq)]
 pub enum ArgTypes {
 	None = 0,
 	CapsLock = 1,
-	SinkVolumeRaise = 2,
-	SinkVolumeLower = 3,
-	SinkVolumeMuteToggle = 4,
-	SourceVolumeRaise = 5,
-	SourceVolumeLower = 6,
-	SourceVolumeMuteToggle = 7,
-	BrightnessRaise = 8,
-	BrightnessLower = 9,
-	MaxVolume = 10,
+	MaxVolume = 2,
+	SinkVolumeRaise = 3,
+	SinkVolumeLower = 4,
+	SinkVolumeMuteToggle = 5,
+	SourceVolumeRaise = 6,
+	SourceVolumeLower = 7,
+	SourceVolumeMuteToggle = 8,
+	BrightnessRaise = 9,
+	BrightnessLower = 10,
 }
+
 impl ArgTypes {
 	pub fn as_str(&self) -> &'static str {
 		match self {
 			ArgTypes::None => "NONE",
 			ArgTypes::CapsLock => "CAPSLOCK",
+			ArgTypes::MaxVolume => "MAX-VOLUME",
 			ArgTypes::SinkVolumeRaise => "SINK-VOLUME-RAISE",
 			ArgTypes::SinkVolumeLower => "SINK-VOLUME-LOWER",
 			ArgTypes::SinkVolumeMuteToggle => "SINK-VOLUME-MUTE-TOGGLE",
@@ -42,7 +44,6 @@ impl ArgTypes {
 			ArgTypes::SourceVolumeMuteToggle => "SOURCE-VOLUME-MUTE-TOGGLE",
 			ArgTypes::BrightnessRaise => "BRIGHTNESS-RAISE",
 			ArgTypes::BrightnessLower => "BRIGHTNESS-LOWER",
-			ArgTypes::MaxVolume => "MAX-VOLUME",
 		}
 	}
 
@@ -145,6 +146,7 @@ impl SwayOSDApplication {
 				eprintln!("VariantDict isn't a container!...");
 				return 1;
 			}
+			let mut actions = Vec::new();
 
 			for i in 0..variant.n_children() {
 				let child: DictEntry<String, Variant> = variant.child_get(i);
@@ -240,8 +242,24 @@ impl SwayOSDApplication {
 						option.as_str().to_variant(),
 						value.unwrap_or(String::new()).to_variant(),
 					]);
-					app.activate_action(ACTION_NAME, Some(&variant));
+					actions.push((ACTION_NAME, Some(variant)));
 				}
+			}
+			
+			// sort actions so that they always get executed in the correct order
+			for i in 0..actions.len() {
+				if i < actions.len() - 1 {
+					if actions[i].0 > actions[i + 1].0 {
+						let temp = actions[i].clone();
+						actions[i] = actions[i + 1].clone();
+						actions[i + 1] = temp;
+					}
+				}
+			}
+
+			// execute the sorted actions
+			for action in actions {
+				app.activate_action(action.0, Some(&action.1.unwrap()));
 			}
 			0
 		});
