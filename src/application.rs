@@ -15,7 +15,7 @@ use gtk::gio::SimpleAction;
 const ACTION_NAME: &str = "action";
 const ACTION_FORMAT: &str = "(ss)";
 
-#[derive(Debug, Eq, PartialOrd, Ord, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum ArgTypes {
 	None = 0,
 	CapsLock = 1,
