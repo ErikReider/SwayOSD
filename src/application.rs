@@ -245,17 +245,17 @@ impl SwayOSDApplication {
 					actions.push((ACTION_NAME, Some(variant)));
 				}
 			}
-			
+
 			// sort actions so that they always get executed in the correct order
 			for i in 0..actions.len() - 1 {
-				for j in i+1..actions.len() {
-				if i < j {
-					if actions[i].0 > actions[j].0 {
-						let temp = actions[i].clone();
-						actions[i] = actions[j].clone();
-						actions[j] = temp;
+				for j in i + 1..actions.len() {
+					if i < j {
+						if actions[i].0 > actions[j].0 {
+							let temp = actions[i].clone();
+							actions[i] = actions[j].clone();
+							actions[j] = temp;
+						}
 					}
-				}
 				}
 			}
 
