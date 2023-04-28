@@ -195,11 +195,11 @@ pub fn change_source_volume(
 	change_type: VolumeChangeType,
 	step: Option<String>,
 ) -> Option<DeviceInfo> {
-	let mut controller = SourceController::create().unwrap();
+	let mut controller = SinkController::create().unwrap();
 
 	let server_info = controller.get_server_info();
 	let device_name = &match server_info {
-		Ok(info) => info.default_source_name.unwrap_or("".to_string()),
+		Ok(info) => info.default_sink_name.unwrap_or("".to_string()),
 		Err(e) => {
 			eprintln!("Pulse Error: {}", e);
 			return None;
@@ -215,6 +215,7 @@ pub fn change_source_volume(
 
 	const VOLUME_CHANGE_DELTA: u8 = 5;
 	let volume_delta = step
+		.clone()
 		.unwrap_or(String::new())
 		.parse::<u8>()
 		.unwrap_or(VOLUME_CHANGE_DELTA) as f64
@@ -222,7 +223,12 @@ pub fn change_source_volume(
 	match change_type {
 		VolumeChangeType::Raise => {
 			let max_volume = get_max_volume();
+			// if we are already exactly at or over the max volume 
 			let mut at_max_volume = false;
+			// if we are under the next volume but increasing by the given amount would be over the max 
+			let mut over_max_volume = false;
+
+			let mut volume_percent = max_volume;
 			// iterate through all devices in the volume group
 			for v in device.volume.get() {
 				// the string looks like this: ' NUMBER% '
@@ -232,25 +238,44 @@ pub fn change_source_volume(
 				// remove the '%'
 				volume_string = volume_string.substring(0, volume_string.len() - 1);
 
-				// parse the string to a u8, we do it this convoluted to get the % and I haven't found another way yet
-				if volume_string.parse::<u8>().unwrap() + VOLUME_CHANGE_DELTA > max_volume {
+				// parse the string to a u8, we do it this convoluted to get the % and I haven't found another way
+				volume_percent = volume_string.parse::<u8>().unwrap();
+
+				if volume_percent >= max_volume {
 					at_max_volume = true;
 					break;
 				}
+
+				if volume_percent + VOLUME_CHANGE_DELTA > max_volume {
+					over_max_volume = true;
+					break;
+				}
 			}
-			// if we aren't at max volume increase it by the given amount
-			if !at_max_volume {
-				controller.increase_device_volume_by_percent(device.index, volume_delta)
-			} else {
-				// still show the osd
+			// if we are exactle at max volume
+			if at_max_volume {
+				// only show the OSD
 				controller.increase_device_volume_by_percent(device.index, 0.0)
+			}
+			// if we would increase over the max step exactly to the max
+			else if over_max_volume {
+				let delta_to_max = max_volume - volume_percent;
+				let volume_delta = step
+					.unwrap_or(String::new())
+					.parse::<u8>()
+					.unwrap_or(delta_to_max) as f64
+					* 0.01;
+				controller.increase_device_volume_by_percent(device.index, volume_delta)
+			}
+			// if neither of the above are true increase normally
+			else {
+				controller.increase_device_volume_by_percent(device.index, volume_delta)
 			}
 		}
 		VolumeChangeType::Lower => {
 			controller.decrease_device_volume_by_percent(device.index, volume_delta)
 		}
 		VolumeChangeType::MuteToggle => {
-			let op = controller.handler.introspect.set_source_mute_by_index(
+			let op = controller.handler.introspect.set_sink_mute_by_index(
 				device.index,
 				!device.mute,
 				None,
