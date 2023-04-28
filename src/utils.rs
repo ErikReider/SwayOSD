@@ -195,7 +195,7 @@ pub fn change_source_volume(
 	change_type: VolumeChangeType,
 	step: Option<String>,
 ) -> Option<DeviceInfo> {
-	let mut controller = SinkController::create().unwrap();
+	let mut controller = SourceController::create().unwrap();
 
 	let server_info = controller.get_server_info();
 	let device_name = &match server_info {
