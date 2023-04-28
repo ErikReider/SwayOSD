@@ -247,13 +247,15 @@ impl SwayOSDApplication {
 			}
 			
 			// sort actions so that they always get executed in the correct order
-			for i in 0..actions.len() {
-				if i < actions.len() - 1 {
-					if actions[i].0 > actions[i + 1].0 {
+			for i in 0..actions.len() - 1 {
+				for j in i+1..actions.len() {
+				if i < j {
+					if actions[i].0 > actions[j].0 {
 						let temp = actions[i].clone();
-						actions[i] = actions[i + 1].clone();
-						actions[i + 1] = temp;
+						actions[i] = actions[j].clone();
+						actions[j] = temp;
 					}
+				}
 				}
 			}
 
