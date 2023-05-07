@@ -18,7 +18,7 @@ This is my first time coding in Rust so fixes and improvements are appreciated :
 # OSD window
 exec swayosd
 ```
-or
+or start with a max-volume set (default is 100)
 ```zsh
 exec swayosd --max-volume 120
 ```
