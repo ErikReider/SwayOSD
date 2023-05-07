@@ -8,6 +8,7 @@ This is my first time coding in Rust so fixes and improvements are appreciated :
 
 - Input and output volume change indicator
 - Input and output mute change indicator
+- Customizable maximum Volume
 - Capslock change (Note: doesn't change the caps lock state)
 - Brightness change indicator
 
@@ -16,7 +17,13 @@ This is my first time coding in Rust so fixes and improvements are appreciated :
 ```zsh
 # OSD window
 exec swayosd
+```
+or start with a max-volume set (default is 100)
+```zsh
+exec swayosd --max-volume 120
+```
 
+```zsh
 # Sink volume raise
 bindsym XF86AudioRaiseVolume exec swayosd --output-volume raise
 # Sink volume lower

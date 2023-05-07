@@ -6,10 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-gtk = "0.15.5"
-gtk-layer-shell = "0.4.4"
+gtk = "0.17.1"
+gtk-layer-shell = "0.6.1"
 shrinkwraprs = "0.3.0"
 cascade = "1.0.1"
 pulse = { version = "2.26.0", package = "libpulse-binding" }
 pulsectl-rs = "0.3.2"
-blight = "0.4.1"
+blight = "0.5.0"
+substring = "1.4.5"
+lazy_static = "1.4.0"
