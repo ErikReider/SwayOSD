@@ -1,11 +1,11 @@
-use std::cell::{Cell, RefCell};
+use std::cell::RefCell;
 use std::f64::consts::PI;
 use std::rc::Rc;
 use std::time::Duration;
 
 use gtk::{
 	cairo, gdk,
-	glib::{self, clone, timeout_add_local_once},
+	glib::{self, clone},
 	prelude::*,
 };
 use pulsectl::controllers::types::DeviceInfo;
@@ -17,7 +17,6 @@ const DISABLED_OPACITY: f64 = 0.5;
 const ICON_SIZE: i32 = 32;
 const WINDOW_MARGIN: i32 = 16;
 const DEGREES: f64 = PI / 180.0;
-const MARGIN_CALC_TRIES: u8 = 10;
 
 /// A window that our application can open that contains the main project view.
 #[derive(Clone, Debug)]
@@ -27,7 +26,6 @@ pub struct SwayosdWindow {
 	pub monitor: gdk::Monitor,
 	container: gtk::Box,
 	timeout_id: Rc<RefCell<Option<glib::SourceId>>>,
-	margin_calc_tries: Cell<u8>,
 }
 
 impl SwayosdWindow {
@@ -108,47 +106,20 @@ impl SwayosdWindow {
 			gtk::Inhibit(true)
 		});
 
-		let s = Self {
+		// Set the window margin
+		window.connect_map(clone!(@strong monitor => move |win| {
+			let bottom = monitor.workarea().height() - win.height_request();
+			let margin = (bottom as f32 * 0.75).round() as i32;
+			gtk_layer_shell::set_margin(win, gtk_layer_shell::Edge::Top, margin);
+		}));
+
+		Self {
 			window,
 			container,
 			display: display.clone(),
 			monitor: monitor.clone(),
 			timeout_id: Rc::new(RefCell::new(None)),
-			margin_calc_tries: Cell::new(0),
-		};
-
-		s.calc_margin();
-
-		s
-	}
-
-	fn calc_margin(&self) {
-		let workarea = self.monitor.workarea();
-		// Try calculating the margin N-times while the monitor geometry values
-		// equal 0. Fixes an issue where a newly connected monitors geometry
-		// values would be equal to 0 the first few seconds.
-		// Not sure if there's a better way of doing this
-		if workarea.eq(&gdk::Rectangle::new(0, 0, 0, 0)) {
-			let tries: u8 = self.margin_calc_tries.get();
-			if tries > MARGIN_CALC_TRIES {
-				eprintln!(
-					"Could not calculate margin, tried {} times...",
-					MARGIN_CALC_TRIES
-				);
-				return;
-			}
-			self.margin_calc_tries.replace(tries + 1);
-			timeout_add_local_once(
-				Duration::from_millis(500),
-				clone!(@strong self as _self => move || {
-					_self.calc_margin();
-				}),
-			);
-			return;
 		}
-		let margin =
-			((workarea.height() - self.window.height_request()) as f32 * 0.75).round() as i32;
-		gtk_layer_shell::set_margin(&self.window, gtk_layer_shell::Edge::Top, margin);
 	}
 
 	pub fn close(&self) {
