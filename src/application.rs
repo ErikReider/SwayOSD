@@ -6,6 +6,7 @@ use gtk::glib::variant::DictEntry;
 use gtk::glib::{clone, OptionArg, OptionFlags, SignalHandlerId, Variant, VariantTy};
 use gtk::prelude::*;
 use gtk::*;
+use pulsectl::controllers::{SinkController, SourceController};
 
 use crate::osd_window::SwayosdWindow;
 use crate::utils::*;
@@ -325,44 +326,65 @@ impl SwayOSDApplication {
 			};
 			match ArgTypes::parse(osd_type, value) {
 				(ArgTypes::SinkVolumeRaise, step) => {
-					if let Some(device) = change_sink_volume(VolumeChangeType::Raise, step) {
+					let mut device_type = VolumeDeviceType::Sink(SinkController::create().unwrap());
+					if let Some(device) =
+						change_device_volume(&mut device_type, VolumeChangeType::Raise, step)
+					{
 						for window in self.windows.borrow().to_owned() {
-							window.changed_volume(&device, VolumeDeviceType::Sink);
+							window.changed_volume(&device, &device_type);
 						}
 					}
 				}
 				(ArgTypes::SinkVolumeLower, step) => {
-					if let Some(device) = change_sink_volume(VolumeChangeType::Lower, step) {
+					let mut device_type = VolumeDeviceType::Sink(SinkController::create().unwrap());
+					if let Some(device) =
+						change_device_volume(&mut device_type, VolumeChangeType::Lower, step)
+					{
 						for window in self.windows.borrow().to_owned() {
-							window.changed_volume(&device, VolumeDeviceType::Sink);
+							window.changed_volume(&device, &device_type);
 						}
 					}
 				}
 				(ArgTypes::SinkVolumeMuteToggle, _) => {
-					if let Some(device) = change_sink_volume(VolumeChangeType::MuteToggle, None) {
+					let mut device_type = VolumeDeviceType::Sink(SinkController::create().unwrap());
+					if let Some(device) =
+						change_device_volume(&mut device_type, VolumeChangeType::MuteToggle, None)
+					{
 						for window in self.windows.borrow().to_owned() {
-							window.changed_volume(&device, VolumeDeviceType::Sink);
+							window.changed_volume(&device, &device_type);
 						}
 					}
 				}
 				(ArgTypes::SourceVolumeRaise, step) => {
-					if let Some(device) = change_source_volume(VolumeChangeType::Raise, step) {
+					let mut device_type =
+						VolumeDeviceType::Source(SourceController::create().unwrap());
+					if let Some(device) =
+						change_device_volume(&mut device_type, VolumeChangeType::Raise, step)
+					{
 						for window in self.windows.borrow().to_owned() {
-							window.changed_volume(&device, VolumeDeviceType::Source);
+							window.changed_volume(&device, &device_type);
 						}
 					}
 				}
 				(ArgTypes::SourceVolumeLower, step) => {
-					if let Some(device) = change_source_volume(VolumeChangeType::Lower, step) {
+					let mut device_type =
+						VolumeDeviceType::Source(SourceController::create().unwrap());
+					if let Some(device) =
+						change_device_volume(&mut device_type, VolumeChangeType::Lower, step)
+					{
 						for window in self.windows.borrow().to_owned() {
-							window.changed_volume(&device, VolumeDeviceType::Source);
+							window.changed_volume(&device, &device_type);
 						}
 					}
 				}
 				(ArgTypes::SourceVolumeMuteToggle, _) => {
-					if let Some(device) = change_source_volume(VolumeChangeType::MuteToggle, None) {
+					let mut device_type =
+						VolumeDeviceType::Source(SourceController::create().unwrap());
+					if let Some(device) =
+						change_device_volume(&mut device_type, VolumeChangeType::MuteToggle, None)
+					{
 						for window in self.windows.borrow().to_owned() {
-							window.changed_volume(&device, VolumeDeviceType::Source);
+							window.changed_volume(&device, &device_type);
 						}
 					}
 				}

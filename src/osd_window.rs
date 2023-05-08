@@ -126,13 +126,13 @@ impl SwayosdWindow {
 		self.window.close();
 	}
 
-	pub fn changed_volume(&self, device: &DeviceInfo, device_type: VolumeDeviceType) {
+	pub fn changed_volume(&self, device: &DeviceInfo, device_type: &VolumeDeviceType) {
 		self.clear_osd();
 
 		let volume = volume_to_f64(&device.volume.avg());
 		let icon_prefix = match device_type {
-			VolumeDeviceType::Sink => "audio-volume",
-			VolumeDeviceType::Source => "microphone-sensitivity",
+			VolumeDeviceType::Sink(_) => "audio-volume",
+			VolumeDeviceType::Source(_) => "microphone-sensitivity",
 		};
 		let icon_name = &match (device.mute, volume) {
 			(true, _) => format!("{}-muted-symbolic", icon_prefix),

@@ -80,8 +80,8 @@ pub enum VolumeChangeType {
 }
 
 pub enum VolumeDeviceType {
-	Sink,
-	Source,
+	Sink(SinkController),
+	Source(SourceController),
 }
 
 pub enum BrightnessChangeType {
@@ -89,25 +89,45 @@ pub enum BrightnessChangeType {
 	Lower,
 }
 
-pub fn change_sink_volume(
+pub fn change_device_volume(
+	device_type: &mut VolumeDeviceType,
 	change_type: VolumeChangeType,
 	step: Option<String>,
 ) -> Option<DeviceInfo> {
-	let mut controller = SinkController::create().unwrap();
-
-	let server_info = controller.get_server_info();
-	let device_name = &match server_info {
-		Ok(info) => info.default_sink_name.unwrap_or("".to_string()),
-		Err(e) => {
-			eprintln!("Pulse Error: {}", e);
-			return None;
+	let (device, device_name): (DeviceInfo, String) = match device_type {
+		VolumeDeviceType::Sink(controller) => {
+			let server_info = controller.get_server_info();
+			let device_name = &match server_info {
+				Ok(info) => info.default_sink_name.unwrap_or("".to_string()),
+				Err(e) => {
+					eprintln!("Pulse Error: {}", e);
+					return None;
+				}
+			};
+			match controller.get_device_by_name(device_name) {
+				Ok(device) => (device, device_name.clone()),
+				Err(e) => {
+					eprintln!("Pulse Error: {}", e);
+					return None;
+				}
+			}
 		}
-	};
-	let device = match controller.get_device_by_name(device_name) {
-		Ok(device) => device,
-		Err(e) => {
-			eprintln!("Pulse Error: {}", e);
-			return None;
+		VolumeDeviceType::Source(controller) => {
+			let server_info = controller.get_server_info();
+			let device_name = &match server_info {
+				Ok(info) => info.default_sink_name.unwrap_or("".to_string()),
+				Err(e) => {
+					eprintln!("Pulse Error: {}", e);
+					return None;
+				}
+			};
+			match controller.get_device_by_name(device_name) {
+				Ok(device) => (device, device_name.clone()),
+				Err(e) => {
+					eprintln!("Pulse Error: {}", e);
+					return None;
+				}
+			}
 		}
 	};
 
@@ -152,7 +172,14 @@ pub fn change_sink_volume(
 			// if we are exactle at max volume
 			if at_max_volume {
 				// only show the OSD
-				controller.increase_device_volume_by_percent(device.index, 0.0)
+				match device_type {
+					VolumeDeviceType::Sink(controller) => {
+						controller.increase_device_volume_by_percent(device.index, 0.0)
+					}
+					VolumeDeviceType::Source(controller) => {
+						controller.increase_device_volume_by_percent(device.index, 0.0)
+					}
+				}
 			}
 			// if we would increase over the max step exactly to the max
 			else if over_max_volume {
@@ -162,134 +189,70 @@ pub fn change_sink_volume(
 					.parse::<u8>()
 					.unwrap_or(delta_to_max) as f64
 					* 0.01;
-				controller.increase_device_volume_by_percent(device.index, volume_delta)
+				match device_type {
+					VolumeDeviceType::Sink(controller) => {
+						controller.increase_device_volume_by_percent(device.index, volume_delta)
+					}
+					VolumeDeviceType::Source(controller) => {
+						controller.increase_device_volume_by_percent(device.index, volume_delta)
+					}
+				}
 			}
 			// if neither of the above are true increase normally
 			else {
-				controller.increase_device_volume_by_percent(device.index, volume_delta)
-			}
-		}
-		VolumeChangeType::Lower => {
-			controller.decrease_device_volume_by_percent(device.index, volume_delta)
-		}
-		VolumeChangeType::MuteToggle => {
-			let op = controller.handler.introspect.set_sink_mute_by_index(
-				device.index,
-				!device.mute,
-				None,
-			);
-			controller.handler.wait_for_operation(op).ok();
-		}
-	}
-
-	match controller.get_device_by_name(device_name) {
-		Ok(device) => Some(device),
-		Err(e) => {
-			eprintln!("Pulse Error: {}", e);
-			None
-		}
-	}
-}
-
-pub fn change_source_volume(
-	change_type: VolumeChangeType,
-	step: Option<String>,
-) -> Option<DeviceInfo> {
-	let mut controller = SourceController::create().unwrap();
-
-	let server_info = controller.get_server_info();
-	let device_name = &match server_info {
-		Ok(info) => info.default_sink_name.unwrap_or("".to_string()),
-		Err(e) => {
-			eprintln!("Pulse Error: {}", e);
-			return None;
-		}
-	};
-	let device = match controller.get_device_by_name(device_name) {
-		Ok(device) => device,
-		Err(e) => {
-			eprintln!("Pulse Error: {}", e);
-			return None;
-		}
-	};
-
-	const VOLUME_CHANGE_DELTA: u8 = 5;
-	let volume_delta = step
-		.clone()
-		.unwrap_or(String::new())
-		.parse::<u8>()
-		.unwrap_or(VOLUME_CHANGE_DELTA) as f64
-		* 0.01;
-	match change_type {
-		VolumeChangeType::Raise => {
-			let max_volume = get_max_volume();
-			// if we are already exactly at or over the max volume
-			let mut at_max_volume = false;
-			// if we are under the next volume but increasing by the given amount would be over the max
-			let mut over_max_volume = false;
-
-			let mut volume_percent = max_volume;
-			// iterate through all devices in the volume group
-			for v in device.volume.get() {
-				// the string looks like this: ' NUMBER% '
-				let volume_string = v.to_string();
-				// trim it to remove the empty space 'NUMBER%'
-				let mut volume_string = volume_string.trim();
-				// remove the '%'
-				volume_string = volume_string.substring(0, volume_string.len() - 1);
-
-				// parse the string to a u8, we do it this convoluted to get the % and I haven't found another way
-				volume_percent = volume_string.parse::<u8>().unwrap();
-
-				if volume_percent >= max_volume {
-					at_max_volume = true;
-					break;
-				}
-
-				if volume_percent + VOLUME_CHANGE_DELTA > max_volume {
-					over_max_volume = true;
-					break;
+				match device_type {
+					VolumeDeviceType::Sink(controller) => {
+						controller.increase_device_volume_by_percent(device.index, volume_delta)
+					}
+					VolumeDeviceType::Source(controller) => {
+						controller.increase_device_volume_by_percent(device.index, volume_delta)
+					}
 				}
 			}
-			// if we are exactle at max volume
-			if at_max_volume {
-				// only show the OSD
-				controller.increase_device_volume_by_percent(device.index, 0.0)
-			}
-			// if we would increase over the max step exactly to the max
-			else if over_max_volume {
-				let delta_to_max = max_volume - volume_percent;
-				let volume_delta = step
-					.unwrap_or(String::new())
-					.parse::<u8>()
-					.unwrap_or(delta_to_max) as f64
-					* 0.01;
-				controller.increase_device_volume_by_percent(device.index, volume_delta)
-			}
-			// if neither of the above are true increase normally
-			else {
-				controller.increase_device_volume_by_percent(device.index, volume_delta)
-			}
 		}
-		VolumeChangeType::Lower => {
-			controller.decrease_device_volume_by_percent(device.index, volume_delta)
-		}
-		VolumeChangeType::MuteToggle => {
-			let op = controller.handler.introspect.set_sink_mute_by_index(
-				device.index,
-				!device.mute,
-				None,
-			);
-			controller.handler.wait_for_operation(op).ok();
-		}
+		VolumeChangeType::Lower => match device_type {
+			VolumeDeviceType::Sink(controller) => {
+				controller.decrease_device_volume_by_percent(device.index, volume_delta)
+			}
+			VolumeDeviceType::Source(controller) => {
+				controller.decrease_device_volume_by_percent(device.index, volume_delta)
+			}
+		},
+		VolumeChangeType::MuteToggle => match device_type {
+			VolumeDeviceType::Sink(controller) => {
+				let op = controller.handler.introspect.set_sink_mute_by_index(
+					device.index,
+					!device.mute,
+					None,
+				);
+				controller.handler.wait_for_operation(op).ok();
+			}
+			VolumeDeviceType::Source(controller) => {
+				let op = controller.handler.introspect.set_sink_mute_by_index(
+					device.index,
+					!device.mute,
+					None,
+				);
+				controller.handler.wait_for_operation(op).ok();
+			}
+		},
 	}
 
-	match controller.get_device_by_name(device_name) {
-		Ok(device) => Some(device),
-		Err(e) => {
-			eprintln!("Pulse Error: {}", e);
-			None
-		}
+	match device_type {
+		VolumeDeviceType::Sink(controller) => match controller.get_device_by_name(&device_name) {
+			Ok(device) => Some(device),
+			Err(e) => {
+				eprintln!("Pulse Error: {}", e);
+				None
+			}
+		},
+		VolumeDeviceType::Source(controller) => match controller.get_device_by_name(&device_name) {
+			Ok(device) => Some(device),
+			Err(e) => {
+				eprintln!("Pulse Error: {}", e);
+				None
+			}
+		},
 	}
 }
 
