@@ -12,8 +12,39 @@ use blight::{change_bl, err::BlibError, Change, Device, Direction};
 use pulse::volume::Volume;
 use pulsectl::controllers::{types::DeviceInfo, DeviceControl, SinkController, SourceController};
 
+use crate::application::ArgTypes;
+
 lazy_static! {
 	static ref MAX_VOLUME: Mutex<u8> = Mutex::new(100_u8);
+}
+
+pub fn volume_parser(io: i8, value: &str) -> Result<(ArgTypes, Option<String>), i32> {
+	let mut v = match (value, value.parse::<i8>()) {
+		// Parse custom step values
+		(_, Ok(num)) => (
+			if num.is_positive() {
+				ArgTypes::SinkVolumeRaise
+			} else {
+				ArgTypes::SinkVolumeLower
+			},
+			Some(num.abs().to_string()),
+		),
+		("raise", _) => (ArgTypes::SinkVolumeRaise, None),
+		("lower", _) => (ArgTypes::SinkVolumeLower, None),
+		("mute-toggle", _) => (ArgTypes::SinkVolumeMuteToggle, None),
+		(e, _) => {
+			eprintln!("Unknown output volume mode: \"{}\"!...", e);
+			return Err(1);
+		}
+	};
+	if io == 1 {
+		if v.0 == ArgTypes::SinkVolumeRaise {
+			v.0 = ArgTypes::SourceVolumeRaise;
+		} else {
+			v.0 = ArgTypes::SourceVolumeLower;
+		}
+	}
+	Ok(v)
 }
 
 pub fn get_max_volume() -> u8 {

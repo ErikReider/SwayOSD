@@ -106,7 +106,7 @@ impl SwayOSDApplication {
 			OptionFlags::NONE,
 			OptionArg::String,
 			"Shows volume osd and raises, loweres or mutes default sink volume",
-			Some("raise|lower|mute-toggle|(±)number"),
+			Some("raise|lower|mute-toggle|(±)number [device]"),
 		);
 		// Sink volume cmdline arg
 		app.add_main_option(
@@ -115,7 +115,7 @@ impl SwayOSDApplication {
 			OptionFlags::NONE,
 			OptionArg::String,
 			"Shows volume osd and raises, loweres or mutes default source volume",
-			Some("raise|lower|mute-toggle|(±)number"),
+			Some("raise|lower|mute-toggle|(±)number [device]"),
 		);
 
 		// Sink brightness cmdline arg
@@ -163,44 +163,18 @@ impl SwayOSDApplication {
 					},
 					"output-volume" => {
 						let value = child.value().str().unwrap_or("");
-						match (value, value.parse::<i8>()) {
-							// Parse custom step values
-							(_, Ok(num)) => (
-								if num.is_positive() {
-									ArgTypes::SinkVolumeRaise
-								} else {
-									ArgTypes::SinkVolumeLower
-								},
-								Some(num.abs().to_string()),
-							),
-							("raise", _) => (ArgTypes::SinkVolumeRaise, None),
-							("lower", _) => (ArgTypes::SinkVolumeLower, None),
-							("mute-toggle", _) => (ArgTypes::SinkVolumeMuteToggle, None),
-							(e, _) => {
-								eprintln!("Unknown output volume mode: \"{}\"!...", e);
-								return 1;
-							}
+						let parsed = volume_parser(0, value);
+						match parsed {
+							Ok(p) => (p.0, p.1),
+							Err(e) => return e,
 						}
 					}
 					"input-volume" => {
 						let value = child.value().str().unwrap_or("");
-						match (value, value.parse::<i8>()) {
-							// Parse custom step values
-							(_, Ok(num)) => (
-								if num.is_positive() {
-									ArgTypes::SourceVolumeRaise
-								} else {
-									ArgTypes::SourceVolumeLower
-								},
-								Some(num.abs().to_string()),
-							),
-							("raise", _) => (ArgTypes::SourceVolumeRaise, None),
-							("lower", _) => (ArgTypes::SourceVolumeLower, None),
-							("mute-toggle", _) => (ArgTypes::SourceVolumeMuteToggle, None),
-							(e, _) => {
-								eprintln!("Unknown input volume mode: \"{}\"!...", e);
-								return 1;
-							}
+						let parsed = volume_parser(1, value);
+						match parsed {
+							Ok(p) => (p.0, p.1),
+							Err(e) => return e,
 						}
 					}
 					"brightness" => {
