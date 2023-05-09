@@ -16,6 +16,7 @@ use crate::application::ArgTypes;
 
 lazy_static! {
 	static ref MAX_VOLUME: Mutex<u8> = Mutex::new(100_u8);
+	static ref DEVICE_NAME: Mutex<String> = Mutex::new("default".to_string());
 }
 
 pub fn volume_parser(io: i8, value: &str) -> Result<(ArgTypes, Option<String>), i32> {
@@ -56,6 +57,16 @@ pub fn set_max_volume(volume: Option<String>) {
 
 	let mut vol = MAX_VOLUME.lock().unwrap();
 	*vol = setter;
+}
+
+pub fn get_device_name() -> String {
+	(*DEVICE_NAME.lock().unwrap()).clone()
+}
+
+pub fn set_device_name(name: String) {
+	println!("setting global name to: {}", name);
+	let mut global_name = DEVICE_NAME.lock().unwrap();
+	*global_name = name;
 }
 
 pub fn get_caps_lock_state(led: Option<String>) -> bool {
@@ -124,25 +135,28 @@ pub fn change_device_volume(
 	device_type: &mut VolumeDeviceType,
 	change_type: VolumeChangeType,
 	step: Option<String>,
-	name: Option<String>,
 ) -> Option<DeviceInfo> {
 	let (device, device_name): (DeviceInfo, String) = match device_type {
 		VolumeDeviceType::Sink(controller) => {
 			let server_info = controller.get_server_info();
-			let device_name = match name {
-				Some(n) => n,
-				None => match server_info {
+			let device_name;
+			let global_name = get_device_name();
+			if global_name == "default" {
+				device_name = match server_info {
 					Ok(info) => info.default_sink_name.unwrap_or("".to_string()),
 					Err(e) => {
 						eprintln!("Error getting default_sink: {}", e);
 						return None;
 					}
-				},
-			};
+				};
+			} else {
+				device_name = global_name;
+				set_device_name("default".to_string());
+			}
 			match controller.get_device_by_name(&device_name) {
 				Ok(device) => (device, device_name.clone()),
 				Err(_) => {
-					eprintln!("No device with that name found!");
+					eprintln!("No device with name: '{}' found!", device_name);
 					return None;
 				}
 			}

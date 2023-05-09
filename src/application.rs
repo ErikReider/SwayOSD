@@ -18,7 +18,9 @@ const ACTION_FORMAT: &str = "(ss)";
 
 #[derive(Debug, PartialEq)]
 pub enum ArgTypes {
-	None = 0,
+	None = -1,
+	// should always be first to set a global variable before executing volume-raise/lower
+	DeviceName = 0,
 	CapsLock = 1,
 	MaxVolume = 2,
 	SinkVolumeRaise = 3,
@@ -29,8 +31,6 @@ pub enum ArgTypes {
 	SourceVolumeMuteToggle = 8,
 	BrightnessRaise = 9,
 	BrightnessLower = 10,
-	// should always be last so we don't have to search it later
-	DeviceName = isize::MAX,
 }
 
 impl ArgTypes {
@@ -257,6 +257,7 @@ impl SwayOSDApplication {
 
 			// execute the sorted actions
 			for action in actions {
+				println!("{:?}", action.1);
 				app.activate_action(action.0, Some(&action.1.unwrap()));
 			}
 			0
@@ -323,7 +324,7 @@ impl SwayOSDApplication {
 				(ArgTypes::SinkVolumeRaise, step) => {
 					let mut device_type = VolumeDeviceType::Sink(SinkController::create().unwrap());
 					if let Some(device) =
-						change_device_volume(&mut device_type, VolumeChangeType::Raise, step, None)
+						change_device_volume(&mut device_type, VolumeChangeType::Raise, step)
 					{
 						for window in self.windows.borrow().to_owned() {
 							window.changed_volume(&device, &device_type);
@@ -333,7 +334,7 @@ impl SwayOSDApplication {
 				(ArgTypes::SinkVolumeLower, step) => {
 					let mut device_type = VolumeDeviceType::Sink(SinkController::create().unwrap());
 					if let Some(device) =
-						change_device_volume(&mut device_type, VolumeChangeType::Lower, step, None)
+						change_device_volume(&mut device_type, VolumeChangeType::Lower, step)
 					{
 						for window in self.windows.borrow().to_owned() {
 							window.changed_volume(&device, &device_type);
@@ -342,12 +343,9 @@ impl SwayOSDApplication {
 				}
 				(ArgTypes::SinkVolumeMuteToggle, _) => {
 					let mut device_type = VolumeDeviceType::Sink(SinkController::create().unwrap());
-					if let Some(device) = change_device_volume(
-						&mut device_type,
-						VolumeChangeType::MuteToggle,
-						None,
-						None,
-					) {
+					if let Some(device) =
+						change_device_volume(&mut device_type, VolumeChangeType::MuteToggle, None)
+					{
 						for window in self.windows.borrow().to_owned() {
 							window.changed_volume(&device, &device_type);
 						}
@@ -357,7 +355,7 @@ impl SwayOSDApplication {
 					let mut device_type =
 						VolumeDeviceType::Source(SourceController::create().unwrap());
 					if let Some(device) =
-						change_device_volume(&mut device_type, VolumeChangeType::Raise, step, None)
+						change_device_volume(&mut device_type, VolumeChangeType::Raise, step)
 					{
 						for window in self.windows.borrow().to_owned() {
 							window.changed_volume(&device, &device_type);
@@ -368,7 +366,7 @@ impl SwayOSDApplication {
 					let mut device_type =
 						VolumeDeviceType::Source(SourceController::create().unwrap());
 					if let Some(device) =
-						change_device_volume(&mut device_type, VolumeChangeType::Lower, step, None)
+						change_device_volume(&mut device_type, VolumeChangeType::Lower, step)
 					{
 						for window in self.windows.borrow().to_owned() {
 							window.changed_volume(&device, &device_type);
@@ -378,12 +376,9 @@ impl SwayOSDApplication {
 				(ArgTypes::SourceVolumeMuteToggle, _) => {
 					let mut device_type =
 						VolumeDeviceType::Source(SourceController::create().unwrap());
-					if let Some(device) = change_device_volume(
-						&mut device_type,
-						VolumeChangeType::MuteToggle,
-						None,
-						None,
-					) {
+					if let Some(device) =
+						change_device_volume(&mut device_type, VolumeChangeType::MuteToggle, None)
+					{
 						for window in self.windows.borrow().to_owned() {
 							window.changed_volume(&device, &device_type);
 						}
@@ -412,8 +407,8 @@ impl SwayOSDApplication {
 				}
 				(ArgTypes::MaxVolume, max) => set_max_volume(max),
 				(ArgTypes::DeviceName, name) => {
-					println!("Device name was called: {:?}", name);
-				}
+					set_device_name(name.unwrap())
+			},
 				(ArgTypes::None, _) => {
 					eprintln!("Failed to parse variant: {}!...", variant.print(true))
 				}
