@@ -64,7 +64,6 @@ pub fn get_device_name() -> String {
 }
 
 pub fn set_device_name(name: String) {
-	println!("setting global name to: {}", name);
 	let mut global_name = DEVICE_NAME.lock().unwrap();
 	*global_name = name;
 }
