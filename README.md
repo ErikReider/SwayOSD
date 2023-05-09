@@ -45,7 +45,7 @@ bindsym XF86MonBrightnessUp exec swayosd --brightness raise
 bindsym XF86MonBrightnessDown exec swayosd --brightness lower --device alsa_output.pci-0000_11_00.4.analog-stereo.monitor
 ```
 
-Notes on using `--device`:
+#### Notes on using `--device`:
  - It is for audio devices only.
  - If it is omitted the default audio device is used.
  - It only changes the target device for the currrent/next action that changes the volume.
