@@ -50,7 +50,7 @@ Notes on using `--device`:
  - If it is omitted the default audio device is used.
  - It only changes the target device for the currrent/next action that changes the volume.
  - `--max-volume` is a global limit for all devices so `--device` has no effect on it.
- - You can list your input audio devices using `pactl list short sources`, for outputs replace `sources' with `sinks`.
+ - You can list your input audio devices using `pactl list short sources`, for outputs replace `sources` with `sinks`.
 
 ## Brightness Control
 
