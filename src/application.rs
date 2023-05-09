@@ -406,9 +406,7 @@ impl SwayOSDApplication {
 					}
 				}
 				(ArgTypes::MaxVolume, max) => set_max_volume(max),
-				(ArgTypes::DeviceName, name) => {
-					set_device_name(name.unwrap())
-			},
+				(ArgTypes::DeviceName, name) => set_device_name(name.unwrap()),
 				(ArgTypes::None, _) => {
 					eprintln!("Failed to parse variant: {}!...", variant.print(true))
 				}
