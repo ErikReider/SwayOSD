@@ -29,6 +29,8 @@ pub enum ArgTypes {
 	SourceVolumeMuteToggle = 8,
 	BrightnessRaise = 9,
 	BrightnessLower = 10,
+	// should always be last so we don't have to search it later
+	DeviceName = isize::MAX,
 }
 
 impl ArgTypes {
@@ -45,6 +47,7 @@ impl ArgTypes {
 			ArgTypes::SourceVolumeMuteToggle => "SOURCE-VOLUME-MUTE-TOGGLE",
 			ArgTypes::BrightnessRaise => "BRIGHTNESS-RAISE",
 			ArgTypes::BrightnessLower => "BRIGHTNESS-LOWER",
+			ArgTypes::DeviceName => "DEVICE-NAME"
 		}
 	}
 
@@ -61,6 +64,7 @@ impl ArgTypes {
 				"BRIGHTNESS-RAISE" => (ArgTypes::BrightnessRaise, value),
 				"BRIGHTNESS-LOWER" => (ArgTypes::BrightnessLower, value),
 				"MAX-VOLUME" => (ArgTypes::MaxVolume, value),
+				"DEVICE-NAME" => (ArgTypes::DeviceName, value),
 				_ => (ArgTypes::None, None),
 			},
 			None => (ArgTypes::None, None),
@@ -135,10 +139,19 @@ impl SwayOSDApplication {
 			"Sets the maximum Volume",
 			Some("(+)number"),
 		);
+		app.add_main_option(
+			"device",
+			glib::Char::from(0),
+			OptionFlags::NONE,
+			OptionArg::String,
+			"For which device to increase/decrease audio",
+			Some("Pulseaudio device name (pactl list short sinks|sources)"),
+		);
 
 		// Parse args
 		app.connect_handle_local_options(|app, args| -> i32 {
 			let variant = args.to_variant();
+
 			if variant.n_children() == 0 {
 				return -1;
 			}
@@ -206,6 +219,16 @@ impl SwayOSDApplication {
 								return 1;
 							}
 						}
+					}
+					"device" => {
+						let value = match child.value().str() {
+							Some(v) => v.to_string(),
+							None => {
+								eprintln!("--device found but no name given");
+								return 1;
+							}
+						};
+						(ArgTypes::DeviceName, Some(value))
 					}
 					e => {
 						eprintln!("Unknown Variant Key: \"{}\"!...", e);
@@ -388,6 +411,9 @@ impl SwayOSDApplication {
 					}
 				}
 				(ArgTypes::MaxVolume, max) => set_max_volume(max),
+				(ArgTypes::DeviceName, name) => {
+					
+				}
 				(ArgTypes::None, _) => {
 					eprintln!("Failed to parse variant: {}!...", variant.print(true))
 				}
