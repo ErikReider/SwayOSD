@@ -110,7 +110,7 @@ impl SwayOSDApplication {
 			OptionFlags::NONE,
 			OptionArg::String,
 			"Shows volume osd and raises, loweres or mutes default sink volume",
-			Some("raise|lower|mute-toggle|(±)number [device]"),
+			Some("raise|lower|mute-toggle|(±)number"),
 		);
 		// Sink volume cmdline arg
 		app.add_main_option(
@@ -119,7 +119,7 @@ impl SwayOSDApplication {
 			OptionFlags::NONE,
 			OptionArg::String,
 			"Shows volume osd and raises, loweres or mutes default source volume",
-			Some("raise|lower|mute-toggle|(±)number [device]"),
+			Some("raise|lower|mute-toggle|(±)number"),
 		);
 
 		// Sink brightness cmdline arg
