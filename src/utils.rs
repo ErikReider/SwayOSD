@@ -139,7 +139,6 @@ pub fn change_device_volume(
 					}
 				},
 			};
-			println!("{}", device_name);
 			match controller.get_device_by_name(&device_name) {
 				Ok(device) => (device, device_name.clone()),
 				Err(_) => {
