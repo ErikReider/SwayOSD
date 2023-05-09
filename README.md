@@ -24,10 +24,10 @@ exec swayosd --max-volume 120
 ```
 
 ```zsh
-# Sink volume raise
+# Sink volume raise optionally with --device
 bindsym XF86AudioRaiseVolume exec swayosd --output-volume raise
-# Sink volume lower
-bindsym XF86AudioLowerVolume exec  swayosd --output-volume lower
+# Sink volume lower optionally with --device
+bindsym XF86AudioLowerVolume exec  swayosd --output-volume lower --device alsa_output.pci-0000_11_00.4.analog-stereo.monitor
 # Sink volume toggle mute
 bindsym XF86AudioMute exec swayosd --output-volume mute-toggle
 # Source volume toggle mute
@@ -39,10 +39,10 @@ bindsym --release Caps_Lock exec swayosd --caps-lock
 # Capslock but specific LED name (/sys/class/leds/)
 bindsym --release Caps_Lock exec swayosd --caps-lock-led input19::capslock
 
-# Brightness raise optionally with --device
+# Brightness raise
 bindsym XF86MonBrightnessUp exec swayosd --brightness raise
-# Brightness lower optionally with --device
-bindsym XF86MonBrightnessDown exec swayosd --brightness lower --device alsa_output.pci-0000_11_00.4.analog-stereo.monitor
+# Brightness lower
+bindsym XF86MonBrightnessDown exec swayosd --brightness lower
 ```
 
 #### Notes on using `--device`:
