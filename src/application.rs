@@ -16,7 +16,7 @@ use gtk::gio::SimpleAction;
 const ACTION_NAME: &str = "action";
 const ACTION_FORMAT: &str = "(ss)";
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum ArgTypes {
 	None = -1,
 	// should always be first to set a global variable before executing volume-raise/lower
@@ -236,11 +236,7 @@ impl SwayOSDApplication {
 					}
 				};
 				if option != ArgTypes::None {
-					let variant = Variant::tuple_from_iter([
-						option.as_str().to_variant(),
-						value.unwrap_or(String::new()).to_variant(),
-					]);
-					actions.push((ACTION_NAME, Some(variant)));
+					actions.push((option, value));
 				}
 			}
 
@@ -257,8 +253,11 @@ impl SwayOSDApplication {
 
 			// execute the sorted actions
 			for action in actions {
-				println!("{:?}", action.1);
-				app.activate_action(action.0, Some(&action.1.unwrap()));
+				let variant = Variant::tuple_from_iter([
+					action.0.as_str().to_variant(),
+					action.1.unwrap_or(String::new()).to_variant(),
+				]);
+				app.activate_action(ACTION_NAME, Some(&variant));
 			}
 			0
 		});
