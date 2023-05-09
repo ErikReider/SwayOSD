@@ -247,7 +247,7 @@ impl SwayOSDApplication {
 			// sort actions so that they always get executed in the correct order
 			for i in 0..actions.len() - 1 {
 				for j in i + 1..actions.len() {
-					if i < j && actions[i].0 > actions[j].0 {
+					if actions[i].0 > actions[j].0 {
 						let temp = actions[i].clone();
 						actions[i] = actions[j].clone();
 						actions[j] = temp;
@@ -411,7 +411,9 @@ impl SwayOSDApplication {
 					}
 				}
 				(ArgTypes::MaxVolume, max) => set_max_volume(max),
-				(ArgTypes::DeviceName, name) => {}
+				(ArgTypes::DeviceName, name) => {
+					println!("Device name was called: {:?}", name);
+				}
 				(ArgTypes::None, _) => {
 					eprintln!("Failed to parse variant: {}!...", variant.print(true))
 				}
