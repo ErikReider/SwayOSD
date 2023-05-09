@@ -47,7 +47,7 @@ impl ArgTypes {
 			ArgTypes::SourceVolumeMuteToggle => "SOURCE-VOLUME-MUTE-TOGGLE",
 			ArgTypes::BrightnessRaise => "BRIGHTNESS-RAISE",
 			ArgTypes::BrightnessLower => "BRIGHTNESS-LOWER",
-			ArgTypes::DeviceName => "DEVICE-NAME"
+			ArgTypes::DeviceName => "DEVICE-NAME",
 		}
 	}
 
@@ -411,9 +411,7 @@ impl SwayOSDApplication {
 					}
 				}
 				(ArgTypes::MaxVolume, max) => set_max_volume(max),
-				(ArgTypes::DeviceName, name) => {
-					
-				}
+				(ArgTypes::DeviceName, name) => {}
 				(ArgTypes::None, _) => {
 					eprintln!("Failed to parse variant: {}!...", variant.print(true))
 				}
