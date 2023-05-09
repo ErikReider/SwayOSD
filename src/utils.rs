@@ -124,21 +124,25 @@ pub fn change_device_volume(
 	device_type: &mut VolumeDeviceType,
 	change_type: VolumeChangeType,
 	step: Option<String>,
+	name: Option<String>,
 ) -> Option<DeviceInfo> {
 	let (device, device_name): (DeviceInfo, String) = match device_type {
 		VolumeDeviceType::Sink(controller) => {
 			let server_info = controller.get_server_info();
-			let device_name = &match server_info {
-				Ok(info) => info.default_sink_name.unwrap_or("".to_string()),
-				Err(e) => {
-					eprintln!("Pulse Error: {}", e);
-					return None;
-				}
+			let device_name = match name {
+				Some(n) => n,
+				None => match server_info {
+					Ok(info) => info.default_sink_name.unwrap_or("".to_string()),
+					Err(e) => {
+						eprintln!("Error getting default_sink: {}", e);
+						return None;
+					}
+				},
 			};
-			match controller.get_device_by_name(device_name) {
+			match controller.get_device_by_name(&device_name) {
 				Ok(device) => (device, device_name.clone()),
-				Err(e) => {
-					eprintln!("Pulse Error: {}", e);
+				Err(_) => {
+					eprintln!("No device with that name found!");
 					return None;
 				}
 			}

@@ -300,7 +300,7 @@ impl SwayOSDApplication {
 				(ArgTypes::SinkVolumeRaise, step) => {
 					let mut device_type = VolumeDeviceType::Sink(SinkController::create().unwrap());
 					if let Some(device) =
-						change_device_volume(&mut device_type, VolumeChangeType::Raise, step)
+						change_device_volume(&mut device_type, VolumeChangeType::Raise, step, None)
 					{
 						for window in self.windows.borrow().to_owned() {
 							window.changed_volume(&device, &device_type);
@@ -310,7 +310,7 @@ impl SwayOSDApplication {
 				(ArgTypes::SinkVolumeLower, step) => {
 					let mut device_type = VolumeDeviceType::Sink(SinkController::create().unwrap());
 					if let Some(device) =
-						change_device_volume(&mut device_type, VolumeChangeType::Lower, step)
+						change_device_volume(&mut device_type, VolumeChangeType::Lower, step, None)
 					{
 						for window in self.windows.borrow().to_owned() {
 							window.changed_volume(&device, &device_type);
@@ -319,9 +319,12 @@ impl SwayOSDApplication {
 				}
 				(ArgTypes::SinkVolumeMuteToggle, _) => {
 					let mut device_type = VolumeDeviceType::Sink(SinkController::create().unwrap());
-					if let Some(device) =
-						change_device_volume(&mut device_type, VolumeChangeType::MuteToggle, None)
-					{
+					if let Some(device) = change_device_volume(
+						&mut device_type,
+						VolumeChangeType::MuteToggle,
+						None,
+						None,
+					) {
 						for window in self.windows.borrow().to_owned() {
 							window.changed_volume(&device, &device_type);
 						}
@@ -331,7 +334,7 @@ impl SwayOSDApplication {
 					let mut device_type =
 						VolumeDeviceType::Source(SourceController::create().unwrap());
 					if let Some(device) =
-						change_device_volume(&mut device_type, VolumeChangeType::Raise, step)
+						change_device_volume(&mut device_type, VolumeChangeType::Raise, step, None)
 					{
 						for window in self.windows.borrow().to_owned() {
 							window.changed_volume(&device, &device_type);
@@ -342,7 +345,7 @@ impl SwayOSDApplication {
 					let mut device_type =
 						VolumeDeviceType::Source(SourceController::create().unwrap());
 					if let Some(device) =
-						change_device_volume(&mut device_type, VolumeChangeType::Lower, step)
+						change_device_volume(&mut device_type, VolumeChangeType::Lower, step, None)
 					{
 						for window in self.windows.borrow().to_owned() {
 							window.changed_volume(&device, &device_type);
@@ -352,9 +355,12 @@ impl SwayOSDApplication {
 				(ArgTypes::SourceVolumeMuteToggle, _) => {
 					let mut device_type =
 						VolumeDeviceType::Source(SourceController::create().unwrap());
-					if let Some(device) =
-						change_device_volume(&mut device_type, VolumeChangeType::MuteToggle, None)
-					{
+					if let Some(device) = change_device_volume(
+						&mut device_type,
+						VolumeChangeType::MuteToggle,
+						None,
+						None,
+					) {
 						for window in self.windows.borrow().to_owned() {
 							window.changed_volume(&device, &device_type);
 						}
