@@ -254,9 +254,9 @@ impl SwayOSDApplication {
 			// execute the sorted actions
 			for action in actions {
 				let variant = Variant::tuple_from_iter([
-						action.0.as_str().to_variant(),
-						action.1.unwrap_or(String::new()).to_variant(),
-					]);
+					action.0.as_str().to_variant(),
+					action.1.unwrap_or(String::new()).to_variant(),
+				]);
 				app.activate_action(ACTION_NAME, Some(&variant));
 			}
 			0
