@@ -18,9 +18,7 @@ const ACTION_FORMAT: &str = "(ss)";
 
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum ArgTypes {
-	None = -1,
-	// should always be first to set a global variable before executing volume-raise/lower
-	DeviceName = 0,
+	None = 0,
 	CapsLock = 1,
 	MaxVolume = 2,
 	SinkVolumeRaise = 3,
@@ -31,6 +29,8 @@ pub enum ArgTypes {
 	SourceVolumeMuteToggle = 8,
 	BrightnessRaise = 9,
 	BrightnessLower = 10,
+	// should always be first to set a global variable before executing related functions
+	DeviceName = isize::MIN,
 }
 
 impl ArgTypes {
@@ -254,9 +254,9 @@ impl SwayOSDApplication {
 			// execute the sorted actions
 			for action in actions {
 				let variant = Variant::tuple_from_iter([
-					action.0.as_str().to_variant(),
-					action.1.unwrap_or(String::new()).to_variant(),
-				]);
+						action.0.as_str().to_variant(),
+						action.1.unwrap_or(String::new()).to_variant(),
+					]);
 				app.activate_action(ACTION_NAME, Some(&variant));
 			}
 			0
