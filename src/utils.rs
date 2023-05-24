@@ -19,7 +19,7 @@ lazy_static! {
 	static ref DEVICE_NAME: Mutex<String> = Mutex::new("default".to_string());
 }
 
-pub fn volume_parser(io: i8, value: &str) -> Result<(ArgTypes, Option<String>), i32> {
+pub fn volume_parser(is_sink: bool, value: &str) -> Result<(ArgTypes, Option<String>), i32> {
 	let mut v = match (value, value.parse::<i8>()) {
 		// Parse custom step values
 		(_, Ok(num)) => (
@@ -38,7 +38,7 @@ pub fn volume_parser(io: i8, value: &str) -> Result<(ArgTypes, Option<String>), 
 			return Err(1);
 		}
 	};
-	if io == 1 {
+	if is_sink {
 		if v.0 == ArgTypes::SinkVolumeRaise {
 			v.0 = ArgTypes::SourceVolumeRaise;
 		} else {
