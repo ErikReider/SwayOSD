@@ -178,7 +178,7 @@ impl SwayOSDApplication {
 						let value = child.value().str().unwrap_or("");
 						let parsed = volume_parser(0, value);
 						match parsed {
-							Ok(p) => (p.0, p.1),
+							Ok(p) => p,
 							Err(e) => return e,
 						}
 					}
@@ -186,7 +186,7 @@ impl SwayOSDApplication {
 						let value = child.value().str().unwrap_or("");
 						let parsed = volume_parser(1, value);
 						match parsed {
-							Ok(p) => (p.0, p.1),
+							Ok(p) => p,
 							Err(e) => return e,
 						}
 					}
