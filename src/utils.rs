@@ -12,8 +12,40 @@ use blight::{change_bl, err::BlibError, Change, Device, Direction};
 use pulse::volume::Volume;
 use pulsectl::controllers::{types::DeviceInfo, DeviceControl, SinkController, SourceController};
 
+use crate::application::ArgTypes;
+
 lazy_static! {
 	static ref MAX_VOLUME: Mutex<u8> = Mutex::new(100_u8);
+	static ref DEVICE_NAME: Mutex<String> = Mutex::new("default".to_string());
+}
+
+pub fn volume_parser(is_sink: bool, value: &str) -> Result<(ArgTypes, Option<String>), i32> {
+	let mut v = match (value, value.parse::<i8>()) {
+		// Parse custom step values
+		(_, Ok(num)) => (
+			if num.is_positive() {
+				ArgTypes::SinkVolumeRaise
+			} else {
+				ArgTypes::SinkVolumeLower
+			},
+			Some(num.abs().to_string()),
+		),
+		("raise", _) => (ArgTypes::SinkVolumeRaise, None),
+		("lower", _) => (ArgTypes::SinkVolumeLower, None),
+		("mute-toggle", _) => (ArgTypes::SinkVolumeMuteToggle, None),
+		(e, _) => {
+			eprintln!("Unknown output volume mode: \"{}\"!...", e);
+			return Err(1);
+		}
+	};
+	if is_sink {
+		if v.0 == ArgTypes::SinkVolumeRaise {
+			v.0 = ArgTypes::SourceVolumeRaise;
+		} else {
+			v.0 = ArgTypes::SourceVolumeLower;
+		}
+	}
+	Ok(v)
 }
 
 pub fn get_max_volume() -> u8 {
@@ -25,6 +57,15 @@ pub fn set_max_volume(volume: Option<String>) {
 
 	let mut vol = MAX_VOLUME.lock().unwrap();
 	*vol = setter;
+}
+
+pub fn get_device_name() -> String {
+	(*DEVICE_NAME.lock().unwrap()).clone()
+}
+
+pub fn set_device_name(name: String) {
+	let mut global_name = DEVICE_NAME.lock().unwrap();
+	*global_name = name;
 }
 
 pub fn get_caps_lock_state(led: Option<String>) -> bool {
@@ -97,34 +138,46 @@ pub fn change_device_volume(
 	let (device, device_name): (DeviceInfo, String) = match device_type {
 		VolumeDeviceType::Sink(controller) => {
 			let server_info = controller.get_server_info();
-			let device_name = &match server_info {
-				Ok(info) => info.default_sink_name.unwrap_or("".to_string()),
-				Err(e) => {
-					eprintln!("Pulse Error: {}", e);
-					return None;
+			let global_name = get_device_name();
+			let device_name: String = if global_name == "default" {
+				match server_info {
+					Ok(info) => info.default_sink_name.unwrap_or("".to_string()),
+					Err(e) => {
+						eprintln!("Error getting default_sink: {}", e);
+						return None;
+					}
 				}
+			} else {
+				set_device_name("default".to_string());
+				global_name
 			};
-			match controller.get_device_by_name(device_name) {
+			match controller.get_device_by_name(&device_name) {
 				Ok(device) => (device, device_name.clone()),
-				Err(e) => {
-					eprintln!("Pulse Error: {}", e);
+				Err(_) => {
+					eprintln!("No device with name: '{}' found!", device_name);
 					return None;
 				}
 			}
 		}
 		VolumeDeviceType::Source(controller) => {
 			let server_info = controller.get_server_info();
-			let device_name = &match server_info {
-				Ok(info) => info.default_sink_name.unwrap_or("".to_string()),
-				Err(e) => {
-					eprintln!("Pulse Error: {}", e);
-					return None;
+			let global_name = get_device_name();
+			let device_name: String = if global_name == "default" {
+				match server_info {
+					Ok(info) => info.default_source_name.unwrap_or("".to_string()),
+					Err(e) => {
+						eprintln!("Error getting default_source: {}", e);
+						return None;
+					}
 				}
+			} else {
+				set_device_name("default".to_string());
+				global_name
 			};
-			match controller.get_device_by_name(device_name) {
+			match controller.get_device_by_name(&device_name) {
 				Ok(device) => (device, device_name.clone()),
-				Err(e) => {
-					eprintln!("Pulse Error: {}", e);
+				Err(_) => {
+					eprintln!("No device with name: '{}' found!", device_name);
 					return None;
 				}
 			}

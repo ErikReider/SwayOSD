@@ -16,7 +16,7 @@ use gtk::gio::SimpleAction;
 const ACTION_NAME: &str = "action";
 const ACTION_FORMAT: &str = "(ss)";
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum ArgTypes {
 	None = 0,
 	CapsLock = 1,
@@ -29,6 +29,8 @@ pub enum ArgTypes {
 	SourceVolumeMuteToggle = 8,
 	BrightnessRaise = 9,
 	BrightnessLower = 10,
+	// should always be first to set a global variable before executing related functions
+	DeviceName = isize::MIN,
 }
 
 impl ArgTypes {
@@ -45,6 +47,7 @@ impl ArgTypes {
 			ArgTypes::SourceVolumeMuteToggle => "SOURCE-VOLUME-MUTE-TOGGLE",
 			ArgTypes::BrightnessRaise => "BRIGHTNESS-RAISE",
 			ArgTypes::BrightnessLower => "BRIGHTNESS-LOWER",
+			ArgTypes::DeviceName => "DEVICE-NAME",
 		}
 	}
 
@@ -61,6 +64,7 @@ impl ArgTypes {
 				"BRIGHTNESS-RAISE" => (ArgTypes::BrightnessRaise, value),
 				"BRIGHTNESS-LOWER" => (ArgTypes::BrightnessLower, value),
 				"MAX-VOLUME" => (ArgTypes::MaxVolume, value),
+				"DEVICE-NAME" => (ArgTypes::DeviceName, value),
 				_ => (ArgTypes::None, None),
 			},
 			None => (ArgTypes::None, None),
@@ -135,10 +139,19 @@ impl SwayOSDApplication {
 			"Sets the maximum Volume",
 			Some("(+)number"),
 		);
+		app.add_main_option(
+			"device",
+			glib::Char::from(0),
+			OptionFlags::NONE,
+			OptionArg::String,
+			"For which device to increase/decrease audio",
+			Some("Pulseaudio device name (pactl list short sinks|sources)"),
+		);
 
 		// Parse args
 		app.connect_handle_local_options(|app, args| -> i32 {
 			let variant = args.to_variant();
+
 			if variant.n_children() == 0 {
 				return -1;
 			}
@@ -163,44 +176,18 @@ impl SwayOSDApplication {
 					},
 					"output-volume" => {
 						let value = child.value().str().unwrap_or("");
-						match (value, value.parse::<i8>()) {
-							// Parse custom step values
-							(_, Ok(num)) => (
-								if num.is_positive() {
-									ArgTypes::SinkVolumeRaise
-								} else {
-									ArgTypes::SinkVolumeLower
-								},
-								Some(num.abs().to_string()),
-							),
-							("raise", _) => (ArgTypes::SinkVolumeRaise, None),
-							("lower", _) => (ArgTypes::SinkVolumeLower, None),
-							("mute-toggle", _) => (ArgTypes::SinkVolumeMuteToggle, None),
-							(e, _) => {
-								eprintln!("Unknown output volume mode: \"{}\"!...", e);
-								return 1;
-							}
+						let parsed = volume_parser(false, value);
+						match parsed {
+							Ok(p) => p,
+							Err(e) => return e,
 						}
 					}
 					"input-volume" => {
 						let value = child.value().str().unwrap_or("");
-						match (value, value.parse::<i8>()) {
-							// Parse custom step values
-							(_, Ok(num)) => (
-								if num.is_positive() {
-									ArgTypes::SourceVolumeRaise
-								} else {
-									ArgTypes::SourceVolumeLower
-								},
-								Some(num.abs().to_string()),
-							),
-							("raise", _) => (ArgTypes::SourceVolumeRaise, None),
-							("lower", _) => (ArgTypes::SourceVolumeLower, None),
-							("mute-toggle", _) => (ArgTypes::SourceVolumeMuteToggle, None),
-							(e, _) => {
-								eprintln!("Unknown input volume mode: \"{}\"!...", e);
-								return 1;
-							}
+						let parsed = volume_parser(true, value);
+						match parsed {
+							Ok(p) => p,
+							Err(e) => return e,
 						}
 					}
 					"brightness" => {
@@ -233,36 +220,44 @@ impl SwayOSDApplication {
 							}
 						}
 					}
+					"device" => {
+						let value = match child.value().str() {
+							Some(v) => v.to_string(),
+							None => {
+								eprintln!("--device found but no name given");
+								return 1;
+							}
+						};
+						(ArgTypes::DeviceName, Some(value))
+					}
 					e => {
 						eprintln!("Unknown Variant Key: \"{}\"!...", e);
 						return 1;
 					}
 				};
 				if option != ArgTypes::None {
-					let variant = Variant::tuple_from_iter([
-						option.as_str().to_variant(),
-						value.unwrap_or(String::new()).to_variant(),
-					]);
-					actions.push((ACTION_NAME, Some(variant)));
+					actions.push((option, value));
 				}
 			}
 
 			// sort actions so that they always get executed in the correct order
 			for i in 0..actions.len() - 1 {
 				for j in i + 1..actions.len() {
-					if i < j {
-						if actions[i].0 > actions[j].0 {
-							let temp = actions[i].clone();
-							actions[i] = actions[j].clone();
-							actions[j] = temp;
-						}
+					if actions[i].0 > actions[j].0 {
+						let temp = actions[i].clone();
+						actions[i] = actions[j].clone();
+						actions[j] = temp;
 					}
 				}
 			}
 
 			// execute the sorted actions
 			for action in actions {
-				app.activate_action(action.0, Some(&action.1.unwrap()));
+				let variant = Variant::tuple_from_iter([
+					action.0.as_str().to_variant(),
+					action.1.unwrap_or(String::new()).to_variant(),
+				]);
+				app.activate_action(ACTION_NAME, Some(&variant));
 			}
 			0
 		});
@@ -410,6 +405,7 @@ impl SwayOSDApplication {
 					}
 				}
 				(ArgTypes::MaxVolume, max) => set_max_volume(max),
+				(ArgTypes::DeviceName, name) => set_device_name(name.unwrap()),
 				(ArgTypes::None, _) => {
 					eprintln!("Failed to parse variant: {}!...", variant.print(true))
 				}
