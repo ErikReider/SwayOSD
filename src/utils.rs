@@ -41,8 +41,10 @@ pub fn volume_parser(is_sink: bool, value: &str) -> Result<(ArgTypes, Option<Str
 	if is_sink {
 		if v.0 == ArgTypes::SinkVolumeRaise {
 			v.0 = ArgTypes::SourceVolumeRaise;
-		} else {
+		} else if v.0 == ArgTypes::SinkVolumeLower {
 			v.0 = ArgTypes::SourceVolumeLower;
+		} else {
+			v.0 = ArgTypes::SourceVolumeMuteToggle;
 		}
 	}
 	Ok(v)
@@ -281,7 +283,7 @@ pub fn change_device_volume(
 				controller.handler.wait_for_operation(op).ok();
 			}
 			VolumeDeviceType::Source(controller) => {
-				let op = controller.handler.introspect.set_sink_mute_by_index(
+				let op = controller.handler.introspect.set_source_mute_by_index(
 					device.index,
 					!device.mute,
 					None,
