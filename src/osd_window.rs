@@ -185,12 +185,23 @@ impl SwayosdWindow {
 		let icon = self.build_icon_widget("caps-lock-symbolic");
 		let label = self.build_text_widget(None);
 
+		let on_off_text = match state {
+			true => "On",
+			false => "Off",
+		};
+
+		let label_text = match key {
+			KeysLocks::CapsLock => "Caps Lock ".to_string() + on_off_text,
+			KeysLocks::NumLock => "Num Lock ".to_string() + on_off_text,
+			KeysLocks::ScrollLock => "Scroll Lock ".to_string() + on_off_text,
+		};
+
+		label.set_text(&label_text);
+
 		if !state {
 			icon.set_opacity(DISABLED_OPACITY);
-			label.set_text("Caps Lock Off");
 		} else {
 			icon.set_opacity(1.0);
-			label.set_text("Caps Lock On");
 		}
 
 		self.container.add(&icon);
