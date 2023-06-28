@@ -30,6 +30,8 @@ pub enum ArgTypes {
 	SourceVolumeMuteToggle = 8,
 	BrightnessRaise = 9,
 	BrightnessLower = 10,
+	NumLock = 11,
+	ScrollLock = 12,
 	// should always be first to set a global variable before executing related functions
 	DeviceName = isize::MIN,
 }
@@ -48,6 +50,8 @@ impl ArgTypes {
 			ArgTypes::SourceVolumeMuteToggle => "SOURCE-VOLUME-MUTE-TOGGLE",
 			ArgTypes::BrightnessRaise => "BRIGHTNESS-RAISE",
 			ArgTypes::BrightnessLower => "BRIGHTNESS-LOWER",
+			ArgTypes::NumLock => "NUM-LOCK",
+			ArgTypes::ScrollLock => "SCROLL-LOCK",
 			ArgTypes::DeviceName => "DEVICE-NAME",
 		}
 	}
@@ -65,6 +69,8 @@ impl ArgTypes {
 				"BRIGHTNESS-RAISE" => (ArgTypes::BrightnessRaise, value),
 				"BRIGHTNESS-LOWER" => (ArgTypes::BrightnessLower, value),
 				"MAX-VOLUME" => (ArgTypes::MaxVolume, value),
+				"NUM-LOCK" => (ArgTypes::NumLock, value),
+				"SCROLL-LOCK" => (ArgTypes::ScrollLock, value),
 				"DEVICE-NAME" => (ArgTypes::DeviceName, value),
 				_ => (ArgTypes::None, None),
 			},
@@ -95,6 +101,22 @@ impl SwayOSDApplication {
 			"Shows capslock osd. Note: Doesn't toggle CapsLock, just display the status",
 			None,
 		);
+		app.add_main_option(
+			"num-lock",
+			glib::Char::from(0),
+			OptionFlags::NONE,
+			OptionArg::None,
+			"Shows numlock osd. Note: Doesn't toggle NumLock, just display the status",
+			None,
+		);
+		app.add_main_option(
+			"scroll-lock",
+			glib::Char::from(0),
+			OptionFlags::NONE,
+			OptionArg::None,
+			"Shows scrolllock osd. Note: Doesn't toggle ScrollLock, just display the status",
+			None,
+		);
 		// Capslock with specific LED cmdline arg
 		app.add_main_option(
 			"caps-lock-led",
@@ -102,6 +124,22 @@ impl SwayOSDApplication {
 			OptionFlags::NONE,
 			OptionArg::String,
 			"Shows capslock osd. Uses LED class name. Note: Doesn't toggle CapsLock, just display the status",
+			Some("LED class name (/sys/class/leds/NAME)"),
+		);
+		app.add_main_option(
+			"num-lock-led",
+			glib::Char::from(0),
+			OptionFlags::NONE,
+			OptionArg::String,
+			"Shows numlock osd. Uses LED class name. Note: Doesn't toggle NumLock, just display the status",
+			Some("LED class name (/sys/class/leds/NAME)"),
+		);
+		app.add_main_option(
+			"scroll-lock-led",
+			glib::Char::from(0),
+			OptionFlags::NONE,
+			OptionArg::String,
+			"Shows scrolllock osd. Uses LED class name. Note: Doesn't toggle ScrollLock, just display the status",
 			Some("LED class name (/sys/class/leds/NAME)"),
 		);
 		// Sink volume cmdline arg
@@ -474,6 +512,26 @@ impl SwayOSDApplication {
 					}
 				}
 				(ArgTypes::CapsLock, value) => {
+					let i32_value = value.clone().unwrap_or("-1".to_owned());
+					let state = match i32_value.parse::<i32>() {
+						Ok(value) if value >= 0 && value <= 1 => value == 1,
+						_ => get_caps_lock_state(value),
+					};
+					for window in self.windows.borrow().to_owned() {
+						window.changed_capslock(state)
+					}
+				}
+				(ArgTypes::NumLock, value) => {
+					let i32_value = value.clone().unwrap_or("-1".to_owned());
+					let state = match i32_value.parse::<i32>() {
+						Ok(value) if value >= 0 && value <= 1 => value == 1,
+						_ => get_caps_lock_state(value),
+					};
+					for window in self.windows.borrow().to_owned() {
+						window.changed_capslock(state)
+					}
+				}
+				(ArgTypes::ScrollLock, value) => {
 					let i32_value = value.clone().unwrap_or("-1".to_owned());
 					let state = match i32_value.parse::<i32>() {
 						Ok(value) if value >= 0 && value <= 1 => value == 1,
