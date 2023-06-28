@@ -182,7 +182,6 @@ impl SwayosdWindow {
 	pub fn changed_keylock(&self, key: KeysLocks, state: bool) {
 		self.clear_osd();
 
-		let icon = self.build_icon_widget("caps-lock-symbolic");
 		let label = self.build_text_widget(None);
 
 		let on_off_text = match state {
@@ -190,13 +189,26 @@ impl SwayosdWindow {
 			false => "Off",
 		};
 
-		let label_text = match key {
-			KeysLocks::CapsLock => "Caps Lock ".to_string() + on_off_text,
-			KeysLocks::NumLock => "Num Lock ".to_string() + on_off_text,
-			KeysLocks::ScrollLock => "Scroll Lock ".to_string() + on_off_text,
+		let (label_text, symbol) = match key {
+			KeysLocks::CapsLock => {
+				let symbol = "caps-lock-symbolic";
+				let text = "Caps Lock ".to_string() + on_off_text;
+				(text, symbol)
+			}
+			KeysLocks::NumLock => {
+				let symbol = "input-keyboard-numlock-symbolic";
+				let text = "Num Lock ".to_string() + on_off_text;
+				(text, symbol)
+			}
+			KeysLocks::ScrollLock => {
+				let symbol = "input-keyboard-capslock-symbolic";
+				let text = "Scroll Lock ".to_string() + on_off_text;
+				(text, symbol)
+			}
 		};
 
 		label.set_text(&label_text);
+		let icon = self.build_icon_widget(symbol);
 
 		if !state {
 			icon.set_opacity(DISABLED_OPACITY);
