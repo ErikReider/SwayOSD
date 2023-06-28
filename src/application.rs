@@ -531,7 +531,7 @@ impl SwayOSDApplication {
 					let i32_value = value.clone().unwrap_or("-1".to_owned());
 					let state = match i32_value.parse::<i32>() {
 						Ok(value) if value >= 0 && value <= 1 => value == 1,
-						_ => get_caps_lock_state(value),
+						_ => get_key_lock_state(KeysLocks::CapsLock, led),
 					};
 					for window in self.windows.borrow().to_owned() {
 						window.changed_capslock(state)
@@ -541,7 +541,7 @@ impl SwayOSDApplication {
 					let i32_value = value.clone().unwrap_or("-1".to_owned());
 					let state = match i32_value.parse::<i32>() {
 						Ok(value) if value >= 0 && value <= 1 => value == 1,
-						_ => get_caps_lock_state(value),
+						_ => get_key_lock_state(KeysLocks::NumLock, led),
 					};
 					for window in self.windows.borrow().to_owned() {
 						window.changed_capslock(state)
@@ -551,7 +551,7 @@ impl SwayOSDApplication {
 					let i32_value = value.clone().unwrap_or("-1".to_owned());
 					let state = match i32_value.parse::<i32>() {
 						Ok(value) if value >= 0 && value <= 1 => value == 1,
-						_ => get_caps_lock_state(value),
+						_ => get_key_lock_state(KeysLocks::ScrollLock, led),
 					};
 					for window in self.windows.borrow().to_owned() {
 						window.changed_capslock(state)

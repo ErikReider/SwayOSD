@@ -19,7 +19,7 @@ lazy_static! {
 	static ref DEVICE_NAME: Mutex<String> = Mutex::new("default".to_string());
 }
 
-pub enum Keys {
+pub enum KeysLocks {
 	CapsLock,
 	NumLock,
 	ScrollLock,
@@ -76,7 +76,7 @@ pub fn set_device_name(name: String) {
 	*global_name = name;
 }
 
-pub fn get_caps_lock_state(key: Keys, led: Option<String>) -> bool {
+pub fn get_key_lock_state(key: KeysLocks, led: Option<String>) -> bool {
 	const BASE_PATH: &str = "/sys/class/leds";
 	match fs::read_dir(BASE_PATH) {
 		Ok(paths) => {
@@ -96,9 +96,9 @@ pub fn get_caps_lock_state(key: Keys, led: Option<String>) -> bool {
 			}
 
 			let key_name = match key {
-				Keys::CapsLock => "capslock",
-				Keys::NumLock => "numlock",
-				Keys::ScrollLock => "scrolllock",
+				KeysLocks::CapsLock => "capslock",
+				KeysLocks::NumLock => "numlock",
+				KeysLocks::ScrollLock => "scrolllock",
 			};
 
 			for path in paths {
