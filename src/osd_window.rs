@@ -10,7 +10,7 @@ use gtk::{
 };
 use pulsectl::controllers::types::DeviceInfo;
 
-use crate::utils::{volume_to_f64, VolumeDeviceType};
+use crate::utils::{volume_to_f64, VolumeDeviceType, KeysLocks};
 use blight::Device;
 
 const DISABLED_OPACITY: f64 = 0.5;
@@ -179,7 +179,7 @@ impl SwayosdWindow {
 		self.run_timeout();
 	}
 
-	pub fn changed_capslock(&self, state: bool) {
+	pub fn changed_keylock(&self, key: KeysLocks, state: bool) {
 		self.clear_osd();
 
 		let icon = self.build_icon_widget("caps-lock-symbolic");

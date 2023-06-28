@@ -534,7 +534,7 @@ impl SwayOSDApplication {
 						_ => get_key_lock_state(KeysLocks::CapsLock, led),
 					};
 					for window in self.windows.borrow().to_owned() {
-						window.changed_capslock(state)
+						window.changed_keylock(KeysLocks::CapsLock, state)
 					}
 				}
 				(ArgTypes::NumLock, value) => {
@@ -544,7 +544,7 @@ impl SwayOSDApplication {
 						_ => get_key_lock_state(KeysLocks::NumLock, led),
 					};
 					for window in self.windows.borrow().to_owned() {
-						window.changed_capslock(state)
+						window.changed_keylock(KeysLocks::NumLock, state)
 					}
 				}
 				(ArgTypes::ScrollLock, value) => {
@@ -554,7 +554,7 @@ impl SwayOSDApplication {
 						_ => get_key_lock_state(KeysLocks::ScrollLock, led),
 					};
 					for window in self.windows.borrow().to_owned() {
-						window.changed_capslock(state)
+						window.changed_keylock(KeysLocks::ScrollLock, state)
 					}
 				}
 				(ArgTypes::MaxVolume, max) => set_max_volume(max),
