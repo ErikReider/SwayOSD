@@ -10,7 +10,7 @@ use gtk::{
 };
 use pulsectl::controllers::types::DeviceInfo;
 
-use crate::utils::{volume_to_f64, VolumeDeviceType, KeysLocks};
+use crate::utils::{volume_to_f64, KeysLocks, VolumeDeviceType};
 use blight::Device;
 
 const DISABLED_OPACITY: f64 = 0.5;
