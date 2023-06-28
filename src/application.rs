@@ -206,10 +206,26 @@ impl SwayOSDApplication {
 
 				let (option, value): (ArgTypes, Option<String>) = match child.key().as_str() {
 					"caps-lock" => (ArgTypes::CapsLock, None),
+					"num-lock" => (ArgTypes::NumLock, None),
+					"scroll-lock" => (ArgTypes::ScrollLock, None),
 					"caps-lock-led" => match child.value().str() {
 						Some(led) => (ArgTypes::CapsLock, Some(led.to_owned())),
 						None => {
 							eprintln!("Value for caps-lock-led isn't a string!...");
+							return 1;
+						}
+					},
+					"num-lock-led" => match child.value().str() {
+						Some(led) => (ArgTypes::CapsLock, Some(led.to_owned())),
+						None => {
+							eprintln!("Value for num-lock-led isn't a string!...");
+							return 1;
+						}
+					},
+					"scroll-lock-led" => match child.value().str() {
+						Some(led) => (ArgTypes::CapsLock, Some(led.to_owned())),
+						None => {
+							eprintln!("Value for scroll-lock-led isn't a string!...");
 							return 1;
 						}
 					},
