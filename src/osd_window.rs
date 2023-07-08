@@ -131,17 +131,22 @@ impl SwayosdWindow {
 
 		let volume = volume_to_f64(&device.volume.avg());
 		let icon_prefix = match device_type {
-			VolumeDeviceType::Sink(_) => "audio-volume",
-			VolumeDeviceType::Source(_) => "microphone-sensitivity",
+			VolumeDeviceType::Sink(_) => "sink",
+			VolumeDeviceType::Source(_) => "source",
 		};
-		let icon_name = &match (device.mute, volume) {
-			(true, _) => format!("{}-muted-symbolic", icon_prefix),
-			(_, x) if x == 0.0 => format!("{}-muted-symbolic", icon_prefix),
-			(false, x) if x > 0.0 && x <= 33.0 => format!("{}-low-symbolic", icon_prefix),
-			(false, x) if x > 33.0 && x <= 66.0 => format!("{}-medium-symbolic", icon_prefix),
-			(false, x) if x > 66.0 => format!("{}-high-symbolic", icon_prefix),
-			(_, _) => format!("{}-high-symbolic", icon_prefix),
+		let icon_state = &match (device.mute, volume) {
+			(true, _) => "muted",
+			(_, x) if x == 0.0 => "muted",
+			(false, x) if x > 0.0 && x <= 33.0 => "low",
+			(false, x) if x > 33.0 && x <= 66.0 => "medium",
+			(false, x) if x > 66.0 && x <= 100.0 => "high",
+			(false, x) if x > 100.0 => match device_type {
+				VolumeDeviceType::Sink(_) => "high",
+				VolumeDeviceType::Source(_) => "overamplified",
+			},
+			(_, _) => "high",
 		};
+		let icon_name = &format!("{}-volume-{}-symbolic", icon_prefix, icon_state);
 
 		let icon = self.build_icon_widget(icon_name);
 		let progress = self.build_progress_widget(volume / 100.0);
@@ -161,7 +166,6 @@ impl SwayosdWindow {
 	pub fn changed_brightness(&self, device: &Device) {
 		self.clear_osd();
 
-		// Using the icon from Adwaita for now?
 		let icon_name = "display-brightness-symbolic";
 		let icon = self.build_icon_widget(icon_name);
 
@@ -178,7 +182,7 @@ impl SwayosdWindow {
 	pub fn changed_capslock(&self, state: bool) {
 		self.clear_osd();
 
-		let icon = self.build_icon_widget("input-keyboard-symbolic");
+		let icon = self.build_icon_widget("caps-lock-symbolic");
 		let label = self.build_text_widget(None);
 
 		if !state {
@@ -222,7 +226,7 @@ impl SwayosdWindow {
 	fn build_icon_widget(&self, icon_name: &str) -> gtk::Image {
 		let icon_name = match gtk::IconTheme::default() {
 			Some(theme) if theme.has_icon(icon_name) => icon_name,
-			_ => "image-missing-symbolic",
+			_ => "missing-symbolic",
 		};
 
 		cascade! {

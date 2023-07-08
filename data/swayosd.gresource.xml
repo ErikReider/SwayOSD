@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/org/erikreider/swayosd">
+    <file>icons/scalable/status/missing-symbolic.svg</file>
+
+    <file>icons/scalable/status/caps-lock-symbolic.svg</file>
+
+    <file>icons/scalable/status/display-brightness-symbolic.svg</file>
+
+    <file>icons/scalable/status/sink-volume-overamplified-symbolic.svg</file>
+    <file>icons/scalable/status/sink-volume-high-symbolic.svg</file>
+    <file>icons/scalable/status/sink-volume-medium-symbolic.svg</file>
+    <file>icons/scalable/status/sink-volume-low-symbolic.svg</file>
+    <file>icons/scalable/status/sink-volume-muted-symbolic.svg</file>
+    <file>icons/scalable/status/source-volume-high-symbolic.svg</file>
+    <file>icons/scalable/status/source-volume-medium-symbolic.svg</file>
+    <file>icons/scalable/status/source-volume-low-symbolic.svg</file>
+    <file>icons/scalable/status/source-volume-muted-symbolic.svg</file>
+  </gresource>
+</gresources>
