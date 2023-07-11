@@ -3,9 +3,18 @@ name = "swayosd"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "swayosd"
+path = "src/main.rs"
+
+[[bin]]
+name = "swayosd-libinput-backend"
+path = "src/input-backend/main.rs"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+# GUI Dependencies
 gtk = "0.17.1"
 gtk-layer-shell = "0.6.1"
 shrinkwraprs = "0.3.0"
@@ -15,3 +24,9 @@ pulsectl-rs = "0.3.2"
 blight = "0.5.0"
 substring = "1.4.5"
 lazy_static = "1.4.0"
+zbus = "3.14.1"
+# Backend Dependencies
+input = "0.8"
+libc = "0.2.147"
+evdev-rs = "0.6.1"
+async-std = "1.12.0"

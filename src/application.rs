@@ -1,17 +1,18 @@
-use std::cell::{Cell, RefCell};
-use std::rc::Rc;
-
-use gtk::gio::{ApplicationFlags, Cancellable};
+use crate::config::{self, DBUS_SERVER_NAME};
+use crate::osd_window::SwayosdWindow;
+use crate::utils::*;
+use gtk::gio::{ApplicationFlags, BusNameWatcherFlags, BusType, Cancellable};
+use gtk::gio::{SignalSubscriptionId, SimpleAction};
 use gtk::glib::variant::DictEntry;
-use gtk::glib::{clone, OptionArg, OptionFlags, SignalHandlerId, Variant, VariantTy};
+use gtk::glib::{
+	clone, MainContext, OptionArg, OptionFlags, Priority, SignalHandlerId, Variant, VariantTy,
+};
 use gtk::prelude::*;
 use gtk::*;
 use pulsectl::controllers::{SinkController, SourceController};
-
-use crate::osd_window::SwayosdWindow;
-use crate::utils::*;
-
-use gtk::gio::SimpleAction;
+use std::cell::{Cell, RefCell};
+use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 const ACTION_NAME: &str = "action";
 const ACTION_FORMAT: &str = "(ss)";
@@ -262,6 +263,62 @@ impl SwayOSDApplication {
 			0
 		});
 
+		// Listen to the LibInput Backend and activate the Application action
+		let (sender, receiver) = MainContext::channel::<(u16, i32)>(Priority::default());
+		receiver.attach(
+			None,
+			clone!(@strong app => @default-return Continue(false), move |(key_code, state)| {
+				Self::key_pressed_cb(&app, key_code, state);
+				Continue(true)
+			}),
+		);
+		// Start watching for the LibInput Backend
+		let signal_id: Arc<Mutex<Option<SignalSubscriptionId>>> = Arc::new(Mutex::new(None));
+		gio::bus_watch_name(
+			BusType::System,
+			DBUS_SERVER_NAME,
+			BusNameWatcherFlags::NONE,
+			clone!(@strong sender, @strong signal_id => move |connection, _, _| {
+				println!("Connecting to the SwayOSD LibInput Backend");
+				let mut mutex = match signal_id.lock() {
+					Ok(mut mutex) => match mutex.as_mut() {
+						Some(_) => return,
+						None => mutex,
+					},
+					Err(error) => return println!("Mutex lock Error: {}", error),
+				};
+				mutex.replace(connection.signal_subscribe(
+					Some(config::DBUS_SERVER_NAME),
+					Some(config::DBUS_SERVER_NAME),
+					Some("KeyPressed"),
+					Some(config::DBUS_SERVER_PATH),
+					None,
+					gio::DBusSignalFlags::NONE,
+					clone!(@strong sender => move |_, _, _, _, _, variant| {
+						let key_code = variant.try_child_get::<u16>(0);
+						let state = variant.try_child_get::<i32>(1);
+						match (key_code, state) {
+							(Ok(Some(key_code)), Ok(Some(state))) => {
+								if let Err(error) = sender.send((key_code, state)) {
+									eprintln!("Channel Send error: {}", error);
+								}
+							},
+							variables => return eprintln!("Variables don't match: {:?}", variables),
+						};
+					}),
+				));
+			}),
+			clone!(@strong signal_id => move|connection, _| {
+				eprintln!("SwayOSD LibInput Backend isn't available, waiting...");
+				match signal_id.lock() {
+					Ok(mut mutex) => if let Some(sig_id) = mutex.take() {
+						connection.signal_unsubscribe(sig_id);
+					},
+					Err(error) => println!("Mutex lock Error: {}", error),
+				}
+			}),
+		);
+
 		SwayOSDApplication {
 			app,
 			started: Rc::new(Cell::new(false)),
@@ -298,6 +355,24 @@ impl SwayOSDApplication {
 		}
 
 		self.app.run().into()
+	}
+
+	fn key_pressed_cb(app: &gtk::Application, key_code: u16, state: i32) {
+		let (option, value): (ArgTypes, Option<String>) =
+			match evdev_rs::enums::int_to_ev_key(key_code as u32) {
+				Some(evdev_rs::enums::EV_KEY::KEY_CAPSLOCK) => {
+					(ArgTypes::CapsLock, Some(state.to_string()))
+				}
+				e => {
+					eprintln!("Unknown Key in signal: \"{:?}\"!...", e);
+					return;
+				}
+			};
+		let variant = Variant::tuple_from_iter([
+			option.as_str().to_variant(),
+			value.unwrap_or(String::new()).to_variant(),
+		]);
+		app.activate_action(ACTION_NAME, Some(&variant));
 	}
 
 	fn action_activated(&self, action: &SimpleAction, variant: Option<&Variant>) {
@@ -398,8 +473,12 @@ impl SwayOSDApplication {
 						}
 					}
 				}
-				(ArgTypes::CapsLock, led) => {
-					let state = get_caps_lock_state(led);
+				(ArgTypes::CapsLock, value) => {
+					let i32_value = value.clone().unwrap_or("-1".to_owned());
+					let state = match i32_value.parse::<i32>() {
+						Ok(value) if value >= 0 && value <= 1 => value == 1,
+						_ => get_caps_lock_state(value),
+					};
 					for window in self.windows.borrow().to_owned() {
 						window.changed_capslock(state)
 					}

@@ -1,0 +1,7 @@
+// vim: ft=javascript
+// Allow "wheel" group users to run the swayosd backend
+polkit.addRule(function(action, subject) {
+  if (action.id == "org.erikreider.swayosd-libinput-backend" && subject.isInGroup("wheel")) {
+    return polkit.Result.YES;
+  }
+});
