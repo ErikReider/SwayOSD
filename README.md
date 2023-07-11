@@ -6,22 +6,25 @@ This is my first time coding in Rust so fixes and improvements are appreciated :
 
 ## Features:
 
-- LibInput listener for these keys:
-  - Capslock
+- LibInput listener Backend for these keys:
+  - Caps Lock
 - Input and output volume change indicator
 - Input and output mute change indicator
 - Customizable maximum Volume
 - Capslock change (Note: doesn't change the caps lock state)
 - Brightness change indicator
 
+## Images
+
+![image](https://user-images.githubusercontent.com/35975961/200685357-fb9697ae-a32d-4c60-a2ae-7791e70097b9.png)
+
+![image](https://user-images.githubusercontent.com/35975961/200685469-96c3398f-0169-4d13-8df0-90951e30ff33.png)
+
 ## Install:
 
 There's a new LibInput watcher binary shipped with SwayOSD (`swayosd-libinput-backend`)
 which can automatically detect key presses, so no need for binding key combos.
 The supported keys are listed above in [Features](#features)
-<br>
-<br>
-_Note: The watcher is optional_
 
 ### Through Meson
 
@@ -38,6 +41,16 @@ Available on the AUR thanks to @jgmdev! (Don't open a issue here about AUR packa
 - [swayosd-git](https://aur.archlinux.org/packages/swayosd-git)
 
 ## Usage:
+
+### SwayOSD LibInput Backend
+
+Using Systemd: `sudo systemctl enable --now swayosd-libinput-backend.service`
+
+Other users can run: `pkexec swayosd-libinput-backend`
+
+### SwayOSD Frontend
+
+#### Sway examples
 
 ```zsh
 # OSD window
@@ -60,9 +73,8 @@ bindsym XF86AudioMute exec swayosd --output-volume mute-toggle
 # Source volume toggle mute
 bindsym XF86AudioMicMute exec swayosd --input-volume mute-toggle
 
-# Capslock
+# Capslock (If you don't want to use the backend)
 bindsym --release Caps_Lock exec swayosd --caps-lock
-
 # Capslock but specific LED name (/sys/class/leds/)
 bindsym --release Caps_Lock exec swayosd --caps-lock-led input19::capslock
 
@@ -83,23 +95,5 @@ bindsym XF86MonBrightnessDown exec swayosd --brightness lower
 ## Brightness Control
 
 Some devices may not have permission to write `/sys/class/backlight/*/brightness`.
-
-Workaround will be adding a rule inside `udev`:
-
-1. Add `udev` rules:
-
-`/etc/udev/rules.d/99-swayosd.rules`
-
-```udevrules
-ACTION=="add", SUBSYSTEM=="backlight", RUN+="/bin/chgrp video /sys/class/backlight/%k/brightness"
-ACTION=="add", SUBSYSTEM=="backlight", RUN+="/bin/chmod g+w /sys/class/backlight/%k/brightness"
-```
-
-2. Add user to `video` group by running `sudo usermod -a -G video $USER`
-3. Reboot system for udev rules to take effect
-
-## Images
-
-![image](https://user-images.githubusercontent.com/35975961/200685357-fb9697ae-a32d-4c60-a2ae-7791e70097b9.png)
-
-![image](https://user-images.githubusercontent.com/35975961/200685469-96c3398f-0169-4d13-8df0-90951e30ff33.png)
+So using the provided packaged `udev` rules + adding the user to `video` group
+by running `sudo usermod -a -G video $USER`, everything should work as expected.
