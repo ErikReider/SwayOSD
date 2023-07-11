@@ -79,6 +79,24 @@ fn main() -> Result<(), zbus::Error> {
 					Some(key @ EV_KEY::KEY_KBDILLUMUP) |
 					Some(key @ EV_KEY::KEY_KBDILLUMDOWN) |
 					Some(key @ EV_KEY::KEY_KBDILLUMTOGGLE) => key,
+					// Keyboard Layout
+					Some(key @ EV_KEY::KEY_KBD_LAYOUT_NEXT) => key,
+					// Audio Keys
+					Some(key @ EV_KEY::KEY_VOLUMEUP) |
+					Some(key @ EV_KEY::KEY_VOLUMEDOWN) |
+					Some(key @ EV_KEY::KEY_MUTE) |
+					Some(key @ EV_KEY::KEY_UNMUTE) |
+					Some(key @ EV_KEY::KEY_MICMUTE) => key,
+					// Touchpad
+					Some(key @ EV_KEY::KEY_TOUCHPAD_ON) |
+					Some(key @ EV_KEY::KEY_TOUCHPAD_OFF) |
+					Some(key @ EV_KEY::KEY_TOUCHPAD_TOGGLE) |
+					// Media Keys
+					Some(key @ EV_KEY::KEY_PREVIOUSSONG) |
+					Some(key @ EV_KEY::KEY_PLAYPAUSE) |
+					Some(key @ EV_KEY::KEY_PLAY) |
+					Some(key @ EV_KEY::KEY_PAUSE) |
+					Some(key @ EV_KEY::KEY_NEXTSONG) => key,
 					_ => continue,
 				};
 
