@@ -1,8 +1,8 @@
 use crate::config::{self, DBUS_SERVER_NAME};
 use crate::osd_window::SwayosdWindow;
 use crate::utils::*;
-use gtk::gio::SimpleAction;
 use gtk::gio::{ApplicationFlags, BusNameWatcherFlags, BusType, Cancellable};
+use gtk::gio::{SignalSubscriptionId, SimpleAction};
 use gtk::glib::variant::DictEntry;
 use gtk::glib::{
 	clone, MainContext, OptionArg, OptionFlags, Priority, SignalHandlerId, Variant, VariantTy,
@@ -12,6 +12,7 @@ use gtk::*;
 use pulsectl::controllers::{SinkController, SourceController};
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 const ACTION_NAME: &str = "action";
 const ACTION_FORMAT: &str = "(ss)";
@@ -272,12 +273,21 @@ impl SwayOSDApplication {
 			}),
 		);
 		// Start watching for the LibInput Backend
+		let signal_id: Arc<Mutex<Option<SignalSubscriptionId>>> = Arc::new(Mutex::new(None));
 		gio::bus_watch_name(
 			BusType::System,
 			DBUS_SERVER_NAME,
 			BusNameWatcherFlags::NONE,
-			clone!(@strong sender => move |connection, _, _| {
-				connection.signal_subscribe(
+			clone!(@strong sender, @strong signal_id => move |connection, _, _| {
+				println!("Connecting to the SwayOSD LibInput Backend");
+				let mut mutex = match signal_id.lock() {
+					Ok(mut mutex) => match mutex.as_mut() {
+						Some(_) => return,
+						None => mutex,
+					},
+					Err(error) => return println!("Mutex lock Error: {}", error),
+				};
+				mutex.replace(connection.signal_subscribe(
 					Some(config::DBUS_SERVER_NAME),
 					Some(config::DBUS_SERVER_NAME),
 					Some("KeyPressed"),
@@ -292,15 +302,21 @@ impl SwayOSDApplication {
 								if let Err(error) = sender.send((key_code, state)) {
 									eprintln!("Channel Send error: {}", error);
 								}
-							}
-							_ => return,
+							},
+							variables => return eprintln!("Variables don't match: {:?}", variables),
 						};
 					}),
-				);
+				));
 			}),
-			|_, _| {
+			clone!(@strong signal_id => move|connection, _| {
 				eprintln!("SwayOSD LibInput Backend isn't available, waiting...");
-			},
+				match signal_id.lock() {
+					Ok(mut mutex) => if let Some(sig_id) = mutex.take() {
+						connection.signal_unsubscribe(sig_id);
+					},
+					Err(error) => println!("Mutex lock Error: {}", error),
+				}
+			}),
 		);
 
 		SwayOSDApplication {
