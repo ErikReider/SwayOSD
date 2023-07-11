@@ -1,9 +1,15 @@
 datadir = get_option('datadir')
+sysconfdir = get_option('sysconfdir')
 
 # LICENSE
 install_data(
   '../LICENSE',
-  install_dir: get_option('datadir') / 'licenses' / meson.project_name()
+  install_dir: join_paths(datadir, 'licenses', meson.project_name())
+)
+# udev rules
+install_data(
+  join_paths('udev', '99-swayosd.rules'),
+  install_dir: join_paths(sysconfdir, 'udev', 'rules.d')
 )
 # Dbus conf
 install_data(
@@ -30,15 +36,15 @@ configure_file(
   configuration: conf_data,
   input: join_paths('services', 'dbus', 'org.erikreider.swayosd.service.in'),
   output: '@BASENAME@',
-  install_dir: datadir + '/dbus-1/services'
+  install_dir: datadir + '/dbus-1/system-services'
 )
 
 # Systemd service unit
 systemd = dependency('systemd', required: false)
 if systemd.found()
-  systemd_service_install_dir = systemd.get_variable(pkgconfig :'systemduserunitdir')
+  systemd_service_install_dir = systemd.get_variable(pkgconfig :'systemdsystemunitdir')
 else
-  systemd_service_install_dir = join_paths(libdir, 'systemd', 'user')
+  systemd_service_install_dir = join_paths(libdir, 'systemd', 'system')
 endif
 
 configure_file(

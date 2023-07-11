@@ -6,14 +6,13 @@ cargo_opt += [ '--target-dir', meson.project_build_root()  / 'src' ]
 cargo_env  = [ 'CARGO_HOME=' + meson.project_build_root()  / 'cargo-home' ]
 
 if get_option('buildtype') == 'release'
-  cargo_options += [ '--release' ]
+  cargo_opt += [ '--release' ]
   rust_target = 'release'
 else
   rust_target = 'debug'
 endif
 
 foreach prog : ['swayosd', 'swayosd-libinput-backend']
-  message('cargo-build: @0@'.format(prog))
   custom_target(
     'cargo-build: @0@'.format(prog),
     build_by_default: true,

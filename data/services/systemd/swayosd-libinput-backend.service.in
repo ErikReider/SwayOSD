@@ -6,6 +6,7 @@ After=graphical-session.target
 
 [Service]
 Type=dbus
+BusName=org.erikreider.swayosd
 ExecStart=@bindir@/swayosd-libinput-backend
 Restart=on-failure
 
