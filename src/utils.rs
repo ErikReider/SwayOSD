@@ -8,7 +8,7 @@ use std::{
 	sync::Mutex,
 };
 
-use blight::{change_bl, err::BlibError, Change, Device, Direction};
+use blight::{err::BlibError, Delay, Device, Direction};
 use pulse::volume::Volume;
 use pulsectl::controllers::{types::DeviceInfo, DeviceControl, SinkController, SourceController};
 
@@ -265,25 +265,20 @@ pub fn change_brightness(
 		.unwrap_or(String::new())
 		.parse::<u8>()
 		.unwrap_or(BRIGHTNESS_CHANGE_DELTA) as u16;
-	let direction = match change_type {
-		BrightnessChangeType::Raise => Direction::Inc,
-		BrightnessChangeType::Lower => {
-			let device = Device::new(None)?;
-			let change = device.calculate_change(brightness_delta, Direction::Dec) as f64;
-			let max = device.max() as f64;
-			// Limits the lowest brightness to 5%
-			if change / max < (brightness_delta as f64) * 0.01 {
-				return Ok(Some(device));
-			}
-			Direction::Dec
-		}
+	let mut device = Device::new(None)?;
+	let change = match change_type {
+		BrightnessChangeType::Raise => device.calculate_change(brightness_delta, Direction::Inc),
+		BrightnessChangeType::Lower => device.calculate_change(brightness_delta, Direction::Dec),
 	};
-	match change_bl(brightness_delta, Change::Regular, direction, None) {
+	match device.sweep_write(change, Delay::default()) {
 		Err(e) => {
 			eprintln!("Brightness Error: {}", e);
 			Err(e)
 		}
-		_ => Ok(Some(Device::new(None)?)),
+		_ => {
+			device.reload();
+			Ok(Some(device))
+		}
 	}
 }
 
