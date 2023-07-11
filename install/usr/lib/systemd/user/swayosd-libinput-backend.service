@@ -1,0 +1,13 @@
+[Unit]
+Description=SwayOSD LibInput backend for listening to certain keys like CapsLock, ScrollLock, VolumeUp, etc...
+Documentation=https://github.com/ErikReider/SwayOSD
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=dbus
+ExecStart=/usr/local/bin/swayosd-libinput-backend
+Restart=on-failure
+
+[Install]
+WantedBy=graphical-session.target

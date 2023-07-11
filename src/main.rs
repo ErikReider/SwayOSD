@@ -3,6 +3,8 @@ mod osd_window;
 mod progressbar;
 mod utils;
 
+mod config;
+
 #[macro_use]
 extern crate shrinkwraprs;
 

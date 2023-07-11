@@ -6,11 +6,36 @@ This is my first time coding in Rust so fixes and improvements are appreciated :
 
 ## Features:
 
+- LibInput listener for these keys:
+  - Capslock
 - Input and output volume change indicator
 - Input and output mute change indicator
 - Customizable maximum Volume
 - Capslock change (Note: doesn't change the caps lock state)
 - Brightness change indicator
+
+## Install:
+
+There's a new LibInput watcher binary shipped with SwayOSD (`swayosd-libinput-backend`)
+which can automatically detect key presses, so no need for binding key combos.
+The supported keys are listed above in [Features](#features)
+<br>
+<br>
+_Note: The watcher is optional_
+
+### Through Meson
+
+```zsh
+meson setup build
+ninja -C build
+meson install -C build
+```
+
+### AUR
+
+Available on the AUR thanks to @jgmdev! (Don't open a issue here about AUR package)
+
+- [swayosd-git](https://aur.archlinux.org/packages/swayosd-git)
 
 ## Usage:
 
@@ -18,7 +43,9 @@ This is my first time coding in Rust so fixes and improvements are appreciated :
 # OSD window
 exec swayosd
 ```
+
 or start with a max-volume set (default is 100)
+
 ```zsh
 exec swayosd --max-volume 120
 ```
@@ -45,12 +72,13 @@ bindsym XF86MonBrightnessUp exec swayosd --brightness raise
 bindsym XF86MonBrightnessDown exec swayosd --brightness lower
 ```
 
-#### Notes on using `--device`:
- - It is for audio devices only.
- - If it is omitted the default audio device is used.
- - It only changes the target device for the currrent/next action that changes the volume.
- - `--max-volume` is a global limit for all devices so `--device` has no effect on it.
- - You can list your input audio devices using `pactl list short sources`, for outputs replace `sources` with `sinks`.
+### Notes on using `--device`:
+
+- It is for audio devices only.
+- If it is omitted the default audio device is used.
+- It only changes the target device for the currrent/next action that changes the volume.
+- `--max-volume` is a global limit for all devices so `--device` has no effect on it.
+- You can list your input audio devices using `pactl list short sources`, for outputs replace `sources` with `sinks`.
 
 ## Brightness Control
 
@@ -69,12 +97,6 @@ ACTION=="add", SUBSYSTEM=="backlight", RUN+="/bin/chmod g+w /sys/class/backlight
 
 2. Add user to `video` group by running `sudo usermod -a -G video $USER`
 3. Reboot system for udev rules to take effect
-
-## Install
-
-Available on the AUR thanks to @jgmdev!
-
-- [swayosd-git](https://aur.archlinux.org/packages/swayosd-git)
 
 ## Images
 

@@ -1,5 +1,6 @@
 # Binaries
 /target
+/build
 
 *.gresource
 
