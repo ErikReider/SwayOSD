@@ -417,10 +417,13 @@ impl SwayOSDApplication {
 				Some(evdev_rs::enums::EV_KEY::KEY_CAPSLOCK) => {
 					(ArgTypes::CapsLock, Some(state.to_string()))
 				}
-				e => {
-					eprintln!("Unknown Key in signal: \"{:?}\"!...", e);
-					return;
+				Some(evdev_rs::enums::EV_KEY::KEY_NUMLOCK) => {
+					(ArgTypes::NumLock, Some(state.to_string()))
 				}
+				Some(evdev_rs::enums::EV_KEY::KEY_SCROLLLOCK) => {
+					(ArgTypes::ScrollLock, Some(state.to_string()))
+				}
+				_ => return
 			};
 		let variant = Variant::tuple_from_iter([
 			option.as_str().to_variant(),

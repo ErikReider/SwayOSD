@@ -8,6 +8,8 @@ This is my first time coding in Rust so fixes and improvements are appreciated :
 
 - LibInput listener Backend for these keys:
   - Caps Lock
+  - Num Lock
+  - Scroll Lock
 - Input and output volume change indicator
 - Input and output mute change indicator
 - Customizable maximum Volume
