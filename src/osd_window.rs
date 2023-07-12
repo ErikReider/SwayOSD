@@ -10,7 +10,7 @@ use gtk::{
 };
 use pulsectl::controllers::types::DeviceInfo;
 
-use crate::utils::{volume_to_f64, VolumeDeviceType};
+use crate::utils::{volume_to_f64, KeysLocks, VolumeDeviceType};
 use blight::Device;
 
 const DISABLED_OPACITY: f64 = 0.5;
@@ -179,18 +179,41 @@ impl SwayosdWindow {
 		self.run_timeout();
 	}
 
-	pub fn changed_capslock(&self, state: bool) {
+	pub fn changed_keylock(&self, key: KeysLocks, state: bool) {
 		self.clear_osd();
 
-		let icon = self.build_icon_widget("caps-lock-symbolic");
 		let label = self.build_text_widget(None);
+
+		let on_off_text = match state {
+			true => "On",
+			false => "Off",
+		};
+
+		let (label_text, symbol) = match key {
+			KeysLocks::CapsLock => {
+				let symbol = "caps-lock-symbolic";
+				let text = "Caps Lock ".to_string() + on_off_text;
+				(text, symbol)
+			}
+			KeysLocks::NumLock => {
+				let symbol = "num-lock-symbolic";
+				let text = "Num Lock ".to_string() + on_off_text;
+				(text, symbol)
+			}
+			KeysLocks::ScrollLock => {
+				let symbol = "scroll-lock-symbolic";
+				let text = "Scroll Lock ".to_string() + on_off_text;
+				(text, symbol)
+			}
+		};
+
+		label.set_text(&label_text);
+		let icon = self.build_icon_widget(symbol);
 
 		if !state {
 			icon.set_opacity(DISABLED_OPACITY);
-			label.set_text("Caps Lock Off");
 		} else {
 			icon.set_opacity(1.0);
-			label.set_text("Caps Lock On");
 		}
 
 		self.container.add(&icon);

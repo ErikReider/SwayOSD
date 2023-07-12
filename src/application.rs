@@ -30,6 +30,8 @@ pub enum ArgTypes {
 	SourceVolumeMuteToggle = 8,
 	BrightnessRaise = 9,
 	BrightnessLower = 10,
+	NumLock = 11,
+	ScrollLock = 12,
 	// should always be first to set a global variable before executing related functions
 	DeviceName = isize::MIN,
 }
@@ -48,6 +50,8 @@ impl ArgTypes {
 			ArgTypes::SourceVolumeMuteToggle => "SOURCE-VOLUME-MUTE-TOGGLE",
 			ArgTypes::BrightnessRaise => "BRIGHTNESS-RAISE",
 			ArgTypes::BrightnessLower => "BRIGHTNESS-LOWER",
+			ArgTypes::NumLock => "NUM-LOCK",
+			ArgTypes::ScrollLock => "SCROLL-LOCK",
 			ArgTypes::DeviceName => "DEVICE-NAME",
 		}
 	}
@@ -65,6 +69,8 @@ impl ArgTypes {
 				"BRIGHTNESS-RAISE" => (ArgTypes::BrightnessRaise, value),
 				"BRIGHTNESS-LOWER" => (ArgTypes::BrightnessLower, value),
 				"MAX-VOLUME" => (ArgTypes::MaxVolume, value),
+				"NUM-LOCK" => (ArgTypes::NumLock, value),
+				"SCROLL-LOCK" => (ArgTypes::ScrollLock, value),
 				"DEVICE-NAME" => (ArgTypes::DeviceName, value),
 				_ => (ArgTypes::None, None),
 			},
@@ -92,7 +98,23 @@ impl SwayOSDApplication {
 			glib::Char::from(0),
 			OptionFlags::NONE,
 			OptionArg::None,
-			"Shows capslock osd. Note: Doesn't toggle CapsLock, just display the status",
+			"Shows capslock osd. Note: Doesn't toggle CapsLock, just displays the status",
+			None,
+		);
+		app.add_main_option(
+			"num-lock",
+			glib::Char::from(0),
+			OptionFlags::NONE,
+			OptionArg::None,
+			"Shows numlock osd. Note: Doesn't toggle NumLock, just displays the status",
+			None,
+		);
+		app.add_main_option(
+			"scroll-lock",
+			glib::Char::from(0),
+			OptionFlags::NONE,
+			OptionArg::None,
+			"Shows scrolllock osd. Note: Doesn't toggle ScrollLock, just displays the status",
 			None,
 		);
 		// Capslock with specific LED cmdline arg
@@ -101,7 +123,23 @@ impl SwayOSDApplication {
 			glib::Char::from(0),
 			OptionFlags::NONE,
 			OptionArg::String,
-			"Shows capslock osd. Uses LED class name. Note: Doesn't toggle CapsLock, just display the status",
+			"Shows capslock osd. Uses LED class name. Note: Doesn't toggle CapsLock, just displays the status",
+			Some("LED class name (/sys/class/leds/NAME)"),
+		);
+		app.add_main_option(
+			"num-lock-led",
+			glib::Char::from(0),
+			OptionFlags::NONE,
+			OptionArg::String,
+			"Shows numlock osd. Uses LED class name. Note: Doesn't toggle NumLock, just displays the status",
+			Some("LED class name (/sys/class/leds/NAME)"),
+		);
+		app.add_main_option(
+			"scroll-lock-led",
+			glib::Char::from(0),
+			OptionFlags::NONE,
+			OptionArg::String,
+			"Shows scrolllock osd. Uses LED class name. Note: Doesn't toggle ScrollLock, just displays the status",
 			Some("LED class name (/sys/class/leds/NAME)"),
 		);
 		// Sink volume cmdline arg
@@ -168,10 +206,26 @@ impl SwayOSDApplication {
 
 				let (option, value): (ArgTypes, Option<String>) = match child.key().as_str() {
 					"caps-lock" => (ArgTypes::CapsLock, None),
+					"num-lock" => (ArgTypes::NumLock, None),
+					"scroll-lock" => (ArgTypes::ScrollLock, None),
 					"caps-lock-led" => match child.value().str() {
 						Some(led) => (ArgTypes::CapsLock, Some(led.to_owned())),
 						None => {
 							eprintln!("Value for caps-lock-led isn't a string!...");
+							return 1;
+						}
+					},
+					"num-lock-led" => match child.value().str() {
+						Some(led) => (ArgTypes::NumLock, Some(led.to_owned())),
+						None => {
+							eprintln!("Value for num-lock-led isn't a string!...");
+							return 1;
+						}
+					},
+					"scroll-lock-led" => match child.value().str() {
+						Some(led) => (ArgTypes::ScrollLock, Some(led.to_owned())),
+						None => {
+							eprintln!("Value for scroll-lock-led isn't a string!...");
 							return 1;
 						}
 					},
@@ -363,10 +417,13 @@ impl SwayOSDApplication {
 				Some(evdev_rs::enums::EV_KEY::KEY_CAPSLOCK) => {
 					(ArgTypes::CapsLock, Some(state.to_string()))
 				}
-				e => {
-					eprintln!("Unknown Key in signal: \"{:?}\"!...", e);
-					return;
+				Some(evdev_rs::enums::EV_KEY::KEY_NUMLOCK) => {
+					(ArgTypes::NumLock, Some(state.to_string()))
 				}
+				Some(evdev_rs::enums::EV_KEY::KEY_SCROLLLOCK) => {
+					(ArgTypes::ScrollLock, Some(state.to_string()))
+				}
+				_ => return
 			};
 		let variant = Variant::tuple_from_iter([
 			option.as_str().to_variant(),
@@ -477,10 +534,30 @@ impl SwayOSDApplication {
 					let i32_value = value.clone().unwrap_or("-1".to_owned());
 					let state = match i32_value.parse::<i32>() {
 						Ok(value) if value >= 0 && value <= 1 => value == 1,
-						_ => get_caps_lock_state(value),
+						_ => get_key_lock_state(KeysLocks::CapsLock, value),
 					};
 					for window in self.windows.borrow().to_owned() {
-						window.changed_capslock(state)
+						window.changed_keylock(KeysLocks::CapsLock, state)
+					}
+				}
+				(ArgTypes::NumLock, value) => {
+					let i32_value = value.clone().unwrap_or("-1".to_owned());
+					let state = match i32_value.parse::<i32>() {
+						Ok(value) if value >= 0 && value <= 1 => value == 1,
+						_ => get_key_lock_state(KeysLocks::NumLock, value),
+					};
+					for window in self.windows.borrow().to_owned() {
+						window.changed_keylock(KeysLocks::NumLock, state)
+					}
+				}
+				(ArgTypes::ScrollLock, value) => {
+					let i32_value = value.clone().unwrap_or("-1".to_owned());
+					let state = match i32_value.parse::<i32>() {
+						Ok(value) if value >= 0 && value <= 1 => value == 1,
+						_ => get_key_lock_state(KeysLocks::ScrollLock, value),
+					};
+					for window in self.windows.borrow().to_owned() {
+						window.changed_keylock(KeysLocks::ScrollLock, state)
 					}
 				}
 				(ArgTypes::MaxVolume, max) => set_max_volume(max),

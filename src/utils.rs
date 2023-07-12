@@ -19,6 +19,12 @@ lazy_static! {
 	static ref DEVICE_NAME: Mutex<String> = Mutex::new("default".to_string());
 }
 
+pub enum KeysLocks {
+	CapsLock,
+	NumLock,
+	ScrollLock,
+}
+
 pub fn volume_parser(is_sink: bool, value: &str) -> Result<(ArgTypes, Option<String>), i32> {
 	let mut v = match (value, value.parse::<i8>()) {
 		// Parse custom step values
@@ -70,7 +76,7 @@ pub fn set_device_name(name: String) {
 	*global_name = name;
 }
 
-pub fn get_caps_lock_state(led: Option<String>) -> bool {
+pub fn get_key_lock_state(key: KeysLocks, led: Option<String>) -> bool {
 	const BASE_PATH: &str = "/sys/class/leds";
 	match fs::read_dir(BASE_PATH) {
 		Ok(paths) => {
@@ -89,8 +95,14 @@ pub fn get_caps_lock_state(led: Option<String>) -> bool {
 				}
 			}
 
+			let key_name = match key {
+				KeysLocks::CapsLock => "capslock",
+				KeysLocks::NumLock => "numlock",
+				KeysLocks::ScrollLock => "scrolllock",
+			};
+
 			for path in paths {
-				if !path.contains("capslock") {
+				if !path.contains(key_name) {
 					continue;
 				}
 				if let Ok(content) = read_file(path + "/brightness") {

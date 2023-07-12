@@ -118,7 +118,9 @@ async fn call(event_info: EventInfo, iface_ref: InterfaceRef<DbusServer>) {
 	// Wait for the LED value to change
 	sleep(Duration::from_millis(50)).await;
 
-	let Ok(device) = evdev_rs::Device::new_from_path(event_info.device_path) else { return };
+	let Ok(device) = evdev_rs::Device::new_from_path(event_info.device_path) else {
+		return;
+	};
 
 	let lock_state = match event_info.ev_key {
 		EV_KEY::KEY_CAPSLOCK => device.event_value(&EventCode::EV_LED(EV_LED::LED_CAPSL)),
