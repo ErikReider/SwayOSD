@@ -216,14 +216,14 @@ impl SwayOSDApplication {
 						}
 					},
 					"num-lock-led" => match child.value().str() {
-						Some(led) => (ArgTypes::CapsLock, Some(led.to_owned())),
+						Some(led) => (ArgTypes::NumLock, Some(led.to_owned())),
 						None => {
 							eprintln!("Value for num-lock-led isn't a string!...");
 							return 1;
 						}
 					},
 					"scroll-lock-led" => match child.value().str() {
-						Some(led) => (ArgTypes::CapsLock, Some(led.to_owned())),
+						Some(led) => (ArgTypes::ScrollLock, Some(led.to_owned())),
 						None => {
 							eprintln!("Value for scroll-lock-led isn't a string!...");
 							return 1;
