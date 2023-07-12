@@ -1,5 +1,0 @@
-[D-BUS Service]
-Name=org.erikreider.swayosd
-Exec=/bin/false
-User=root
-SystemdService=swayosd-libinput-backend.service
