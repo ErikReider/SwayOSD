@@ -196,12 +196,12 @@ impl SwayosdWindow {
 				(text, symbol)
 			}
 			KeysLocks::NumLock => {
-				let symbol = "input-keyboard-numlock-symbolic";
+				let symbol = "num-lock-symbolic";
 				let text = "Num Lock ".to_string() + on_off_text;
 				(text, symbol)
 			}
 			KeysLocks::ScrollLock => {
-				let symbol = "input-keyboard-capslock-symbolic";
+				let symbol = "scroll-lock-symbolic";
 				let text = "Scroll Lock ".to_string() + on_off_text;
 				(text, symbol)
 			}
