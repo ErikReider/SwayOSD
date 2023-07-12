@@ -11,7 +11,9 @@ use gtk::prelude::*;
 use gtk::*;
 use pulsectl::controllers::{SinkController, SourceController};
 use std::cell::{Cell, RefCell};
+use std::fmt;
 use std::rc::Rc;
+use std::str::{self, FromStr};
 use std::sync::{Arc, Mutex};
 
 const ACTION_NAME: &str = "action";
@@ -36,9 +38,9 @@ pub enum ArgTypes {
 	DeviceName = isize::MIN,
 }
 
-impl ArgTypes {
-	pub fn as_str(&self) -> &'static str {
-		match self {
+impl fmt::Display for ArgTypes {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		let string = match self {
 			ArgTypes::None => "NONE",
 			ArgTypes::CapsLock => "CAPSLOCK",
 			ArgTypes::MaxVolume => "MAX-VOLUME",
@@ -53,29 +55,32 @@ impl ArgTypes {
 			ArgTypes::NumLock => "NUM-LOCK",
 			ArgTypes::ScrollLock => "SCROLL-LOCK",
 			ArgTypes::DeviceName => "DEVICE-NAME",
-		}
+		};
+		return write!(f, "{}", string);
 	}
+}
 
-	pub fn parse(osd_type: Option<String>, value: Option<String>) -> (Self, Option<String>) {
-		match osd_type {
-			Some(osd_type) => match osd_type.as_str() {
-				"CAPSLOCK" => (ArgTypes::CapsLock, value),
-				"SINK-VOLUME-RAISE" => (ArgTypes::SinkVolumeRaise, value),
-				"SINK-VOLUME-LOWER" => (ArgTypes::SinkVolumeLower, value),
-				"SINK-VOLUME-MUTE-TOGGLE" => (ArgTypes::SinkVolumeMuteToggle, value),
-				"SOURCE-VOLUME-RAISE" => (ArgTypes::SourceVolumeRaise, value),
-				"SOURCE-VOLUME-LOWER" => (ArgTypes::SourceVolumeLower, value),
-				"SOURCE-VOLUME-MUTE-TOGGLE" => (ArgTypes::SourceVolumeMuteToggle, value),
-				"BRIGHTNESS-RAISE" => (ArgTypes::BrightnessRaise, value),
-				"BRIGHTNESS-LOWER" => (ArgTypes::BrightnessLower, value),
-				"MAX-VOLUME" => (ArgTypes::MaxVolume, value),
-				"NUM-LOCK" => (ArgTypes::NumLock, value),
-				"SCROLL-LOCK" => (ArgTypes::ScrollLock, value),
-				"DEVICE-NAME" => (ArgTypes::DeviceName, value),
-				_ => (ArgTypes::None, None),
-			},
-			None => (ArgTypes::None, None),
-		}
+impl str::FromStr for ArgTypes {
+	type Err = ();
+
+	fn from_str(input: &str) -> Result<Self, Self::Err> {
+		let result = match input {
+			"CAPSLOCK" => ArgTypes::CapsLock,
+			"SINK-VOLUME-RAISE" => ArgTypes::SinkVolumeRaise,
+			"SINK-VOLUME-LOWER" => ArgTypes::SinkVolumeLower,
+			"SINK-VOLUME-MUTE-TOGGLE" => ArgTypes::SinkVolumeMuteToggle,
+			"SOURCE-VOLUME-RAISE" => ArgTypes::SourceVolumeRaise,
+			"SOURCE-VOLUME-LOWER" => ArgTypes::SourceVolumeLower,
+			"SOURCE-VOLUME-MUTE-TOGGLE" => ArgTypes::SourceVolumeMuteToggle,
+			"BRIGHTNESS-RAISE" => ArgTypes::BrightnessRaise,
+			"BRIGHTNESS-LOWER" => ArgTypes::BrightnessLower,
+			"MAX-VOLUME" => ArgTypes::MaxVolume,
+			"NUM-LOCK" => ArgTypes::NumLock,
+			"SCROLL-LOCK" => ArgTypes::ScrollLock,
+			"DEVICE-NAME" => ArgTypes::DeviceName,
+			_ => ArgTypes::None,
+		};
+		Ok(result)
 	}
 }
 
@@ -309,7 +314,7 @@ impl SwayOSDApplication {
 			// execute the sorted actions
 			for action in actions {
 				let variant = Variant::tuple_from_iter([
-					action.0.as_str().to_variant(),
+					action.0.to_string().to_variant(),
 					action.1.unwrap_or(String::new()).to_variant(),
 				]);
 				app.activate_action(ACTION_NAME, Some(&variant));
@@ -423,10 +428,10 @@ impl SwayOSDApplication {
 				Some(evdev_rs::enums::EV_KEY::KEY_SCROLLLOCK) => {
 					(ArgTypes::ScrollLock, Some(state.to_string()))
 				}
-				_ => return
+				_ => return,
 			};
 		let variant = Variant::tuple_from_iter([
-			option.as_str().to_variant(),
+			option.to_string().to_variant(),
 			value.unwrap_or(String::new()).to_variant(),
 		]);
 		app.activate_action(ACTION_NAME, Some(&variant));
@@ -451,8 +456,11 @@ impl SwayOSDApplication {
 				}
 				_ => (None, None),
 			};
-			match ArgTypes::parse(osd_type, value) {
-				(ArgTypes::SinkVolumeRaise, step) => {
+			match (
+				ArgTypes::from_str(&osd_type.unwrap_or("NONE".to_owned())),
+				value,
+			) {
+				(Ok(ArgTypes::SinkVolumeRaise), step) => {
 					let mut device_type = VolumeDeviceType::Sink(SinkController::create().unwrap());
 					if let Some(device) =
 						change_device_volume(&mut device_type, VolumeChangeType::Raise, step)
@@ -462,7 +470,7 @@ impl SwayOSDApplication {
 						}
 					}
 				}
-				(ArgTypes::SinkVolumeLower, step) => {
+				(Ok(ArgTypes::SinkVolumeLower), step) => {
 					let mut device_type = VolumeDeviceType::Sink(SinkController::create().unwrap());
 					if let Some(device) =
 						change_device_volume(&mut device_type, VolumeChangeType::Lower, step)
@@ -472,7 +480,7 @@ impl SwayOSDApplication {
 						}
 					}
 				}
-				(ArgTypes::SinkVolumeMuteToggle, _) => {
+				(Ok(ArgTypes::SinkVolumeMuteToggle), _) => {
 					let mut device_type = VolumeDeviceType::Sink(SinkController::create().unwrap());
 					if let Some(device) =
 						change_device_volume(&mut device_type, VolumeChangeType::MuteToggle, None)
@@ -482,7 +490,7 @@ impl SwayOSDApplication {
 						}
 					}
 				}
-				(ArgTypes::SourceVolumeRaise, step) => {
+				(Ok(ArgTypes::SourceVolumeRaise), step) => {
 					let mut device_type =
 						VolumeDeviceType::Source(SourceController::create().unwrap());
 					if let Some(device) =
@@ -493,7 +501,7 @@ impl SwayOSDApplication {
 						}
 					}
 				}
-				(ArgTypes::SourceVolumeLower, step) => {
+				(Ok(ArgTypes::SourceVolumeLower), step) => {
 					let mut device_type =
 						VolumeDeviceType::Source(SourceController::create().unwrap());
 					if let Some(device) =
@@ -504,7 +512,7 @@ impl SwayOSDApplication {
 						}
 					}
 				}
-				(ArgTypes::SourceVolumeMuteToggle, _) => {
+				(Ok(ArgTypes::SourceVolumeMuteToggle), _) => {
 					let mut device_type =
 						VolumeDeviceType::Source(SourceController::create().unwrap());
 					if let Some(device) =
@@ -516,21 +524,21 @@ impl SwayOSDApplication {
 					}
 				}
 				// TODO: Brightness
-				(ArgTypes::BrightnessRaise, step) => {
+				(Ok(ArgTypes::BrightnessRaise), step) => {
 					if let Ok(Some(device)) = change_brightness(BrightnessChangeType::Raise, step) {
 						for window in self.windows.borrow().to_owned() {
 							window.changed_brightness(&device);
 						}
 					}
 				}
-				(ArgTypes::BrightnessLower, step) => {
+				(Ok(ArgTypes::BrightnessLower), step) => {
 					if let Ok(Some(device)) = change_brightness(BrightnessChangeType::Lower, step) {
 						for window in self.windows.borrow().to_owned() {
 							window.changed_brightness(&device);
 						}
 					}
 				}
-				(ArgTypes::CapsLock, value) => {
+				(Ok(ArgTypes::CapsLock), value) => {
 					let i32_value = value.clone().unwrap_or("-1".to_owned());
 					let state = match i32_value.parse::<i32>() {
 						Ok(value) if value >= 0 && value <= 1 => value == 1,
@@ -540,7 +548,7 @@ impl SwayOSDApplication {
 						window.changed_keylock(KeysLocks::CapsLock, state)
 					}
 				}
-				(ArgTypes::NumLock, value) => {
+				(Ok(ArgTypes::NumLock), value) => {
 					let i32_value = value.clone().unwrap_or("-1".to_owned());
 					let state = match i32_value.parse::<i32>() {
 						Ok(value) if value >= 0 && value <= 1 => value == 1,
@@ -550,7 +558,7 @@ impl SwayOSDApplication {
 						window.changed_keylock(KeysLocks::NumLock, state)
 					}
 				}
-				(ArgTypes::ScrollLock, value) => {
+				(Ok(ArgTypes::ScrollLock), value) => {
 					let i32_value = value.clone().unwrap_or("-1".to_owned());
 					let state = match i32_value.parse::<i32>() {
 						Ok(value) if value >= 0 && value <= 1 => value == 1,
@@ -560,9 +568,11 @@ impl SwayOSDApplication {
 						window.changed_keylock(KeysLocks::ScrollLock, state)
 					}
 				}
-				(ArgTypes::MaxVolume, max) => set_max_volume(max),
-				(ArgTypes::DeviceName, name) => set_device_name(name.unwrap()),
-				(ArgTypes::None, _) => {
+				(Ok(ArgTypes::MaxVolume), max) => set_max_volume(max),
+				(Ok(ArgTypes::DeviceName), name) => {
+					set_device_name(name.unwrap_or("default".to_owned()))
+				}
+				(_, _) => {
 					eprintln!("Failed to parse variant: {}!...", variant.print(true))
 				}
 			};
