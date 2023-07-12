@@ -98,7 +98,7 @@ impl SwayOSDApplication {
 			glib::Char::from(0),
 			OptionFlags::NONE,
 			OptionArg::None,
-			"Shows capslock osd. Note: Doesn't toggle CapsLock, just display the status",
+			"Shows capslock osd. Note: Doesn't toggle CapsLock, just displays the status",
 			None,
 		);
 		app.add_main_option(
@@ -106,7 +106,7 @@ impl SwayOSDApplication {
 			glib::Char::from(0),
 			OptionFlags::NONE,
 			OptionArg::None,
-			"Shows numlock osd. Note: Doesn't toggle NumLock, just display the status",
+			"Shows numlock osd. Note: Doesn't toggle NumLock, just displays the status",
 			None,
 		);
 		app.add_main_option(
@@ -114,7 +114,7 @@ impl SwayOSDApplication {
 			glib::Char::from(0),
 			OptionFlags::NONE,
 			OptionArg::None,
-			"Shows scrolllock osd. Note: Doesn't toggle ScrollLock, just display the status",
+			"Shows scrolllock osd. Note: Doesn't toggle ScrollLock, just displays the status",
 			None,
 		);
 		// Capslock with specific LED cmdline arg
@@ -123,7 +123,7 @@ impl SwayOSDApplication {
 			glib::Char::from(0),
 			OptionFlags::NONE,
 			OptionArg::String,
-			"Shows capslock osd. Uses LED class name. Note: Doesn't toggle CapsLock, just display the status",
+			"Shows capslock osd. Uses LED class name. Note: Doesn't toggle CapsLock, just displays the status",
 			Some("LED class name (/sys/class/leds/NAME)"),
 		);
 		app.add_main_option(
@@ -131,7 +131,7 @@ impl SwayOSDApplication {
 			glib::Char::from(0),
 			OptionFlags::NONE,
 			OptionArg::String,
-			"Shows numlock osd. Uses LED class name. Note: Doesn't toggle NumLock, just display the status",
+			"Shows numlock osd. Uses LED class name. Note: Doesn't toggle NumLock, just displays the status",
 			Some("LED class name (/sys/class/leds/NAME)"),
 		);
 		app.add_main_option(
@@ -139,7 +139,7 @@ impl SwayOSDApplication {
 			glib::Char::from(0),
 			OptionFlags::NONE,
 			OptionArg::String,
-			"Shows scrolllock osd. Uses LED class name. Note: Doesn't toggle ScrollLock, just display the status",
+			"Shows scrolllock osd. Uses LED class name. Note: Doesn't toggle ScrollLock, just displays the status",
 			Some("LED class name (/sys/class/leds/NAME)"),
 		);
 		// Sink volume cmdline arg
