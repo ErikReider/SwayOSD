@@ -34,6 +34,7 @@ pub enum ArgTypes {
 	BrightnessLower = 10,
 	NumLock = 11,
 	ScrollLock = 12,
+	TopMargin = 13,
 	// should always be first to set a global variable before executing related functions
 	DeviceName = isize::MIN,
 }
@@ -55,6 +56,7 @@ impl fmt::Display for ArgTypes {
 			ArgTypes::NumLock => "NUM-LOCK",
 			ArgTypes::ScrollLock => "SCROLL-LOCK",
 			ArgTypes::DeviceName => "DEVICE-NAME",
+			ArgTypes::TopMargin => "TOP-MARGIN",
 		};
 		return write!(f, "{}", string);
 	}
@@ -78,6 +80,7 @@ impl str::FromStr for ArgTypes {
 			"NUM-LOCK" => ArgTypes::NumLock,
 			"SCROLL-LOCK" => ArgTypes::ScrollLock,
 			"DEVICE-NAME" => ArgTypes::DeviceName,
+			"TOP-MARGIN" => ArgTypes::TopMargin,
 			_ => ArgTypes::None,
 		};
 		Ok(result)
@@ -191,6 +194,14 @@ impl SwayOSDApplication {
 			"For which device to increase/decrease audio",
 			Some("Pulseaudio device name (pactl list short sinks|sources)"),
 		);
+		app.add_main_option(
+			"top-margin",
+			glib::Char::from(0),
+			OptionFlags::NONE,
+			OptionArg::String,
+			"OSD margin from top edge (0.5 would be screen center)",
+			Some("from 0.0 to 1.0"),
+		);
 
 		// Parse args
 		app.connect_handle_local_options(|app, args| -> i32 {
@@ -289,6 +300,16 @@ impl SwayOSDApplication {
 							}
 						};
 						(ArgTypes::DeviceName, Some(value))
+					}
+					"top-margin" => {
+						let value = child.value().str().unwrap_or("").trim();
+						match value.parse::<f32>() {
+							Ok(top_margin) if (0.0f32..=1.0f32).contains(&top_margin) => (ArgTypes::TopMargin, Some(value.to_string())),
+							_ => {
+								eprintln!("{} is not a number between 0.0 and 1.0!", value);
+								return 1;
+							}
+						}
 					}
 					e => {
 						eprintln!("Unknown Variant Key: \"{}\"!...", e);
@@ -572,6 +593,7 @@ impl SwayOSDApplication {
 				(Ok(ArgTypes::DeviceName), name) => {
 					set_device_name(name.unwrap_or("default".to_owned()))
 				}
+				(Ok(ArgTypes::TopMargin), max) => set_top_margin(max),
 				(_, _) => {
 					eprintln!("Failed to parse variant: {}!...", variant.print(true))
 				}

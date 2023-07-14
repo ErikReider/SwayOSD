@@ -17,6 +17,7 @@ use crate::application::ArgTypes;
 lazy_static! {
 	static ref MAX_VOLUME: Mutex<u8> = Mutex::new(100_u8);
 	static ref DEVICE_NAME: Mutex<String> = Mutex::new("default".to_string());
+	static ref TOP_MARGIN: Mutex<f32> = Mutex::new(0.75_f32);
 }
 
 pub enum KeysLocks {
@@ -64,6 +65,17 @@ pub fn set_max_volume(volume: Option<String>) {
 	let setter: u8 = volume.unwrap().parse().unwrap();
 
 	let mut vol = MAX_VOLUME.lock().unwrap();
+	*vol = setter;
+}
+
+pub fn get_top_margin() -> f32 {
+	*TOP_MARGIN.lock().unwrap()
+}
+
+pub fn set_top_margin(volume: Option<String>) {
+	let setter: f32 = volume.unwrap().parse().unwrap();
+
+	let mut vol = TOP_MARGIN.lock().unwrap();
 	*vol = setter;
 }
 
