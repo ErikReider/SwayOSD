@@ -8,7 +8,9 @@ use input::event::tablet_pad::KeyState;
 use input::event::{EventTrait, KeyboardEvent};
 use input::{Event, Libinput, LibinputInterface};
 use libc::{O_RDONLY, O_RDWR};
+use nix::poll::{poll, PollFd, PollFlags};
 use std::fs::{File, OpenOptions};
+use std::os::fd::AsRawFd;
 use std::os::unix::{fs::OpenOptionsExt, io::OwnedFd};
 use std::path::Path;
 use std::time::Duration;
@@ -51,63 +53,70 @@ fn main() -> Result<(), zbus::Error> {
 		.udev_assign_seat("seat0")
 		.expect("Could not assign seat0");
 
-	loop {
-		input.dispatch().unwrap();
-		for event in &mut input {
-			if let Event::Keyboard(KeyboardEvent::Key(event)) = event {
-				if event.key_state() == KeyState::Pressed {
-					continue;
-				}
-				let device = match unsafe { event.device().udev_device() } {
-					Some(device) => device,
-					None => continue,
-				};
+	let pollfd = PollFd::new(input.as_raw_fd(), PollFlags::POLLIN);
+	while poll(&mut [pollfd], -1).is_ok() {
+		event(&mut input, &iface_ref);
+	}
 
-				let ev_key = match int_to_ev_key(event.key()) {
-					// Basic Lock keys
-					Some(key @ EV_KEY::KEY_CAPSLOCK) |
-					Some(key @ EV_KEY::KEY_NUMLOCK) |
-					Some(key @ EV_KEY::KEY_SCROLLLOCK) |
-					// Display Brightness
-					Some(key @ EV_KEY::KEY_BRIGHTNESSUP) |
-					Some(key @ EV_KEY::KEY_BRIGHTNESSDOWN) |
-					Some(key @ EV_KEY::KEY_BRIGHTNESS_MIN) |
-					Some(key @ EV_KEY::KEY_BRIGHTNESS_MAX) |
-					Some(key @ EV_KEY::KEY_BRIGHTNESS_AUTO) |
-					Some(key @ EV_KEY::KEY_BRIGHTNESS_CYCLE) |
-					// Keyboard Illumination
-					Some(key @ EV_KEY::KEY_KBDILLUMUP) |
-					Some(key @ EV_KEY::KEY_KBDILLUMDOWN) |
-					Some(key @ EV_KEY::KEY_KBDILLUMTOGGLE) => key,
-					// Keyboard Layout
-					Some(key @ EV_KEY::KEY_KBD_LAYOUT_NEXT) => key,
-					// Audio Keys
-					Some(key @ EV_KEY::KEY_VOLUMEUP) |
-					Some(key @ EV_KEY::KEY_VOLUMEDOWN) |
-					Some(key @ EV_KEY::KEY_MUTE) |
-					Some(key @ EV_KEY::KEY_UNMUTE) |
-					Some(key @ EV_KEY::KEY_MICMUTE) => key,
-					// Touchpad
-					Some(key @ EV_KEY::KEY_TOUCHPAD_ON) |
-					Some(key @ EV_KEY::KEY_TOUCHPAD_OFF) |
-					Some(key @ EV_KEY::KEY_TOUCHPAD_TOGGLE) |
-					// Media Keys
-					Some(key @ EV_KEY::KEY_PREVIOUSSONG) |
-					Some(key @ EV_KEY::KEY_PLAYPAUSE) |
-					Some(key @ EV_KEY::KEY_PLAY) |
-					Some(key @ EV_KEY::KEY_PAUSE) |
-					Some(key @ EV_KEY::KEY_NEXTSONG) => key,
-					_ => continue,
-				};
+	Ok(())
+}
 
-				if let Some(path) = device.devnode() {
-					if let Some(path) = path.to_str() {
-						let event_info = EventInfo {
-							device_path: path.to_owned(),
-							ev_key,
-						};
-						task::spawn(call(event_info, iface_ref.clone()));
-					}
+fn event(input: &mut Libinput, iface_ref: &InterfaceRef<DbusServer>) {
+	input.dispatch().unwrap();
+	for event in input.into_iter() {
+		if let Event::Keyboard(KeyboardEvent::Key(event)) = event {
+			if event.key_state() == KeyState::Pressed {
+				continue;
+			}
+			let device = match unsafe { event.device().udev_device() } {
+				Some(device) => device,
+				None => continue,
+			};
+
+			let ev_key = match int_to_ev_key(event.key()) {
+				// Basic Lock keys
+				Some(key @ EV_KEY::KEY_CAPSLOCK) |
+				Some(key @ EV_KEY::KEY_NUMLOCK) |
+				Some(key @ EV_KEY::KEY_SCROLLLOCK) |
+				// Display Brightness
+				Some(key @ EV_KEY::KEY_BRIGHTNESSUP) |
+				Some(key @ EV_KEY::KEY_BRIGHTNESSDOWN) |
+				Some(key @ EV_KEY::KEY_BRIGHTNESS_MIN) |
+				Some(key @ EV_KEY::KEY_BRIGHTNESS_MAX) |
+				Some(key @ EV_KEY::KEY_BRIGHTNESS_AUTO) |
+				Some(key @ EV_KEY::KEY_BRIGHTNESS_CYCLE) |
+				// Keyboard Illumination
+				Some(key @ EV_KEY::KEY_KBDILLUMUP) |
+				Some(key @ EV_KEY::KEY_KBDILLUMDOWN) |
+				Some(key @ EV_KEY::KEY_KBDILLUMTOGGLE) => key,
+				// Keyboard Layout
+				Some(key @ EV_KEY::KEY_KBD_LAYOUT_NEXT) => key,
+				// Audio Keys
+				Some(key @ EV_KEY::KEY_VOLUMEUP) |
+				Some(key @ EV_KEY::KEY_VOLUMEDOWN) |
+				Some(key @ EV_KEY::KEY_MUTE) |
+				Some(key @ EV_KEY::KEY_UNMUTE) |
+				Some(key @ EV_KEY::KEY_MICMUTE) => key,
+				// Touchpad
+				Some(key @ EV_KEY::KEY_TOUCHPAD_ON) |
+				Some(key @ EV_KEY::KEY_TOUCHPAD_OFF) |
+				Some(key @ EV_KEY::KEY_TOUCHPAD_TOGGLE) |
+				// Media Keys
+				Some(key @ EV_KEY::KEY_PREVIOUSSONG) |
+				Some(key @ EV_KEY::KEY_PLAYPAUSE) |
+				Some(key @ EV_KEY::KEY_PLAY) |
+				Some(key @ EV_KEY::KEY_PAUSE) |
+				Some(key @ EV_KEY::KEY_NEXTSONG) => key,
+				_ => continue,
+			};
+
+			if let Some(path) = device.devnode() {
+				if let Some(path) = path.to_str() {
+					let event_info = EventInfo {
+						device_path: path.to_owned(),
+						ev_key,
+					};
+					task::spawn(call(event_info, iface_ref.clone()));
 				}
 			}
 		}

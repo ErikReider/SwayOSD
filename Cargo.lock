@@ -1071,6 +1071,7 @@ dependencies = [
  "cfg-if",
  "libc",
  "memoffset 0.7.1",
+ "pin-utils",
  "static_assertions",
 ]
 
@@ -1490,6 +1491,7 @@ dependencies = [
  "lazy_static",
  "libc",
  "libpulse-binding",
+ "nix",
  "pulsectl-rs",
  "shrinkwraprs",
  "substring",
