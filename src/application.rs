@@ -34,9 +34,9 @@ pub enum ArgTypes {
 	BrightnessLower = 10,
 	NumLock = 11,
 	ScrollLock = 12,
-	TopMargin = 13,
 	// should always be first to set a global variable before executing related functions
 	DeviceName = isize::MIN,
+	TopMargin = isize::MIN + 1
 }
 
 impl fmt::Display for ArgTypes {
