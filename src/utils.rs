@@ -17,7 +17,7 @@ use crate::application::ArgTypes;
 lazy_static! {
 	static ref MAX_VOLUME: Mutex<u8> = Mutex::new(100_u8);
 	static ref DEVICE_NAME: Mutex<String> = Mutex::new("default".to_string());
-	static ref TOP_MARGIN: Mutex<f32> = Mutex::new(0.75_f32);
+	static ref TOP_MARGIN: Mutex<f32> = Mutex::new(0.85_f32);
 }
 
 pub enum KeysLocks {
