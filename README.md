@@ -31,6 +31,7 @@ The supported keys are listed above in [Features](#features)
 ### Through Meson
 
 ```zsh
+# Please note that the command below might require `--prefix /usr` on some systems
 meson setup build
 ninja -C build
 meson install -C build
