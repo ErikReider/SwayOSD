@@ -10,7 +10,7 @@ use gtk::{
 };
 use pulsectl::controllers::types::DeviceInfo;
 
-use crate::utils::{volume_to_f64, KeysLocks, VolumeDeviceType};
+use crate::utils::{volume_to_f64, KeysLocks, VolumeDeviceType, get_top_margin};
 use blight::Device;
 
 const DISABLED_OPACITY: f64 = 0.5;
@@ -40,6 +40,7 @@ impl SwayosdWindow {
 		gtk_layer_shell::set_monitor(&window, monitor);
 		gtk_layer_shell::set_namespace(&window, "swayosd");
 
+		gtk_layer_shell::set_exclusive_zone(&window, -1);
 		gtk_layer_shell::set_layer(&window, gtk_layer_shell::Layer::Overlay);
 		gtk_layer_shell::set_anchor(&window, gtk_layer_shell::Edge::Top, true);
 
@@ -108,8 +109,8 @@ impl SwayosdWindow {
 
 		// Set the window margin
 		window.connect_map(clone!(@strong monitor => move |win| {
-			let bottom = monitor.workarea().height() - win.height_request();
-			let margin = (bottom as f32 * 0.75).round() as i32;
+			let bottom = monitor.workarea().height() - win.allocated_height();
+			let margin = (bottom as f32 * get_top_margin()).round() as i32;
 			gtk_layer_shell::set_margin(win, gtk_layer_shell::Edge::Top, margin);
 		}));
 
