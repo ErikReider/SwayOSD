@@ -3,8 +3,10 @@ use lazy_static::lazy_static;
 use substring::Substring;
 
 use std::{
+	env,
 	fs::{self, File},
 	io::{prelude::*, BufReader},
+	path::Path,
 	sync::Mutex,
 };
 
@@ -375,4 +377,20 @@ pub fn is_dark_mode(fg: &gdk::RGBA, bg: &gdk::RGBA) -> bool {
 	let text_avg = fg.red() / 256.0 + fg.green() / 256.0 + fg.blue() / 256.0;
 	let bg_avg = bg.red() / 256.0 + bg.green() / 256.0 + bg.blue() / 256.0;
 	text_avg > bg_avg
+}
+
+pub fn user_style_path() -> Option<String> {
+	match env::var("HOME") {
+		Ok(home) => {
+			let path = Path::new(&home).join(".config/swayosd/style.css");
+			if path.exists() {
+				return path.to_str().map(|s| s.to_string());
+			}
+			None
+		}
+		Err(_) => {
+			println!("$HOME not set, not reading user style.css config");
+			None
+		}
+	}
 }
