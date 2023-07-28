@@ -1,5 +1,6 @@
 datadir = get_option('datadir')
 sysconfdir = get_option('sysconfdir')
+libdir = get_option('libdir')
 
 # LICENSE
 install_data(
