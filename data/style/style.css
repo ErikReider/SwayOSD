@@ -11,3 +11,13 @@ window {
 .icon.disabled {
     opacity: 0.5;
 }
+
+.progressbar {
+    background-color: RGBA(127, 127, 127, 1);
+    border-radius: 16px;
+}
+
+.progress {
+    background-color: white;
+    border-radius: 16px;
+}
