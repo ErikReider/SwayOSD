@@ -1,6 +1,7 @@
-use crate::config::{self, DBUS_SERVER_NAME};
+use crate::config::{self, DBUS_SERVER_NAME, DBUS_SERVER_PATH};
 use crate::osd_window::SwayosdWindow;
 use crate::utils::*;
+use gtk::gdk::Screen;
 use gtk::gio::{ApplicationFlags, BusNameWatcherFlags, BusType, Cancellable};
 use gtk::gio::{SignalSubscriptionId, SimpleAction};
 use gtk::glib::variant::DictEntry;
@@ -36,7 +37,7 @@ pub enum ArgTypes {
 	ScrollLock = 12,
 	// should always be first to set a global variable before executing related functions
 	DeviceName = isize::MIN,
-	TopMargin = isize::MIN + 1
+	TopMargin = isize::MIN + 1,
 }
 
 impl fmt::Display for ArgTypes {
@@ -304,7 +305,9 @@ impl SwayOSDApplication {
 					"top-margin" => {
 						let value = child.value().str().unwrap_or("").trim();
 						match value.parse::<f32>() {
-							Ok(top_margin) if (0.0f32..=1.0f32).contains(&top_margin) => (ArgTypes::TopMargin, Some(value.to_string())),
+							Ok(top_margin) if (0.0f32..=1.0f32).contains(&top_margin) => {
+								(ArgTypes::TopMargin, Some(value.to_string()))
+							}
 							_ => {
 								eprintln!("{} is not a number between 0.0 and 1.0!", value);
 								return 1;
@@ -611,6 +614,7 @@ impl SwayOSDApplication {
 			_ => return,
 		};
 
+		self.setup_styling();
 		self.init_windows(&display);
 
 		let _self = self;
@@ -633,6 +637,31 @@ impl SwayOSDApplication {
 		display.connect_monitor_removed(clone!(@strong _self => move |d, _mon| {
 			_self.init_windows(d);
 		}));
+	}
+
+	fn setup_styling(&self) {
+		let provider = CssProvider::new();
+		provider.load_from_resource(&format!("{}/style/style.css", DBUS_SERVER_PATH));
+
+		let screen = Screen::default().expect("Failed getting the default screen");
+		StyleContext::add_provider_for_screen(
+			&screen,
+			&provider,
+			gtk::STYLE_PROVIDER_PRIORITY_APPLICATION as u32,
+		);
+
+		if let Some(user_config_path) = user_style_path() {
+			let user_provider = CssProvider::new();
+			user_provider
+				.load_from_path(&user_config_path)
+				.expect("Failed loading user defined style.css");
+			StyleContext::add_provider_for_screen(
+				&screen,
+				&user_provider,
+				gtk::STYLE_PROVIDER_PRIORITY_USER as u32,
+			);
+			println!("Loaded user defined CSS file");
+		}
 	}
 
 	fn add_window(&self, display: &gdk::Display, monitor: &gdk::Monitor) {

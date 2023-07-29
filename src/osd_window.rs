@@ -3,23 +3,16 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use gtk::{
-	ffi::{GTK_STYLE_PROVIDER_PRIORITY_APPLICATION, GTK_STYLE_PROVIDER_PRIORITY_USER},
-	gdk::{self},
+	gdk,
 	glib::{self, clone},
 	prelude::*,
-	CssProvider, StyleContext,
 };
 use pulsectl::controllers::types::DeviceInfo;
 
-use crate::{
-	config::DBUS_SERVER_PATH,
-	utils::{get_top_margin, user_style_path, volume_to_f64, KeysLocks, VolumeDeviceType},
-};
+use crate::utils::{get_top_margin, volume_to_f64, KeysLocks, VolumeDeviceType};
 use blight::Device;
 
-const DISABLED_OPACITY: f64 = 0.5;
 const ICON_SIZE: i32 = 32;
-const WINDOW_MARGIN: i32 = 16;
 
 /// A window that our application can open that contains the main project view.
 #[derive(Clone, Debug)]
@@ -39,30 +32,6 @@ impl SwayosdWindow {
 			.style_context()
 			.add_class(&gtk::STYLE_CLASS_OSD.to_string());
 
-		// Set up styling
-		let provider = CssProvider::new();
-		provider.load_from_resource(&format!("{}/style/style.css", DBUS_SERVER_PATH));
-
-		let screen = gtk::prelude::WidgetExt::screen(&window).unwrap();
-		StyleContext::add_provider_for_screen(
-			&screen,
-			&provider,
-			GTK_STYLE_PROVIDER_PRIORITY_APPLICATION as u32,
-		);
-
-		if let Some(user_config_path) = user_style_path() {
-			let user_provider = CssProvider::new();
-			user_provider
-				.load_from_path(&user_config_path)
-				.expect("Failed loading user defined style.css");
-			StyleContext::add_provider_for_screen(
-				&screen,
-				&user_provider,
-				GTK_STYLE_PROVIDER_PRIORITY_USER as u32,
-			);
-			println!("Loaded user defined CSS file");
-		}
-
 		gtk_layer_shell::init_for_window(&window);
 		gtk_layer_shell::set_monitor(&window, monitor);
 		gtk_layer_shell::set_namespace(&window, "swayosd");
@@ -76,10 +45,8 @@ impl SwayosdWindow {
 
 		let container = cascade! {
 			gtk::Box::new(gtk::Orientation::Horizontal, 12);
-			..set_widget_name("frame");
-			..set_margin(WINDOW_MARGIN);
+			..set_widget_name("container");
 		};
-		container.set_widget_name("container");
 
 		window.add(&container);
 
@@ -129,9 +96,9 @@ impl SwayosdWindow {
 		let progress = self.build_progress_widget(volume / 100.0);
 
 		if device.mute {
-			progress.set_opacity(DISABLED_OPACITY);
+			progress.style_context().add_class("disabled");
 		} else {
-			progress.set_opacity(1.0);
+			progress.style_context().remove_class("disabled");
 		}
 
 		self.container.add(&icon);
@@ -188,9 +155,9 @@ impl SwayosdWindow {
 		let icon = self.build_icon_widget(symbol);
 
 		if !state {
-			icon.set_opacity(DISABLED_OPACITY);
+			icon.style_context().add_class("disabled");
 		} else {
-			icon.set_opacity(1.0);
+			icon.style_context().remove_class("disabled");
 		}
 
 		self.container.add(&icon);
@@ -231,6 +198,7 @@ impl SwayosdWindow {
 
 		cascade! {
 			gtk::Image::from_icon_name(Some(icon_name), gtk::IconSize::Invalid);
+			..style_context().add_class("icon");
 			..set_pixel_size(ICON_SIZE);
 		}
 	}
@@ -247,6 +215,7 @@ impl SwayosdWindow {
 	fn build_progress_widget(&self, fraction: f64) -> crate::progressbar::ProgressBar {
 		cascade! {
 			crate::progressbar::ProgressBar::new(fraction);
+			..style_context().add_class("progressbar");
 			..set_valign(gtk::Align::Center);
 			..set_expand(true);
 		}
