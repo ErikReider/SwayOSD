@@ -18,5 +18,7 @@
     <file>icons/scalable/status/source-volume-medium-symbolic.svg</file>
     <file>icons/scalable/status/source-volume-low-symbolic.svg</file>
     <file>icons/scalable/status/source-volume-muted-symbolic.svg</file>
+
+    <file>style/style.css</file>
   </gresource>
 </gresources>

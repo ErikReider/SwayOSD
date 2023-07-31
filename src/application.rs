@@ -36,7 +36,7 @@ pub enum ArgTypes {
 	ScrollLock = 12,
 	// should always be first to set a global variable before executing related functions
 	DeviceName = isize::MIN,
-	TopMargin = isize::MIN + 1
+	TopMargin = isize::MIN + 1,
 }
 
 impl fmt::Display for ArgTypes {
@@ -304,7 +304,9 @@ impl SwayOSDApplication {
 					"top-margin" => {
 						let value = child.value().str().unwrap_or("").trim();
 						match value.parse::<f32>() {
-							Ok(top_margin) if (0.0f32..=1.0f32).contains(&top_margin) => (ArgTypes::TopMargin, Some(value.to_string())),
+							Ok(top_margin) if (0.0f32..=1.0f32).contains(&top_margin) => {
+								(ArgTypes::TopMargin, Some(value.to_string()))
+							}
 							_ => {
 								eprintln!("{} is not a number between 0.0 and 1.0!", value);
 								return 1;

@@ -1,22 +1,18 @@
 use std::cell::RefCell;
-use std::f64::consts::PI;
 use std::rc::Rc;
 use std::time::Duration;
 
 use gtk::{
-	cairo, gdk,
+	gdk,
 	glib::{self, clone},
 	prelude::*,
 };
 use pulsectl::controllers::types::DeviceInfo;
 
-use crate::utils::{volume_to_f64, KeysLocks, VolumeDeviceType, get_top_margin};
+use crate::utils::{get_top_margin, volume_to_f64, KeysLocks, VolumeDeviceType};
 use blight::Device;
 
-const DISABLED_OPACITY: f64 = 0.5;
 const ICON_SIZE: i32 = 32;
-const WINDOW_MARGIN: i32 = 16;
-const DEGREES: f64 = PI / 180.0;
 
 /// A window that our application can open that contains the main project view.
 #[derive(Clone, Debug)]
@@ -44,68 +40,15 @@ impl SwayosdWindow {
 		gtk_layer_shell::set_layer(&window, gtk_layer_shell::Layer::Overlay);
 		gtk_layer_shell::set_anchor(&window, gtk_layer_shell::Edge::Top, true);
 
-		// Set up a widget
+		// Set up the widgets
+		window.set_width_request(250);
+
 		let container = cascade! {
 			gtk::Box::new(gtk::Orientation::Horizontal, 12);
-			..set_margin(WINDOW_MARGIN);
+			..set_widget_name("container");
 		};
+
 		window.add(&container);
-		window.set_width_request(250);
-		let style = window.style_context();
-		window.connect_draw(move |win, ctx| {
-			let width = f64::from(win.allocated_width());
-			let height = f64::from(win.allocated_height());
-			let radius: f64 = height * 0.5;
-
-			let bg = style
-				.style_property_for_state(
-					gtk::STYLE_PROPERTY_BACKGROUND_COLOR.to_string().as_str(),
-					gtk::StateFlags::NORMAL,
-				)
-				.get::<gdk::RGBA>();
-			let bg = match bg {
-				Ok(bg) => bg,
-				Err(_) => gdk::RGBA::new(1.0, 1.0, 1.0, 1.0),
-			};
-
-			ctx.save().expect("Couldn't save OSD window!...");
-			ctx.new_sub_path();
-			ctx.arc(
-				width - radius,
-				radius,
-				radius,
-				-90.0 * DEGREES,
-				0.0 * DEGREES,
-			);
-			ctx.arc(
-				width - radius,
-				height - radius,
-				radius,
-				0.0 * DEGREES,
-				90.0 * DEGREES,
-			);
-			ctx.arc(
-				radius,
-				height - radius,
-				radius,
-				90.0 * DEGREES,
-				180.0 * DEGREES,
-			);
-			ctx.arc(radius, radius, radius, 180.0 * DEGREES, 270.0 * DEGREES);
-			ctx.close_path();
-
-			ctx.set_operator(cairo::Operator::Source);
-			ctx.set_source_rgba(bg.red(), bg.green(), bg.blue(), bg.alpha());
-			ctx.clip();
-			ctx.paint().expect("Couldn't paint OSD window!...");
-			ctx.restore().expect("Couldn't restore OSD window!...");
-
-			ctx.save().expect("Couldn't save OSD window!...");
-			ctx.translate(f64::from(WINDOW_MARGIN), f64::from(WINDOW_MARGIN));
-			win.child().unwrap().draw(ctx);
-			ctx.restore().expect("Couldn't restore OSD window!...");
-			gtk::Inhibit(true)
-		});
 
 		// Set the window margin
 		window.connect_map(clone!(@strong monitor => move |win| {
@@ -152,14 +95,10 @@ impl SwayosdWindow {
 		let icon = self.build_icon_widget(icon_name);
 		let progress = self.build_progress_widget(volume / 100.0);
 
-		if device.mute {
-			progress.set_opacity(DISABLED_OPACITY);
-		} else {
-			progress.set_opacity(1.0);
-		}
+		progress.set_sensitive(!device.mute);
 
 		self.container.add(&icon);
-		self.container.add(&progress.bar);
+		self.container.add(&progress);
 
 		self.run_timeout();
 	}
@@ -175,7 +114,7 @@ impl SwayosdWindow {
 		let progress = self.build_progress_widget(brightness / max);
 
 		self.container.add(&icon);
-		self.container.add(&progress.bar);
+		self.container.add(&progress);
 
 		self.run_timeout();
 	}
@@ -211,11 +150,7 @@ impl SwayosdWindow {
 		label.set_text(&label_text);
 		let icon = self.build_icon_widget(symbol);
 
-		if !state {
-			icon.set_opacity(DISABLED_OPACITY);
-		} else {
-			icon.set_opacity(1.0);
-		}
+		icon.set_sensitive(state);
 
 		self.container.add(&icon);
 		self.container.add(&label);
@@ -268,9 +203,10 @@ impl SwayosdWindow {
 		}
 	}
 
-	fn build_progress_widget(&self, fraction: f64) -> crate::progressbar::ProgressBar {
+	fn build_progress_widget(&self, fraction: f64) -> gtk::ProgressBar {
 		cascade! {
-			crate::progressbar::ProgressBar::new(fraction);
+			gtk::ProgressBar::new();
+			..set_fraction(fraction);
 			..set_valign(gtk::Align::Center);
 			..set_expand(true);
 		}
