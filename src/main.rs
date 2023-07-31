@@ -1,6 +1,5 @@
 mod application;
 mod osd_window;
-mod progressbar;
 mod utils;
 
 mod config;

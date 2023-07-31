@@ -1,4 +1,4 @@
-use gtk::{gdk, glib::user_config_dir};
+use gtk::glib::user_config_dir;
 use lazy_static::lazy_static;
 use substring::Substring;
 
@@ -369,12 +369,6 @@ pub fn change_brightness(
 pub fn volume_to_f64(volume: &Volume) -> f64 {
 	let tmp_vol = f64::from(volume.0 - Volume::MUTED.0);
 	(100.0 * tmp_vol / f64::from(Volume::NORMAL.0 - Volume::MUTED.0)).round()
-}
-
-pub fn is_dark_mode(fg: &gdk::RGBA, bg: &gdk::RGBA) -> bool {
-	let text_avg = fg.red() / 256.0 + fg.green() / 256.0 + fg.blue() / 256.0;
-	let bg_avg = bg.red() / 256.0 + bg.green() / 256.0 + bg.blue() / 256.0;
-	text_avg > bg_avg
 }
 
 pub fn user_style_path() -> Option<String> {

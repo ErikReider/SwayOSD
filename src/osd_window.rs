@@ -95,14 +95,10 @@ impl SwayosdWindow {
 		let icon = self.build_icon_widget(icon_name);
 		let progress = self.build_progress_widget(volume / 100.0);
 
-		if device.mute {
-			progress.style_context().add_class("disabled");
-		} else {
-			progress.style_context().remove_class("disabled");
-		}
+		progress.set_sensitive(!device.mute);
 
 		self.container.add(&icon);
-		self.container.add(&progress.bar);
+		self.container.add(&progress);
 
 		self.run_timeout();
 	}
@@ -118,7 +114,7 @@ impl SwayosdWindow {
 		let progress = self.build_progress_widget(brightness / max);
 
 		self.container.add(&icon);
-		self.container.add(&progress.bar);
+		self.container.add(&progress);
 
 		self.run_timeout();
 	}
@@ -154,11 +150,7 @@ impl SwayosdWindow {
 		label.set_text(&label_text);
 		let icon = self.build_icon_widget(symbol);
 
-		if !state {
-			icon.style_context().add_class("disabled");
-		} else {
-			icon.style_context().remove_class("disabled");
-		}
+		icon.set_sensitive(state);
 
 		self.container.add(&icon);
 		self.container.add(&label);
@@ -198,7 +190,6 @@ impl SwayosdWindow {
 
 		cascade! {
 			gtk::Image::from_icon_name(Some(icon_name), gtk::IconSize::Invalid);
-			..style_context().add_class("icon");
 			..set_pixel_size(ICON_SIZE);
 		}
 	}
@@ -212,10 +203,10 @@ impl SwayosdWindow {
 		}
 	}
 
-	fn build_progress_widget(&self, fraction: f64) -> crate::progressbar::ProgressBar {
+	fn build_progress_widget(&self, fraction: f64) -> gtk::ProgressBar {
 		cascade! {
-			crate::progressbar::ProgressBar::new(fraction);
-			..style_context().add_class("progressbar");
+			gtk::ProgressBar::new();
+			..set_fraction(fraction);
 			..set_valign(gtk::Align::Center);
 			..set_expand(true);
 		}
