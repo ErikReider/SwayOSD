@@ -4,8 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "swayosd"
-path = "src/main.rs"
+name = "swayosd-server"
+path = "src/server/main.rs"
+
+[[bin]]
+name = "swayosd-client"
+path = "src/client/main.rs"
 
 [[bin]]
 name = "swayosd-libinput-backend"

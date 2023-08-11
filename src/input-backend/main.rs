@@ -1,5 +1,5 @@
 use async_std::task::{self, sleep};
-use config::DBUS_SERVER_PATH;
+use config::DBUS_PATH;
 use dbus_server::DbusServer;
 use evdev_rs::enums::{int_to_ev_key, EventCode, EV_KEY, EV_LED};
 use evdev_rs::DeviceWrapper;
@@ -45,7 +45,7 @@ fn main() -> Result<(), zbus::Error> {
 	// Create DBUS server
 	let connection = task::block_on(DbusServer.init());
 	let object_server = connection.object_server();
-	let iface_ref = task::block_on(object_server.interface::<_, DbusServer>(DBUS_SERVER_PATH))?;
+	let iface_ref = task::block_on(object_server.interface::<_, DbusServer>(DBUS_PATH))?;
 
 	// Init libinput
 	let mut input = Libinput::new_with_udev(Interface);

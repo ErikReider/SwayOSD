@@ -1,8 +1,14 @@
+#![feature(if_let_guard)]
 mod application;
 mod osd_window;
 mod utils;
 
+#[path = "../argtypes.rs"]
+mod argtypes;
+#[path = "../config.rs"]
 mod config;
+#[path = "../global_utils.rs"]
+mod global_utils;
 
 #[macro_use]
 extern crate shrinkwraprs;
@@ -11,6 +17,9 @@ extern crate shrinkwraprs;
 extern crate cascade;
 
 use application::SwayOSDApplication;
+use argtypes::ArgTypes;
+use config::{DBUS_SERVER_NAME, DBUS_PATH};
+use gtk::glib::{MainContext, Priority, Sender};
 use gtk::prelude::*;
 use gtk::{
 	gdk::Screen,
@@ -19,7 +28,44 @@ use gtk::{
 	traits::IconThemeExt,
 	CssProvider, IconTheme, StyleContext,
 };
+use std::future::pending;
+use std::str::FromStr;
 use utils::user_style_path;
+use zbus::{dbus_interface, ConnectionBuilder};
+
+struct DbusServer {
+	sender: Sender<(ArgTypes, String)>,
+}
+
+#[dbus_interface(name = "org.erikreider.swayosd")]
+impl DbusServer {
+	pub fn handle_action(&self, arg_type: String, data: String) -> bool {
+		let arg_type = match ArgTypes::from_str(&arg_type) {
+			Ok(arg_type) => arg_type,
+			Err(other_type) => {
+				eprintln!("Unknown action in Dbus handle_action: {:?}", other_type);
+				return false;
+			}
+		};
+		if let Err(error) = self.sender.send((arg_type, data)) {
+			eprintln!("Channel Send error: {}", error);
+			return false;
+		}
+		true
+	}
+}
+
+impl DbusServer {
+	async fn new(sender: Sender<(ArgTypes, String)>) -> zbus::Result<()> {
+		let _connection = ConnectionBuilder::session()?
+			.name(DBUS_SERVER_NAME)?
+			.serve_at(DBUS_PATH, DbusServer { sender })?
+			.build()
+			.await?;
+		pending::<()>().await;
+		Ok(())
+	}
+}
 
 const GRESOURCE_BASE_PATH: &str = "/org/erikreider/swayosd";
 
@@ -30,7 +76,7 @@ fn main() {
 	}
 
 	// Load the compiled resource bundle
-	let resources_bytes = include_bytes!("../data/swayosd.gresource");
+	let resources_bytes = include_bytes!("../../data/swayosd.gresource");
 	let resource_data = Bytes::from(&resources_bytes[..]);
 	let res = Resource::from_data(&resource_data).unwrap();
 	gio::resources_register(&res);
@@ -65,5 +111,9 @@ fn main() {
 		println!("Loaded user defined CSS file");
 	}
 
-	std::process::exit(SwayOSDApplication::new().start());
+	let (sender, receiver) = MainContext::channel::<(ArgTypes, String)>(Priority::default());
+	// Start the DBus Server
+	async_std::task::spawn(DbusServer::new(sender));
+	// Start the GTK Application
+	std::process::exit(SwayOSDApplication::new(receiver).start());
 }

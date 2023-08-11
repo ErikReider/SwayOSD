@@ -1,6 +1,6 @@
 use zbus::{dbus_interface, Connection, ConnectionBuilder, SignalContext};
 
-use crate::config::{DBUS_SERVER_NAME, DBUS_SERVER_PATH};
+use crate::config::{DBUS_BACKEND_NAME, DBUS_PATH};
 
 pub struct DbusServer;
 
@@ -17,8 +17,8 @@ impl DbusServer {
 impl DbusServer {
 	async fn get_connection(&self) -> zbus::Result<Connection> {
 		let conn = ConnectionBuilder::system()?
-			.name(DBUS_SERVER_NAME)?
-			.serve_at(DBUS_SERVER_PATH, DbusServer)?
+			.name(DBUS_BACKEND_NAME)?
+			.serve_at(DBUS_PATH, DbusServer)?
 			.build()
 			.await?;
 

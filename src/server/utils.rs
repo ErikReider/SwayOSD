@@ -12,12 +12,13 @@ use blight::{change_bl, err::BlibError, Change, Device, Direction};
 use pulse::volume::Volume;
 use pulsectl::controllers::{types::DeviceInfo, DeviceControl, SinkController, SourceController};
 
-use crate::application::ArgTypes;
-
 lazy_static! {
-	static ref MAX_VOLUME: Mutex<u8> = Mutex::new(100_u8);
-	static ref DEVICE_NAME: Mutex<String> = Mutex::new("default".to_string());
-	static ref TOP_MARGIN: Mutex<f32> = Mutex::new(0.85_f32);
+	pub static ref MAX_VOLUME_DEFAULT: u8 = 100_u8;
+	static ref MAX_VOLUME: Mutex<u8> = Mutex::new(*MAX_VOLUME_DEFAULT);
+	pub static ref DEVICE_NAME_DEFAULT: &'static str = "default";
+	static ref DEVICE_NAME: Mutex<String> = Mutex::new(DEVICE_NAME_DEFAULT.to_string());
+	pub static ref TOP_MARGIN_DEFAULT: f32 = 0.85_f32;
+	static ref TOP_MARGIN: Mutex<f32> = Mutex::new(*TOP_MARGIN_DEFAULT);
 }
 
 pub enum KeysLocks {
@@ -26,57 +27,27 @@ pub enum KeysLocks {
 	ScrollLock,
 }
 
-pub fn volume_parser(is_sink: bool, value: &str) -> Result<(ArgTypes, Option<String>), i32> {
-	let mut v = match (value, value.parse::<i8>()) {
-		// Parse custom step values
-		(_, Ok(num)) => (
-			if num.is_positive() {
-				ArgTypes::SinkVolumeRaise
-			} else {
-				ArgTypes::SinkVolumeLower
-			},
-			Some(num.abs().to_string()),
-		),
-		("raise", _) => (ArgTypes::SinkVolumeRaise, None),
-		("lower", _) => (ArgTypes::SinkVolumeLower, None),
-		("mute-toggle", _) => (ArgTypes::SinkVolumeMuteToggle, None),
-		(e, _) => {
-			eprintln!("Unknown output volume mode: \"{}\"!...", e);
-			return Err(1);
-		}
-	};
-	if is_sink {
-		if v.0 == ArgTypes::SinkVolumeRaise {
-			v.0 = ArgTypes::SourceVolumeRaise;
-		} else if v.0 == ArgTypes::SinkVolumeLower {
-			v.0 = ArgTypes::SourceVolumeLower;
-		} else {
-			v.0 = ArgTypes::SourceVolumeMuteToggle;
-		}
-	}
-	Ok(v)
-}
-
 pub fn get_max_volume() -> u8 {
 	*MAX_VOLUME.lock().unwrap()
 }
 
-pub fn set_max_volume(volume: Option<String>) {
-	let setter: u8 = volume.unwrap().parse().unwrap();
-
+pub fn set_max_volume(volume: u8) {
 	let mut vol = MAX_VOLUME.lock().unwrap();
-	*vol = setter;
+	*vol = volume;
+}
+
+pub fn reset_max_volume() {
+	let mut vol = MAX_VOLUME.lock().unwrap();
+	*vol = *MAX_VOLUME_DEFAULT;
 }
 
 pub fn get_top_margin() -> f32 {
 	*TOP_MARGIN.lock().unwrap()
 }
 
-pub fn set_top_margin(volume: Option<String>) {
-	let setter: f32 = volume.unwrap().parse().unwrap();
-
-	let mut vol = TOP_MARGIN.lock().unwrap();
-	*vol = setter;
+pub fn set_top_margin(margin: f32) {
+	let mut margin_mut = TOP_MARGIN.lock().unwrap();
+	*margin_mut = margin;
 }
 
 pub fn get_device_name() -> String {
@@ -86,6 +57,11 @@ pub fn get_device_name() -> String {
 pub fn set_device_name(name: String) {
 	let mut global_name = DEVICE_NAME.lock().unwrap();
 	*global_name = name;
+}
+
+pub fn reset_device_name() {
+	let mut global_name = DEVICE_NAME.lock().unwrap();
+	*global_name = DEVICE_NAME_DEFAULT.to_string();
 }
 
 pub fn get_key_lock_state(key: KeysLocks, led: Option<String>) -> bool {
