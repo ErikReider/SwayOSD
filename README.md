@@ -63,7 +63,7 @@ exec swayosd
 or start with a max-volume set (default is 100)
 
 ```zsh
-exec swayosd --max-volume 120
+exec swayosd-server --max-volume 120
 ```
 
 ```zsh

@@ -12,9 +12,10 @@ use blight::{change_bl, err::BlibError, Change, Device, Direction};
 use pulse::volume::Volume;
 use pulsectl::controllers::{types::DeviceInfo, DeviceControl, SinkController, SourceController};
 
+static PRIV_MAX_VOLUME_DEFAULT: u8 = 100_u8;
 lazy_static! {
-	pub static ref MAX_VOLUME_DEFAULT: u8 = 100_u8;
-	static ref MAX_VOLUME: Mutex<u8> = Mutex::new(*MAX_VOLUME_DEFAULT);
+	static ref MAX_VOLUME_DEFAULT: Mutex<u8> = Mutex::new(PRIV_MAX_VOLUME_DEFAULT);
+	static ref MAX_VOLUME: Mutex<u8> = Mutex::new(PRIV_MAX_VOLUME_DEFAULT);
 	pub static ref DEVICE_NAME_DEFAULT: &'static str = "default";
 	static ref DEVICE_NAME: Mutex<String> = Mutex::new(DEVICE_NAME_DEFAULT.to_string());
 	pub static ref TOP_MARGIN_DEFAULT: f32 = 0.85_f32;
@@ -25,6 +26,15 @@ pub enum KeysLocks {
 	CapsLock,
 	NumLock,
 	ScrollLock,
+}
+
+pub fn get_default_max_volume() -> u8 {
+	*MAX_VOLUME_DEFAULT.lock().unwrap()
+}
+
+pub fn set_default_max_volume(volume: u8) {
+	let mut vol = MAX_VOLUME_DEFAULT.lock().unwrap();
+	*vol = volume;
 }
 
 pub fn get_max_volume() -> u8 {
@@ -38,7 +48,7 @@ pub fn set_max_volume(volume: u8) {
 
 pub fn reset_max_volume() {
 	let mut vol = MAX_VOLUME.lock().unwrap();
-	*vol = *MAX_VOLUME_DEFAULT;
+	*vol = *MAX_VOLUME_DEFAULT.lock().unwrap();
 }
 
 pub fn get_top_margin() -> f32 {

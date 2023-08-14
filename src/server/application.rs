@@ -57,7 +57,14 @@ impl SwayOSDApplication {
 							_ => None,
 						};
 						set_top_margin(margin.unwrap_or(*TOP_MARGIN_DEFAULT))
-					}
+					},
+					(ArgTypes::MaxVolume, max) => {
+						let volume: u8 = match max {
+								Some(max) if let Ok(max) = max.parse() => max,
+								_ => get_default_max_volume(),
+							};
+						set_default_max_volume(volume);
+					},
 					(arg_type, data) => Self::action_activated(&osd_app, arg_type, data),
 				}
 			}
@@ -278,7 +285,7 @@ impl SwayOSDApplication {
 			(ArgTypes::MaxVolume, max) => {
 				let volume: u8 = match max {
 						Some(max) if let Ok(max) = max.parse() => max,
-						_ => *MAX_VOLUME_DEFAULT,
+						_ => get_default_max_volume(),
 					};
 				set_max_volume(volume)
 			}
