@@ -55,9 +55,11 @@ Other users can run: `pkexec swayosd-libinput-backend`
 
 #### Sway examples
 
+##### Start Server
+
 ```zsh
-# OSD window
-exec swayosd
+# OSD server
+exec swayosd-server
 ```
 
 or start with a max-volume set (default is 100)
@@ -66,33 +68,34 @@ or start with a max-volume set (default is 100)
 exec swayosd-server --max-volume 120
 ```
 
+##### Add Client bindings
+
 ```zsh
 # Sink volume raise optionally with --device
-bindsym XF86AudioRaiseVolume exec swayosd --output-volume raise
+bindsym XF86AudioRaiseVolume exec swayosd-client --output-volume raise
 # Sink volume lower optionally with --device
-bindsym XF86AudioLowerVolume exec  swayosd --output-volume lower --device alsa_output.pci-0000_11_00.4.analog-stereo.monitor
+bindsym XF86AudioLowerVolume exec  swayosd-client --output-volume lower --device alsa_output.pci-0000_11_00.4.analog-stereo.monitor
 # Sink volume toggle mute
-bindsym XF86AudioMute exec swayosd --output-volume mute-toggle
+bindsym XF86AudioMute exec swayosd-client --output-volume mute-toggle
 # Source volume toggle mute
-bindsym XF86AudioMicMute exec swayosd --input-volume mute-toggle
+bindsym XF86AudioMicMute exec swayosd-client --input-volume mute-toggle
 
 # Capslock (If you don't want to use the backend)
-bindsym --release Caps_Lock exec swayosd --caps-lock
+bindsym --release Caps_Lock exec swayosd-client --caps-lock
 # Capslock but specific LED name (/sys/class/leds/)
-bindsym --release Caps_Lock exec swayosd --caps-lock-led input19::capslock
+bindsym --release Caps_Lock exec swayosd-client --caps-lock-led input19::capslock
 
 # Brightness raise
-bindsym XF86MonBrightnessUp exec swayosd --brightness raise
+bindsym XF86MonBrightnessUp exec swayosd-client --brightness raise
 # Brightness lower
-bindsym XF86MonBrightnessDown exec swayosd --brightness lower
+bindsym XF86MonBrightnessDown exec swayosd-client --brightness lower
 ```
 
 ### Notes on using `--device`:
 
 - It is for audio devices only.
 - If it is omitted the default audio device is used.
-- It only changes the target device for the currrent/next action that changes the volume.
-- `--max-volume` is a global limit for all devices so `--device` has no effect on it.
+- It only changes the target device for the currrent action that changes the volume.
 - You can list your input audio devices using `pactl list short sources`, for outputs replace `sources` with `sinks`.
 
 ## Brightness Control
