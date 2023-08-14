@@ -43,7 +43,7 @@ impl SwayOSDApplication {
 
 		// Parse args
 		app.connect_handle_local_options(clone!(@strong osd_app => move |_app, args| {
-			let actions = match handle_application_args(args) {
+			let actions = match handle_application_args(args.to_variant()) {
 				(HandleLocalStatus::SUCCESS | HandleLocalStatus::CONTINUE, actions) => actions,
 				(status @ HandleLocalStatus::FAILIURE, _) => return status as i32,
 			};

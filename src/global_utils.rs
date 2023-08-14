@@ -1,7 +1,4 @@
-use gtk::{
-	glib::{variant::DictEntry, Variant, VariantDict},
-	prelude::*,
-};
+use gtk::glib::{variant::DictEntry, Variant};
 
 use crate::argtypes::ArgTypes;
 
@@ -12,11 +9,9 @@ pub enum HandleLocalStatus {
 }
 
 pub(crate) fn handle_application_args(
-	args: &VariantDict,
+	variant: Variant,
 ) -> (HandleLocalStatus, Vec<(ArgTypes, Option<String>)>) {
 	let mut actions: Vec<(ArgTypes, Option<String>)> = Vec::new();
-
-	let variant = args.to_variant();
 
 	if variant.n_children() == 0 {
 		return (HandleLocalStatus::CONTINUE, actions);

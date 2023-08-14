@@ -1,6 +1,5 @@
 #[path = "../argtypes.rs"]
 mod argtypes;
-mod client;
 #[path = "../config.rs"]
 mod config;
 #[path = "../global_utils.rs"]
@@ -11,13 +10,34 @@ use global_utils::{handle_application_args, HandleLocalStatus};
 use gtk::glib::{OptionArg, OptionFlags};
 use gtk::{gio::ApplicationFlags, Application};
 use gtk::{glib, prelude::*};
+use zbus::{blocking::Connection, dbus_proxy};
+
+#[dbus_proxy(
+	interface = "org.erikreider.swayosd",
+	default_service = "org.erikreider.swayosd-server",
+	default_path = "/org/erikreider/swayosd"
+)]
+trait Server {
+	async fn handle_action(&self, arg_type: String, data: String) -> zbus::Result<bool>;
+}
+
+pub fn get_proxy() -> zbus::Result<ServerProxyBlocking<'static>> {
+	let connection = Connection::session()?;
+	Ok(ServerProxyBlocking::new(&connection)?)
+}
 
 fn main() -> Result<(), glib::Error> {
 	// Make sure that the server is running
-	let proxy = match client::get_proxy() {
-		Ok(proxy) => proxy,
+	let proxy = match get_proxy() {
+		Ok(proxy) => match proxy.introspect() {
+			Ok(_) => proxy,
+			Err(err) => {
+				eprintln!("Could not connect to SwayOSD Server with error: {}", err);
+				std::process::exit(1);
+			}
+		},
 		Err(err) => {
-			eprintln!("Could not connect to server with error: {}", err);
+			eprintln!("Dbus error: {}", err);
 			std::process::exit(1);
 		}
 	};
@@ -121,7 +141,12 @@ fn main() -> Result<(), glib::Error> {
 
 	// Parse args
 	app.connect_handle_local_options(move |_app, args| {
-		let actions = match handle_application_args(args) {
+		let variant = args.to_variant();
+		if variant.n_children() == 0 {
+			eprintln!("No args provided...");
+			return HandleLocalStatus::FAILIURE as i32;
+		}
+		let actions = match handle_application_args(variant) {
 			(HandleLocalStatus::SUCCESS, actions) => actions,
 			(status @ HandleLocalStatus::FAILIURE, _) => return status as i32,
 			(status @ HandleLocalStatus::CONTINUE, _) => return status as i32,
