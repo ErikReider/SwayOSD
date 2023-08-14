@@ -12,7 +12,7 @@ else
   rust_target = 'debug'
 endif
 
-foreach prog : ['swayosd', 'swayosd-libinput-backend']
+foreach prog : ['swayosd-server', 'swayosd-client', 'swayosd-libinput-backend']
   custom_target(
     'cargo-build: @0@'.format(prog),
     build_by_default: true,
@@ -23,8 +23,8 @@ foreach prog : ['swayosd', 'swayosd-libinput-backend']
     install_dir: join_paths(get_option('prefix'), get_option('bindir')),
     command: [
       'env', cargo_env,
-      cargo_bin, 'build',
-      cargo_opt, '&&', 'cp', 'src' / rust_target / prog, '@OUTPUT@',
+      cargo_bin, 'build', cargo_opt, '&&',
+      'cp', '-f', 'src' / rust_target / prog, '@OUTPUT@',
     ]
   )
 endforeach
