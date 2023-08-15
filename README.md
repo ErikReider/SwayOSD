@@ -80,20 +80,6 @@ bindsym XF86AudioMute exec swayosd-client --output-volume mute-toggle
 # Source volume toggle mute
 bindsym XF86AudioMicMute exec swayosd-client --input-volume mute-toggle
 
-# Capslock (If you don't want to use the backend)
-bindsym --release Caps_Lock exec swayosd-client --caps-lock
-# Capslock but specific LED name (/sys/class/leds/)
-bindsym --release Caps_Lock exec swayosd-client --caps-lock-led input19::capslock
-
-# Brightness raise
-bindsym XF86MonBrightnessUp exec swayosd-client --brightness raise
-# Brightness lower
-bindsym XF86MonBrightnessDown exec swayosd-client --brightness lower
-
-# Brightness raise custom value
-bindsym XF86MonBrightnessUp + <key> exec swayosd-client --brightness 10
-# Brightness lower custom value
-bindsym XF86MonBrightnessDown + <key> exec swayosd-client --brightness -10
 # Volume raise custom value
 bindsym XF86AudioRaiseVolume + <key> exec swayosd-client --output-volume 15
 # Volume raise custom value
@@ -104,6 +90,23 @@ bindsym XF86AudioLowerVolume exec  swayosd-client --output-volume +10 --device a
 # Sink volume lower custom value optionally with --device
 bindsym XF86AudioLowerVolume exec  swayosd-client --output-volume -10 --device alsa_output.pci-0000_11_00.4.analog-stereo.monitor
 
+
+
+# Capslock (If you don't want to use the backend)
+bindsym --release Caps_Lock exec swayosd-client --caps-lock
+# Capslock but specific LED name (/sys/class/leds/)
+bindsym --release Caps_Lock exec swayosd-client --caps-lock-led input19::capslock
+
+
+# Brightness raise
+bindsym XF86MonBrightnessUp exec swayosd-client --brightness raise
+# Brightness lower
+bindsym XF86MonBrightnessDown exec swayosd-client --brightness lower
+
+# Brightness raise custom value
+bindsym XF86MonBrightnessUp + <key> exec swayosd-client --brightness 10
+# Brightness lower custom value
+bindsym XF86MonBrightnessDown + <key> exec swayosd-client --brightness -10
 ```
 
 ### Notes on using `--device`:
