@@ -98,6 +98,7 @@ bindsym --release Caps_Lock exec swayosd-client --caps-lock
 bindsym --release Caps_Lock exec swayosd-client --caps-lock-led input19::capslock
 
 
+
 # Brightness raise
 bindsym XF86MonBrightnessUp exec swayosd-client --brightness raise
 # Brightness lower
