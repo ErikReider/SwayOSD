@@ -51,8 +51,9 @@ impl SwayOSDApplication {
 				match (arg_type, data) {
 					(ArgTypes::TopMargin, margin) => {
 						let margin: Option<f32> = match margin {
-							Some(margin) if let Ok(margin) = margin.parse::<f32>() => {
-								(0_f32..1_f32).contains(&margin).then_some(margin)
+							Some(margin) => match margin.parse::<f32>() {
+								Ok(margin) => (0_f32..1_f32).contains(&margin).then_some(margin),
+								_ => None,
 							},
 							_ => None,
 						};
@@ -60,7 +61,10 @@ impl SwayOSDApplication {
 					},
 					(ArgTypes::MaxVolume, max) => {
 						let volume: u8 = match max {
-								Some(max) if let Ok(max) = max.parse() => max,
+								Some(max) => match max.parse() {
+									Ok(max) => max,
+									_ => get_default_max_volume(),
+								}
 								_ => get_default_max_volume(),
 							};
 						set_default_max_volume(volume);
@@ -284,9 +288,12 @@ impl SwayOSDApplication {
 			}
 			(ArgTypes::MaxVolume, max) => {
 				let volume: u8 = match max {
-						Some(max) if let Ok(max) = max.parse() => max,
+					Some(max) => match max.parse() {
+						Ok(max) => max,
 						_ => get_default_max_volume(),
-					};
+					},
+					_ => get_default_max_volume(),
+				};
 				set_max_volume(volume)
 			}
 			(ArgTypes::DeviceName, name) => {

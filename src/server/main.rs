@@ -1,4 +1,3 @@
-#![feature(if_let_guard)]
 mod application;
 mod osd_window;
 mod utils;
