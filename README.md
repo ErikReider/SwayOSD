@@ -81,23 +81,19 @@ bindsym XF86AudioMute exec swayosd-client --output-volume mute-toggle
 bindsym XF86AudioMicMute exec swayosd-client --input-volume mute-toggle
 
 # Volume raise with custom value
-bindsym XF86AudioRaiseVolume + <key> exec swayosd-client --output-volume 15
+bindsym XF86AudioRaiseVolume exec swayosd-client --output-volume 15
 # Volume lower with custom value
-bindsym XF86AudioRaiseVolume + <key> exec swayosd-client --output-volume -15
+bindsym XF86AudioRaiseVolume exec swayosd-client --output-volume -15
 
 # Sink volume raise with custom value optionally with --device
-bindsym XF86AudioLowerVolume + <key> exec  swayosd-client --output-volume +10 --device alsa_output.pci-0000_11_00.4.analog-stereo.monitor
+bindsym XF86AudioLowerVolume exec  swayosd-client --output-volume +10 --device alsa_output.pci-0000_11_00.4.analog-stereo.monitor
 # Sink volume lower with custom value optionally with --device
-bindsym XF86AudioLowerVolume + <key> exec  swayosd-client --output-volume -10 --device alsa_output.pci-0000_11_00.4.analog-stereo.monitor
-
-
+bindsym XF86AudioLowerVolume exec  swayosd-client --output-volume -10 --device alsa_output.pci-0000_11_00.4.analog-stereo.monitor
 
 # Capslock (If you don't want to use the backend)
 bindsym --release Caps_Lock exec swayosd-client --caps-lock
 # Capslock but specific LED name (/sys/class/leds/)
 bindsym --release Caps_Lock exec swayosd-client --caps-lock-led input19::capslock
-
-
 
 # Brightness raise
 bindsym XF86MonBrightnessUp exec swayosd-client --brightness raise
@@ -105,9 +101,9 @@ bindsym XF86MonBrightnessUp exec swayosd-client --brightness raise
 bindsym XF86MonBrightnessDown exec swayosd-client --brightness lower
 
 # Brightness raise with custom value
-bindsym XF86MonBrightnessUp + <key> exec swayosd-client --brightness 10
+bindsym XF86MonBrightnessUp  exec swayosd-client --brightness 10
 # Brightness lower with custom value
-bindsym XF86MonBrightnessDown + <key> exec swayosd-client --brightness -10
+bindsym XF86MonBrightnessDown exec swayosd-client --brightness -10
 ```
 
 ### Notes on using `--device`:
