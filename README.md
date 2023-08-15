@@ -89,6 +89,21 @@ bindsym --release Caps_Lock exec swayosd-client --caps-lock-led input19::capsloc
 bindsym XF86MonBrightnessUp exec swayosd-client --brightness raise
 # Brightness lower
 bindsym XF86MonBrightnessDown exec swayosd-client --brightness lower
+
+# Brightness raise custom value
+bindsym XF86MonBrightnessUp + <key> exec swayosd-client --brightness 10
+# Brightness lower custom value
+bindsym XF86MonBrightnessDown + <key> exec swayosd-client --brightness -10
+# Volume raise custom value
+bindsym XF86AudioRaiseVolume + <key> exec swayosd-client --output-volume 15
+# Volume raise custom value
+bindsym XF86AudioRaiseVolume + <key> exec swayosd-client --output-volume -15
+
+# Sink volume raise custom value optionally with --device
+bindsym XF86AudioLowerVolume exec  swayosd-client --output-volume +10 --device alsa_output.pci-0000_11_00.4.analog-stereo.monitor
+# Sink volume lower custom value optionally with --device
+bindsym XF86AudioLowerVolume exec  swayosd-client --output-volume -10 --device alsa_output.pci-0000_11_00.4.analog-stereo.monitor
+
 ```
 
 ### Notes on using `--device`:
