@@ -80,9 +80,9 @@ bindsym XF86AudioMute exec swayosd-client --output-volume mute-toggle
 # Source volume toggle mute
 bindsym XF86AudioMicMute exec swayosd-client --input-volume mute-toggle
 
-# Volume raise custom value
+# Volume raise with custom value
 bindsym XF86AudioRaiseVolume + <key> exec swayosd-client --output-volume 15
-# Volume lower custom value
+# Volume lower with custom value
 bindsym XF86AudioRaiseVolume + <key> exec swayosd-client --output-volume -15
 
 # Sink volume raise with custom value optionally with --device
