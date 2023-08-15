@@ -86,9 +86,9 @@ bindsym XF86AudioRaiseVolume + <key> exec swayosd-client --output-volume 15
 bindsym XF86AudioRaiseVolume + <key> exec swayosd-client --output-volume -15
 
 # Sink volume raise with custom value optionally with --device
-bindsym XF86AudioLowerVolume exec  swayosd-client --output-volume +10 --device alsa_output.pci-0000_11_00.4.analog-stereo.monitor
+bindsym XF86AudioLowerVolume + <key> exec  swayosd-client --output-volume +10 --device alsa_output.pci-0000_11_00.4.analog-stereo.monitor
 # Sink volume lower with custom value optionally with --device
-bindsym XF86AudioLowerVolume exec  swayosd-client --output-volume -10 --device alsa_output.pci-0000_11_00.4.analog-stereo.monitor
+bindsym XF86AudioLowerVolume + <key> exec  swayosd-client --output-volume -10 --device alsa_output.pci-0000_11_00.4.analog-stereo.monitor
 
 
 
