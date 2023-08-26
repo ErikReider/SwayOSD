@@ -1,5 +1,4 @@
 datadir = get_option('datadir')
-sysconfdir = get_option('sysconfdir')
 libdir = get_option('libdir')
 
 # LICENSE
@@ -10,7 +9,7 @@ install_data(
 # udev rules
 install_data(
   join_paths('udev', '99-swayosd.rules'),
-  install_dir: join_paths(sysconfdir, 'udev', 'rules.d')
+  install_dir: join_paths(libdir, 'udev', 'rules.d')
 )
 # Dbus conf
 install_data(
