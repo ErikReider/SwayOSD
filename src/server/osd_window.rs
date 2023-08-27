@@ -9,7 +9,7 @@ use gtk::{
 };
 use pulsectl::controllers::types::DeviceInfo;
 
-use crate::utils::{get_top_margin, volume_to_f64, KeysLocks, VolumeDeviceType};
+use crate::utils::{get_max_volume, get_top_margin, volume_to_f64, KeysLocks, VolumeDeviceType};
 use blight::Device;
 
 const ICON_SIZE: i32 = 32;
@@ -92,8 +92,10 @@ impl SwayosdWindow {
 		};
 		let icon_name = &format!("{}-volume-{}-symbolic", icon_prefix, icon_state);
 
+		let max_volume: f64 = get_max_volume().into();
+
 		let icon = self.build_icon_widget(icon_name);
-		let progress = self.build_progress_widget(volume / 100.0);
+		let progress = self.build_progress_widget(volume / max_volume);
 
 		progress.set_sensitive(!device.mute);
 

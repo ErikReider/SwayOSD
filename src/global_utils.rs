@@ -3,7 +3,7 @@ use gtk::glib::{variant::DictEntry, Variant};
 use crate::argtypes::ArgTypes;
 
 pub enum HandleLocalStatus {
-	FAILIURE = 1,
+	FAILURE = 1,
 	SUCCESS = 0,
 	CONTINUE = -1,
 }
@@ -19,7 +19,7 @@ pub(crate) fn handle_application_args(
 
 	if !variant.is_container() {
 		eprintln!("VariantDict isn't a container!...");
-		return (HandleLocalStatus::FAILIURE, actions);
+		return (HandleLocalStatus::FAILURE, actions);
 	}
 
 	for i in 0..variant.n_children() {
@@ -33,21 +33,21 @@ pub(crate) fn handle_application_args(
 				Some(led) => (ArgTypes::CapsLock, Some(led.to_owned())),
 				None => {
 					eprintln!("Value for caps-lock-led isn't a string!...");
-					return (HandleLocalStatus::FAILIURE, actions);
+					return (HandleLocalStatus::FAILURE, actions);
 				}
 			},
 			"num-lock-led" => match child.value().str() {
 				Some(led) => (ArgTypes::NumLock, Some(led.to_owned())),
 				None => {
 					eprintln!("Value for num-lock-led isn't a string!...");
-					return (HandleLocalStatus::FAILIURE, actions);
+					return (HandleLocalStatus::FAILURE, actions);
 				}
 			},
 			"scroll-lock-led" => match child.value().str() {
 				Some(led) => (ArgTypes::ScrollLock, Some(led.to_owned())),
 				None => {
 					eprintln!("Value for scroll-lock-led isn't a string!...");
-					return (HandleLocalStatus::FAILIURE, actions);
+					return (HandleLocalStatus::FAILURE, actions);
 				}
 			},
 			"output-volume" => {
@@ -55,7 +55,7 @@ pub(crate) fn handle_application_args(
 				let parsed = volume_parser(false, value);
 				match parsed {
 					Ok(p) => p,
-					Err(_) => return (HandleLocalStatus::FAILIURE, actions),
+					Err(_) => return (HandleLocalStatus::FAILURE, actions),
 				}
 			}
 			"input-volume" => {
@@ -63,7 +63,7 @@ pub(crate) fn handle_application_args(
 				let parsed = volume_parser(true, value);
 				match parsed {
 					Ok(p) => p,
-					Err(_) => return (HandleLocalStatus::FAILIURE, actions),
+					Err(_) => return (HandleLocalStatus::FAILURE, actions),
 				}
 			}
 			"brightness" => {
@@ -82,7 +82,7 @@ pub(crate) fn handle_application_args(
 					("lower", _) => (ArgTypes::BrightnessLower, None),
 					(e, _) => {
 						eprintln!("Unknown brightness mode: \"{}\"!...", e);
-						return (HandleLocalStatus::FAILIURE, actions);
+						return (HandleLocalStatus::FAILURE, actions);
 					}
 				}
 			}
@@ -92,7 +92,7 @@ pub(crate) fn handle_application_args(
 					Ok(_) => (ArgTypes::MaxVolume, Some(value.to_string())),
 					Err(_) => {
 						eprintln!("{} is not a number between 0 and {}!", value, u8::MAX);
-						return (HandleLocalStatus::FAILIURE, actions);
+						return (HandleLocalStatus::FAILURE, actions);
 					}
 				}
 			}
@@ -101,7 +101,7 @@ pub(crate) fn handle_application_args(
 					Some(v) => v.to_string(),
 					None => {
 						eprintln!("--device found but no name given");
-						return (HandleLocalStatus::FAILIURE, actions);
+						return (HandleLocalStatus::FAILURE, actions);
 					}
 				};
 				(ArgTypes::DeviceName, Some(value))
@@ -114,13 +114,13 @@ pub(crate) fn handle_application_args(
 					}
 					_ => {
 						eprintln!("{} is not a number between 0.0 and 1.0!", value);
-						return (HandleLocalStatus::FAILIURE, actions);
+						return (HandleLocalStatus::FAILURE, actions);
 					}
 				}
 			}
 			e => {
 				eprintln!("Unknown Variant Key: \"{}\"!...", e);
-				return (HandleLocalStatus::FAILIURE, actions);
+				return (HandleLocalStatus::FAILURE, actions);
 			}
 		};
 		if option != ArgTypes::None {

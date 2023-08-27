@@ -144,11 +144,11 @@ fn main() -> Result<(), glib::Error> {
 		let variant = args.to_variant();
 		if variant.n_children() == 0 {
 			eprintln!("No args provided...");
-			return HandleLocalStatus::FAILIURE as i32;
+			return HandleLocalStatus::FAILURE as i32;
 		}
 		let actions = match handle_application_args(variant) {
 			(HandleLocalStatus::SUCCESS, actions) => actions,
-			(status @ HandleLocalStatus::FAILIURE, _) => return status as i32,
+			(status @ HandleLocalStatus::FAILURE, _) => return status as i32,
 			(status @ HandleLocalStatus::CONTINUE, _) => return status as i32,
 		};
 		// execute the sorted actions
