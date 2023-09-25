@@ -230,11 +230,12 @@ checksum = "630be753d4e58660abd17930c71b647fe46c27ea6b63cc59e1e3851406972e42"
 
 [[package]]
 name = "blight"
-version = "0.5.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "db5feb0bcad0e15c74ed4fdcbf8689f783881bd8ce2fda1726fa239c2fafc4b0"
+checksum = "97458d073322a23cd516983594a9a2fc0ebc73b6a4c1fba6c3e8c36e94bb1f81"
 dependencies = [
  "colored",
+ "fs4",
 ]
 
 [[package]]
@@ -495,6 +496,16 @@ checksum = "38e2275cc4e4fc009b0669731a1e5ab7ebf11f469eaede2bab9309a5b4d6057f"
 dependencies = [
  "memoffset 0.9.0",
  "rustc_version",
+]
+
+[[package]]
+name = "fs4"
+version = "0.6.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2eeb4ed9e12f43b7fa0baae3f9cdda28352770132ef2e09a23760c29cae8bd47"
+dependencies = [
+ "rustix 0.38.4",
+ "windows-sys",
 ]
 
 [[package]]
