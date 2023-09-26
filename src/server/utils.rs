@@ -326,10 +326,10 @@ pub fn change_brightness(
 	step: Option<String>,
 ) -> Result<Option<Device>, BlibError> {
 	const BRIGHTNESS_CHANGE_DELTA: u8 = 5;
-	let brightness_delta: u16 = step
+	let brightness_delta = step
 		.unwrap_or(String::new())
 		.parse::<u8>()
-		.unwrap_or(BRIGHTNESS_CHANGE_DELTA) as u16;
+		.unwrap_or(BRIGHTNESS_CHANGE_DELTA) as u32;
 	let direction = match change_type {
 		BrightnessChangeType::Raise => Direction::Inc,
 		BrightnessChangeType::Lower => {
