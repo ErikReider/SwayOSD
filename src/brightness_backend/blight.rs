@@ -1,13 +1,13 @@
 use blight::{Device, Direction};
 
-use super::{BrightnessBackend, BrightnessBackendConstructor, BrightnessOperationResult};
+use super::{BrightnessBackend, BrightnessBackendConstructor};
 
-pub struct Blight {
+pub(super) struct Blight {
     device: Device,
 }
 
 impl BrightnessBackendConstructor for Blight {
-    fn try_new(device_name: Option<String>) -> BrightnessOperationResult<Self> {
+    fn try_new(device_name: Option<String>) -> anyhow::Result<Self> {
         Ok(Self {
             device: Device::new(device_name.map(Into::into))?,
         })
@@ -15,25 +15,25 @@ impl BrightnessBackendConstructor for Blight {
 }
 
 impl BrightnessBackend for Blight {
-    fn get_current(&self) -> u32 {
+    fn get_current(&mut self) -> u32 {
         self.device.current()
     }
 
-    fn get_max(&self) -> u32 {
+    fn get_max(&mut self) -> u32 {
         self.device.max()
     }
 
-    fn lower(&self, by: u32) -> BrightnessOperationResult<()> {
+    fn lower(&mut self, by: u32) -> anyhow::Result<()> {
         let val = self.device.calculate_change(by, Direction::Dec);
         Ok(self.device.write_value(val)?)
     }
 
-    fn raise(&self, by: u32) -> BrightnessOperationResult<()> {
+    fn raise(&mut self, by: u32) -> anyhow::Result<()> {
         let val = self.device.calculate_change(by, Direction::Inc);
         Ok(self.device.write_value(val)?)
     }
 
-    fn set(&self, val: u32) -> BrightnessOperationResult<()> {
+    fn set(&mut self, val: u32) -> anyhow::Result<()> {
         Ok(self.device.write_value(val)?)
     }
 }

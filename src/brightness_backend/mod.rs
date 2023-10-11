@@ -1,13 +1,13 @@
-use std::error::Error;
-
 #[cfg(feature = "blight")]
-mod blight_backend;
+mod blight;
 
-pub type BrightnessOperationResult<A> = Result<A, Box<dyn Error>>;
-pub type BrightnessBackendResult = BrightnessOperationResult<Box<dyn BrightnessBackend>>;
+#[cfg(feature = "brightnessctl")]
+mod brightnessctl;
+
+pub type BrightnessBackendResult = anyhow::Result<Box<dyn BrightnessBackend>>;
 
 pub trait BrightnessBackendConstructor: BrightnessBackend + Sized + 'static {
-    fn try_new(device_name: Option<String>) -> BrightnessOperationResult<Self>;
+    fn try_new(device_name: Option<String>) -> anyhow::Result<Self>;
 
     fn try_new_boxed(device_name: Option<String>) -> BrightnessBackendResult {
         let backend = Self::try_new(device_name);
@@ -19,15 +19,18 @@ pub trait BrightnessBackendConstructor: BrightnessBackend + Sized + 'static {
 }
 
 pub trait BrightnessBackend {
-    fn get_current(&self) -> u32;
-    fn get_max(&self) -> u32;
+    fn get_current(&mut self) -> u32;
+    fn get_max(&mut self) -> u32;
 
-    fn lower(&self, by: u32) -> BrightnessOperationResult<()>;
-    fn raise(&self, by: u32) -> BrightnessOperationResult<()>;
-    fn set(&self, val: u32) -> BrightnessOperationResult<()>;
+    fn lower(&mut self, by: u32) -> anyhow::Result<()>;
+    fn raise(&mut self, by: u32) -> anyhow::Result<()>;
+    fn set(&mut self, val: u32) -> anyhow::Result<()>;
 }
 
 pub fn get_preferred_backend(device_name: Option<String>) -> BrightnessBackendResult {
     #[cfg(feature = "blight")]
-    blight_backend::Blight::try_new_boxed(device_name)
+    return blight::Blight::try_new_boxed(device_name);
+
+    #[cfg(feature = "brightnessctl")]
+    return brightnessctl::BrightnessCtl::try_new_boxed(device_name);
 }

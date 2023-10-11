@@ -333,7 +333,7 @@ pub fn change_brightness(
 		.unwrap_or(BRIGHTNESS_CHANGE_DELTA) as u32;
 
 
-	let backend = brightness_backend::get_preferred_backend(None)?;
+	let mut backend = brightness_backend::get_preferred_backend(None)?;
 
 	match change_type {
 		BrightnessChangeType::Raise => backend.raise(brightness_delta)?,
