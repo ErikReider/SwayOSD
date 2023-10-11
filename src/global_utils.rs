@@ -71,11 +71,7 @@ pub(crate) fn handle_application_args(
 				match (value, value.parse::<i8>()) {
 					// Parse custom step values
 					(_, Ok(num)) => (
-						if num.is_positive() {
-							ArgTypes::BrightnessRaise
-						} else {
-							ArgTypes::BrightnessLower
-						},
+						ArgTypes::BrightnessSet,
 						Some(num.abs().to_string()),
 					),
 					("raise", _) => (ArgTypes::BrightnessRaise, None),

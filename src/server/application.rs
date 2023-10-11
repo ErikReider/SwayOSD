@@ -257,7 +257,11 @@ impl SwayOSDApplication {
 				}
 			}
 			(ArgTypes::BrightnessSet, value) => {
-				unimplemented!();
+				if let Ok(mut brightness_backend) = change_brightness(BrightnessChangeType::Set, value) {
+					for window in osd_app.windows.borrow().to_owned() {
+						window.changed_brightness(brightness_backend.as_mut());
+					}
+				}
 			}
 			(ArgTypes::CapsLock, value) => {
 				let i32_value = value.clone().unwrap_or("-1".to_owned());

@@ -61,6 +61,7 @@ impl str::FromStr for ArgTypes {
 			"SOURCE-VOLUME-MUTE-TOGGLE" => ArgTypes::SourceVolumeMuteToggle,
 			"BRIGHTNESS-RAISE" => ArgTypes::BrightnessRaise,
 			"BRIGHTNESS-LOWER" => ArgTypes::BrightnessLower,
+			"BRIGHTNESS-SET" => ArgTypes::BrightnessSet,
 			"MAX-VOLUME" => ArgTypes::MaxVolume,
 			"NUM-LOCK" => ArgTypes::NumLock,
 			"SCROLL-LOCK" => ArgTypes::ScrollLock,
