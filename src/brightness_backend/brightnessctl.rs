@@ -95,7 +95,7 @@ impl VirtualDevice {
 
     fn set_percent(&mut self, mut val: u32) -> anyhow::Result<()> {
         val = val.clamp(0, 100);
-        self.current = None;
+        self.current = self.max.map(|max| val * max / 100);
         let _: String = self.run(("set", &*format!("{val}%")))?;
         Ok(())
     }
