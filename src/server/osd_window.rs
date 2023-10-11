@@ -110,9 +110,9 @@ impl SwayosdWindow {
 		let icon_name = "display-brightness-symbolic";
 		let icon = self.build_icon_widget(icon_name);
 
-		let brightness = dbg!(brightness_backend.get_current()) as f64;
-		let max = dbg!(brightness_backend.get_max()) as f64;
-		let progress = self.build_progress_widget(dbg!(brightness / max));
+		let brightness = brightness_backend.get_current() as f64;
+		let max = brightness_backend.get_max() as f64;
+		let progress = self.build_progress_widget(brightness / max);
 
 		self.container.add(&icon);
 		self.container.add(&progress);

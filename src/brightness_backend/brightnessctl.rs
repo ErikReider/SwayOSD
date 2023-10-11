@@ -1,5 +1,6 @@
 use super::{BrightnessBackend, BrightnessBackendConstructor};
-use core::num;
+
+const EXPECT_STR: &str = "VirtualDevice didn't test the command during initialization";
 
 enum CliArg<'arg> {
     Simple(&'arg str),
@@ -35,7 +36,14 @@ pub(super) struct BrightnessCtl {
 use std::{process::Command, str::FromStr, error::Error};
 
 impl VirtualDevice {
-    fn command<'arg>(&self, arg: CliArg<'arg>) -> Command {
+    fn try_new(device_name: Option<String>) -> anyhow::Result<Self> {
+        let s = Self { name: device_name, ..Default::default() };
+
+        // Check if the command is available to us before running it in other occasions
+        s.run("--help").map(|_: String| s)
+    }
+
+    fn command(&self, arg: CliArg) -> Command {
         let mut cmd = Command::new("brightnessctl");
 
         if let Some(name) = &self.name {
@@ -67,7 +75,7 @@ impl VirtualDevice {
         match self.current {
             Some(val) => val,
             None => {
-                let val = self.run("get").unwrap();
+                let val = self.run("get").expect(EXPECT_STR);
                 self.current = Some(val);
                 val
             }
@@ -78,7 +86,7 @@ impl VirtualDevice {
         match self.max {
             Some(val) => val,
             None => {
-                let val = self.run("max").unwrap();
+                let val = self.run("max").expect(EXPECT_STR);
                 self.max = Some(val);
                 val
             }
@@ -97,10 +105,7 @@ impl BrightnessBackendConstructor for BrightnessCtl {
     fn try_new(device_name: Option<String>) -> anyhow::Result<Self> {
         Ok(
             Self {
-                device: VirtualDevice {
-                    name: device_name,
-                    ..Default::default()
-                }
+                device: VirtualDevice::try_new(device_name)?
             }
         )
     }
@@ -116,21 +121,21 @@ impl BrightnessBackend for BrightnessCtl {
     }
 
     fn lower(&mut self, by: u32) -> anyhow::Result<()> {
-        let curr = dbg!(self.get_current());
-        let max = dbg!(self.get_max());
+        let curr = self.get_current();
+        let max = self.get_max();
 
-        let curr = dbg!(curr * 100 / max);
+        let curr = curr * 100 / max;
 
-        self.device.set_percent(curr.saturating_sub(dbg!(by)))
+        self.device.set_percent(curr.saturating_sub(by))
     }
 
     fn raise(&mut self, by: u32) -> anyhow::Result<()> {
-        let curr = dbg!(self.get_current());
-        let max = dbg!(self.get_max());
+        let curr = self.get_current();
+        let max = self.get_max();
 
-        let curr = dbg!(curr * 100 / max);
+        let curr = curr * 100 / max;
 
-        self.device.set_percent(dbg!(curr + by))
+        self.device.set_percent(curr + by)
     }
 
     fn set(&mut self, val: u32) -> anyhow::Result<()> {
