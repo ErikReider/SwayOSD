@@ -1,7 +1,7 @@
-#[cfg(feature = "blight")]
+use self::{brightnessctl::BrightnessCtl, blight::Blight};
+
 mod blight;
 
-#[cfg(feature = "brightnessctl")]
 mod brightnessctl;
 
 pub type BrightnessBackendResult = anyhow::Result<Box<dyn BrightnessBackend>>;
@@ -28,9 +28,7 @@ pub trait BrightnessBackend {
 }
 
 pub fn get_preferred_backend(device_name: Option<String>) -> BrightnessBackendResult {
-    #[cfg(feature = "blight")]
-    return blight::Blight::try_new_boxed(device_name);
-
-    #[cfg(feature = "brightnessctl")]
-    return brightnessctl::BrightnessCtl::try_new_boxed(device_name);
+    BrightnessCtl::try_new_boxed(device_name.clone()).or(
+        Blight::try_new_boxed(device_name)
+    )
 }
