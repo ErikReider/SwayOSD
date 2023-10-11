@@ -28,7 +28,9 @@ pub trait BrightnessBackend {
 }
 
 pub fn get_preferred_backend(device_name: Option<String>) -> BrightnessBackendResult {
-    BrightnessCtl::try_new_boxed(device_name.clone()).or(
+    println!("Trying BrightnessCtl Backend...");
+    BrightnessCtl::try_new_boxed(device_name.clone()).or_else(|_| {
+        println!("...Command failed! Falling back to Blight");
         Blight::try_new_boxed(device_name)
-    )
+    })
 }
