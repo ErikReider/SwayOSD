@@ -25,7 +25,6 @@ shrinkwraprs = "0.3.0"
 cascade = "1.0.1"
 pulse = { version = "2.26.0", package = "libpulse-binding" }
 pulsectl-rs = "0.3.2"
-blight = "0.7.0"
 substring = "1.4.5"
 lazy_static = "1.4.0"
 zbus = "3.14.1"
@@ -35,3 +34,9 @@ libc = "0.2.147"
 evdev-rs = "0.6.1"
 async-std = "1.12.0"
 nix = "0.26.2"
+blight = { version = "0.7.0", optional = true}
+
+[features]
+default = ["blight"]
+brightnessctl = []
+blight = ["dep:blight"]

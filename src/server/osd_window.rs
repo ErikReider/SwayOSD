@@ -9,8 +9,7 @@ use gtk::{
 };
 use pulsectl::controllers::types::DeviceInfo;
 
-use crate::utils::{get_max_volume, get_top_margin, volume_to_f64, KeysLocks, VolumeDeviceType};
-use blight::Device;
+use crate::{utils::{get_max_volume, get_top_margin, volume_to_f64, KeysLocks, VolumeDeviceType}, brightness_backend::BrightnessBackend};
 
 const ICON_SIZE: i32 = 32;
 
@@ -105,14 +104,14 @@ impl SwayosdWindow {
 		self.run_timeout();
 	}
 
-	pub fn changed_brightness(&self, device: &Device) {
+	pub fn changed_brightness(&self, brightness_backend: &dyn BrightnessBackend) {
 		self.clear_osd();
 
 		let icon_name = "display-brightness-symbolic";
 		let icon = self.build_icon_widget(icon_name);
 
-		let brightness = device.current() as f64;
-		let max = device.max() as f64;
+		let brightness = brightness_backend.get_current() as f64;
+		let max = brightness_backend.get_max() as f64;
 		let progress = self.build_progress_widget(brightness / max);
 
 		self.container.add(&icon);

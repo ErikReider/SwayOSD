@@ -8,9 +8,10 @@ use std::{
 	sync::Mutex,
 };
 
-use blight::{change_bl, err::BlibError, Change, Device, Direction};
 use pulse::volume::Volume;
 use pulsectl::controllers::{types::DeviceInfo, DeviceControl, SinkController, SourceController};
+
+use crate::brightness_backend;
 
 static PRIV_MAX_VOLUME_DEFAULT: u8 = 100_u8;
 lazy_static! {
@@ -324,32 +325,22 @@ pub fn change_device_volume(
 pub fn change_brightness(
 	change_type: BrightnessChangeType,
 	step: Option<String>,
-) -> Result<Option<Device>, BlibError> {
+) -> brightness_backend::BrightnessBackendResult {
 	const BRIGHTNESS_CHANGE_DELTA: u8 = 5;
 	let brightness_delta = step
-		.unwrap_or(String::new())
+		.unwrap_or_default()
 		.parse::<u8>()
 		.unwrap_or(BRIGHTNESS_CHANGE_DELTA) as u32;
-	let direction = match change_type {
-		BrightnessChangeType::Raise => Direction::Inc,
-		BrightnessChangeType::Lower => {
-			let device = Device::new(None)?;
-			let change = device.calculate_change(brightness_delta, Direction::Dec) as f64;
-			let max = device.max() as f64;
-			// Limits the lowest brightness to 5%
-			if change / max < (brightness_delta as f64) * 0.01 {
-				return Ok(Some(device));
-			}
-			Direction::Dec
-		}
+
+
+	let backend = brightness_backend::get_preferred_backend(None)?;
+
+	match change_type {
+		BrightnessChangeType::Raise => backend.raise(brightness_delta)?,
+		BrightnessChangeType::Lower => backend.lower(brightness_delta)?,
 	};
-	match change_bl(brightness_delta, Change::Regular, direction, None) {
-		Err(e) => {
-			eprintln!("Brightness Error: {}", e);
-			Err(e)
-		}
-		_ => Ok(Some(Device::new(None)?)),
-	}
+
+	Ok(backend)
 }
 
 pub fn volume_to_f64(volume: &Volume) -> f64 {
