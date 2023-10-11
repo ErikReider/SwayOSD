@@ -2,6 +2,10 @@ use super::{BrightnessBackend, BrightnessBackendConstructor};
 
 const EXPECT_STR: &str = "VirtualDevice didn't test the command during initialization";
 
+use anyhow::bail;
+use thiserror::Error;
+use std::{process::Command, str::FromStr, error::Error};
+
 enum CliArg<'arg> {
     Simple(&'arg str),
     KeyValue {
@@ -33,14 +37,28 @@ pub(super) struct BrightnessCtl {
     device: VirtualDevice,
 }
 
-use std::{process::Command, str::FromStr, error::Error};
+#[derive(Error, Debug)]
+#[error("Requested device '{device_name}' does not exist ")]
+pub struct DeviceDoesntExistError {
+    device_name: String,
+}
 
 impl VirtualDevice {
     fn try_new(device_name: Option<String>) -> anyhow::Result<Self> {
-        let s = Self { name: device_name, ..Default::default() };
+        let s = Self { name: device_name.clone(), ..Default::default() };
 
         // Check if the command is available to us before running it in other occasions
-        s.run("--help").map(|_: String| s)
+        let exit_code = s.command(CliArg::Simple("info"))
+            .output()?
+            .status;
+
+        if exit_code.success() {
+            Ok(s)
+        }
+        else {
+            bail!(DeviceDoesntExistError { device_name: device_name.unwrap() })
+        }
+
     }
 
     fn command(&self, arg: CliArg) -> Command {
