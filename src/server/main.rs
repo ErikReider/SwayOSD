@@ -17,7 +17,7 @@ extern crate cascade;
 
 use application::SwayOSDApplication;
 use argtypes::ArgTypes;
-use config::{DBUS_SERVER_NAME, DBUS_PATH};
+use config::{DBUS_PATH, DBUS_SERVER_NAME};
 use gtk::glib::{MainContext, Priority, Sender};
 use gtk::prelude::*;
 use gtk::{
@@ -75,7 +75,7 @@ fn main() {
 	}
 
 	// Load the compiled resource bundle
-	let resources_bytes = include_bytes!("../../data/swayosd.gresource");
+	let resources_bytes = include_bytes!(concat!(env!("OUT_DIR"), "/swayosd.gresource"));
 	let resource_data = Bytes::from(&resources_bytes[..]);
 	let res = Resource::from_data(&resource_data).unwrap();
 	gio::resources_register(&res);
