@@ -62,12 +62,6 @@ Other users can run: `pkexec swayosd-libinput-backend`
 exec swayosd-server
 ```
 
-or start with a max-volume set (default is 100)
-
-```zsh
-exec swayosd-server --max-volume 120
-```
-
 ##### Add Client bindings
 
 ```zsh
@@ -84,6 +78,11 @@ bindsym XF86AudioMicMute exec swayosd-client --input-volume mute-toggle
 bindsym XF86AudioRaiseVolume exec swayosd-client --output-volume 15
 # Volume lower with custom value
 bindsym XF86AudioRaiseVolume exec swayosd-client --output-volume -15
+
+# Volume raise with max value
+bindsym XF86AudioRaiseVolume exec swayosd-client --output-volume raise --max-volume 120
+# Volume lower with max value
+bindsym XF86AudioRaiseVolume exec swayosd-client --output-volume lower --max-volume 120
 
 # Sink volume raise with custom value optionally with --device
 bindsym XF86AudioLowerVolume exec  swayosd-client --output-volume +10 --device alsa_output.pci-0000_11_00.4.analog-stereo.monitor
