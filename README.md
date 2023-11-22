@@ -110,7 +110,7 @@ bindsym XF86MonBrightnessDown exec swayosd-client --brightness -10
 
 - It is for audio devices only.
 - If it is omitted the default audio device is used.
-- It only changes the target device for the currrent action that changes the volume.
+- It only changes the target device for the current action that changes the volume.
 - You can list your input audio devices using `pactl list short sources`, for outputs replace `sources` with `sinks`.
 
 ## Brightness Control
