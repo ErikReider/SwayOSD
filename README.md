@@ -77,15 +77,15 @@ bindsym XF86AudioMicMute exec swayosd-client --input-volume mute-toggle
 # Volume raise with custom value
 bindsym XF86AudioRaiseVolume exec swayosd-client --output-volume 15
 # Volume lower with custom value
-bindsym XF86AudioRaiseVolume exec swayosd-client --output-volume -15
+bindsym XF86AudioLowerVolume exec swayosd-client --output-volume -15
 
 # Volume raise with max value
 bindsym XF86AudioRaiseVolume exec swayosd-client --output-volume raise --max-volume 120
 # Volume lower with max value
-bindsym XF86AudioRaiseVolume exec swayosd-client --output-volume lower --max-volume 120
+bindsym XF86AudioLowerVolume exec swayosd-client --output-volume lower --max-volume 120
 
 # Sink volume raise with custom value optionally with --device
-bindsym XF86AudioLowerVolume exec  swayosd-client --output-volume +10 --device alsa_output.pci-0000_11_00.4.analog-stereo.monitor
+bindsym XF86AudioRaiseVolume exec  swayosd-client --output-volume +10 --device alsa_output.pci-0000_11_00.4.analog-stereo.monitor
 # Sink volume lower with custom value optionally with --device
 bindsym XF86AudioLowerVolume exec  swayosd-client --output-volume -10 --device alsa_output.pci-0000_11_00.4.analog-stereo.monitor
 
