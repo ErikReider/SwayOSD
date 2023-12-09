@@ -27,6 +27,7 @@ pub trait BrightnessBackend {
     fn set(&mut self, val: u32) -> anyhow::Result<()>;
 }
 
+#[allow(dead_code)]
 pub fn get_preferred_backend(device_name: Option<String>) -> BrightnessBackendResult {
     println!("Trying BrightnessCtl Backend...");
     BrightnessCtl::try_new_boxed(device_name.clone()).or_else(|_| {
