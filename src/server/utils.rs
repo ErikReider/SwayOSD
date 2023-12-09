@@ -8,16 +8,18 @@ use std::{
 	sync::Mutex,
 };
 
-use blight::{change_bl, err::BlibError, Change, Device, Direction};
 use pulse::volume::Volume;
 use pulsectl::controllers::{types::DeviceInfo, DeviceControl, SinkController, SourceController};
 
+use crate::brightness_backend;
+
 static PRIV_MAX_VOLUME_DEFAULT: u8 = 100_u8;
+
 lazy_static! {
 	static ref MAX_VOLUME_DEFAULT: Mutex<u8> = Mutex::new(PRIV_MAX_VOLUME_DEFAULT);
 	static ref MAX_VOLUME: Mutex<u8> = Mutex::new(PRIV_MAX_VOLUME_DEFAULT);
 	pub static ref DEVICE_NAME_DEFAULT: &'static str = "default";
-	static ref DEVICE_NAME: Mutex<String> = Mutex::new(DEVICE_NAME_DEFAULT.to_string());
+	static ref DEVICE_NAME: Mutex<Option<String>> = Mutex::new(None);
 	pub static ref TOP_MARGIN_DEFAULT: f32 = 0.85_f32;
 	static ref TOP_MARGIN: Mutex<f32> = Mutex::new(*TOP_MARGIN_DEFAULT);
 }
@@ -60,18 +62,18 @@ pub fn set_top_margin(margin: f32) {
 	*margin_mut = margin;
 }
 
-pub fn get_device_name() -> String {
+pub fn get_device_name() -> Option<String> {
 	(*DEVICE_NAME.lock().unwrap()).clone()
 }
 
 pub fn set_device_name(name: String) {
 	let mut global_name = DEVICE_NAME.lock().unwrap();
-	*global_name = name;
+	*global_name = Some(name);
 }
 
 pub fn reset_device_name() {
 	let mut global_name = DEVICE_NAME.lock().unwrap();
-	*global_name = DEVICE_NAME_DEFAULT.to_string();
+	*global_name = None;
 }
 
 pub fn get_key_lock_state(key: KeysLocks, led: Option<String>) -> bool {
@@ -140,6 +142,7 @@ pub enum VolumeDeviceType {
 pub enum BrightnessChangeType {
 	Raise,
 	Lower,
+	Set,
 }
 
 pub fn change_device_volume(
@@ -151,7 +154,7 @@ pub fn change_device_volume(
 		VolumeDeviceType::Sink(controller) => {
 			let server_info = controller.get_server_info();
 			let global_name = get_device_name();
-			let device_name: String = if global_name == "default" {
+			let device_name: String = if global_name.is_none() {
 				match server_info {
 					Ok(info) => info.default_sink_name.unwrap_or("".to_string()),
 					Err(e) => {
@@ -160,8 +163,8 @@ pub fn change_device_volume(
 					}
 				}
 			} else {
-				set_device_name("default".to_string());
-				global_name
+				set_device_name(DEVICE_NAME_DEFAULT.to_string());
+				get_device_name().unwrap()
 			};
 			match controller.get_device_by_name(&device_name) {
 				Ok(device) => (device, device_name.clone()),
@@ -174,7 +177,7 @@ pub fn change_device_volume(
 		VolumeDeviceType::Source(controller) => {
 			let server_info = controller.get_server_info();
 			let global_name = get_device_name();
-			let device_name: String = if global_name == "default" {
+			let device_name: String = if global_name.is_none() {
 				match server_info {
 					Ok(info) => info.default_source_name.unwrap_or("".to_string()),
 					Err(e) => {
@@ -183,8 +186,8 @@ pub fn change_device_volume(
 					}
 				}
 			} else {
-				set_device_name("default".to_string());
-				global_name
+				set_device_name(DEVICE_NAME_DEFAULT.to_string());
+				get_device_name().unwrap()
 			};
 			match controller.get_device_by_name(&device_name) {
 				Ok(device) => (device, device_name.clone()),
@@ -199,7 +202,7 @@ pub fn change_device_volume(
 	const VOLUME_CHANGE_DELTA: u8 = 5;
 	let volume_delta = step
 		.clone()
-		.unwrap_or(String::new())
+		.unwrap_or_default()
 		.parse::<u8>()
 		.unwrap_or(VOLUME_CHANGE_DELTA) as f64
 		* 0.01;
@@ -250,7 +253,7 @@ pub fn change_device_volume(
 			else if over_max_volume {
 				let delta_to_max = max_volume - volume_percent;
 				let volume_delta = step
-					.unwrap_or(String::new())
+					.unwrap_or_default()
 					.parse::<u8>()
 					.unwrap_or(delta_to_max) as f64
 					* 0.01;
@@ -324,32 +327,23 @@ pub fn change_device_volume(
 pub fn change_brightness(
 	change_type: BrightnessChangeType,
 	step: Option<String>,
-) -> Result<Option<Device>, BlibError> {
+) -> brightness_backend::BrightnessBackendResult {
 	const BRIGHTNESS_CHANGE_DELTA: u8 = 5;
-	let brightness_delta = step
-		.unwrap_or(String::new())
-		.parse::<u8>()
-		.unwrap_or(BRIGHTNESS_CHANGE_DELTA) as u32;
-	let direction = match change_type {
-		BrightnessChangeType::Raise => Direction::Inc,
+	let value = step.unwrap_or_default().parse::<u8>();
+
+	let mut backend = brightness_backend::get_preferred_backend(get_device_name())?;
+
+	match change_type {
+		BrightnessChangeType::Raise => {
+			backend.raise(value.unwrap_or(BRIGHTNESS_CHANGE_DELTA) as u32)?
+		}
 		BrightnessChangeType::Lower => {
-			let device = Device::new(None)?;
-			let change = device.calculate_change(brightness_delta, Direction::Dec) as f64;
-			let max = device.max() as f64;
-			// Limits the lowest brightness to 5%
-			if change / max < (brightness_delta as f64) * 0.01 {
-				return Ok(Some(device));
-			}
-			Direction::Dec
+			backend.lower(value.unwrap_or(BRIGHTNESS_CHANGE_DELTA) as u32)?
 		}
+		BrightnessChangeType::Set => backend.set(value.unwrap() as u32)?,
 	};
-	match change_bl(brightness_delta, Change::Regular, direction, None) {
-		Err(e) => {
-			eprintln!("Brightness Error: {}", e);
-			Err(e)
-		}
-		_ => Ok(Some(Device::new(None)?)),
-	}
+
+	Ok(backend)
 }
 
 pub fn volume_to_f64(volume: &Volume) -> f64 {

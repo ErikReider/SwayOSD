@@ -9,6 +9,9 @@ mod config;
 #[path = "../global_utils.rs"]
 mod global_utils;
 
+#[path = "../brightness_backend/mod.rs"]
+mod brightness_backend;
+
 #[macro_use]
 extern crate shrinkwraprs;
 

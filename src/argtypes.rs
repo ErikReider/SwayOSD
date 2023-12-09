@@ -18,6 +18,7 @@ pub enum ArgTypes {
 	SourceVolumeMuteToggle = 7,
 	BrightnessRaise = 8,
 	BrightnessLower = 9,
+	BrightnessSet = 12,
 	NumLock = 10,
 	ScrollLock = 11,
 }
@@ -36,6 +37,7 @@ impl fmt::Display for ArgTypes {
 			ArgTypes::SourceVolumeMuteToggle => "SOURCE-VOLUME-MUTE-TOGGLE",
 			ArgTypes::BrightnessRaise => "BRIGHTNESS-RAISE",
 			ArgTypes::BrightnessLower => "BRIGHTNESS-LOWER",
+			ArgTypes::BrightnessSet => "BRIGHTNESS-SET",
 			ArgTypes::NumLock => "NUM-LOCK",
 			ArgTypes::ScrollLock => "SCROLL-LOCK",
 			ArgTypes::DeviceName => "DEVICE-NAME",
@@ -59,6 +61,7 @@ impl str::FromStr for ArgTypes {
 			"SOURCE-VOLUME-MUTE-TOGGLE" => ArgTypes::SourceVolumeMuteToggle,
 			"BRIGHTNESS-RAISE" => ArgTypes::BrightnessRaise,
 			"BRIGHTNESS-LOWER" => ArgTypes::BrightnessLower,
+			"BRIGHTNESS-SET" => ArgTypes::BrightnessSet,
 			"MAX-VOLUME" => ArgTypes::MaxVolume,
 			"NUM-LOCK" => ArgTypes::NumLock,
 			"SCROLL-LOCK" => ArgTypes::ScrollLock,

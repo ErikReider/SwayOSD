@@ -5,6 +5,9 @@ mod config;
 #[path = "../global_utils.rs"]
 mod global_utils;
 
+#[path = "../brightness_backend/mod.rs"]
+mod brightness_backend;
+
 use config::APPLICATION_NAME;
 use global_utils::{handle_application_args, HandleLocalStatus};
 use gtk::glib::{OptionArg, OptionFlags};

@@ -70,14 +70,7 @@ pub(crate) fn handle_application_args(
 				let value = child.value().str().unwrap_or("");
 				match (value, value.parse::<i8>()) {
 					// Parse custom step values
-					(_, Ok(num)) => (
-						if num.is_positive() {
-							ArgTypes::BrightnessRaise
-						} else {
-							ArgTypes::BrightnessLower
-						},
-						Some(num.abs().to_string()),
-					),
+					(_, Ok(num)) => (ArgTypes::BrightnessSet, Some(num.abs().to_string())),
 					("raise", _) => (ArgTypes::BrightnessRaise, None),
 					("lower", _) => (ArgTypes::BrightnessLower, None),
 					(e, _) => {
