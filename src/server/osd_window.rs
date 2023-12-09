@@ -9,7 +9,10 @@ use gtk::{
 };
 use pulsectl::controllers::types::DeviceInfo;
 
-use crate::{utils::{get_max_volume, get_top_margin, volume_to_f64, KeysLocks, VolumeDeviceType}, brightness_backend::BrightnessBackend};
+use crate::{
+	brightness_backend::BrightnessBackend,
+	utils::{get_max_volume, get_top_margin, volume_to_f64, KeysLocks, VolumeDeviceType},
+};
 
 const ICON_SIZE: i32 = 32;
 
