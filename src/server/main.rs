@@ -30,7 +30,9 @@ use gtk::{
 	traits::IconThemeExt,
 	CssProvider, IconTheme, StyleContext,
 };
+use std::env::args_os;
 use std::future::pending;
+use std::path::PathBuf;
 use std::str::FromStr;
 use utils::{get_system_css_path, user_style_path};
 use zbus::{dbus_interface, ConnectionBuilder};
@@ -105,7 +107,18 @@ fn main() {
 	}
 
 	// Try loading the users CSS theme
-	if let Some(user_config_path) = user_style_path() {
+	let mut custom_user_css: Option<PathBuf> = None;
+	let mut args = args_os().into_iter();
+	while let Some(arg) = args.next() {
+		match arg.to_str() {
+			Some("-s") | Some("--style") => match args.next() {
+				Some(path) => custom_user_css = path.to_str().map(|s| PathBuf::from(s)),
+				_ => (),
+			},
+			_ => (),
+		}
+	}
+	if let Some(user_config_path) = user_style_path(custom_user_css) {
 		let user_provider = CssProvider::new();
 		user_provider
 			.load_from_path(&user_config_path)

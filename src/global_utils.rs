@@ -111,6 +111,7 @@ pub(crate) fn handle_application_args(
 					}
 				}
 			}
+			"style" => continue,
 			e => {
 				eprintln!("Unknown Variant Key: \"{}\"!...", e);
 				return (HandleLocalStatus::FAILURE, actions);

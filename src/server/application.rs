@@ -25,6 +25,15 @@ impl SwayOSDApplication {
 		let app = Application::new(Some(APPLICATION_NAME), ApplicationFlags::FLAGS_NONE);
 
 		app.add_main_option(
+			"style",
+			glib::Char::from('s' as u8),
+			OptionFlags::NONE,
+			OptionArg::String,
+			"Use a custom Stylesheet file instead of looking for one",
+			Some("<CSS FILE PATH>"),
+		);
+
+		app.add_main_option(
 			"top-margin",
 			glib::Char::from(0),
 			OptionFlags::NONE,
@@ -33,7 +42,7 @@ impl SwayOSDApplication {
 				"OSD margin from top edge (0.5 would be screen center). Default is {}",
 				*utils::TOP_MARGIN_DEFAULT
 			),
-			Some("from 0.0 to 1.0"),
+			Some("<from 0.0 to 1.0>"),
 		);
 
 		let osd_app = SwayOSDApplication {

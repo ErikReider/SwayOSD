@@ -371,8 +371,13 @@ pub fn get_system_css_path() -> Option<PathBuf> {
 	path
 }
 
-pub fn user_style_path() -> Option<String> {
-	let path = user_config_dir().join("swayosd/style.css");
+pub fn user_style_path(custom_path: Option<PathBuf>) -> Option<String> {
+	let path = user_config_dir().join("swayosd").join("style.css");
+	if let Some(custom_path) = custom_path {
+		if custom_path.exists() {
+			return custom_path.to_str().map(|s| s.to_string());
+		}
+	}
 	if path.exists() {
 		return path.to_str().map(|s| s.to_string());
 	}
