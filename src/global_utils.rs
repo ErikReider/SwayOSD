@@ -123,12 +123,14 @@ pub(crate) fn handle_application_args(
 	}
 
 	// sort actions so that they always get executed in the correct order
-	for i in 0..actions.len() - 1 {
-		for j in i + 1..actions.len() {
-			if actions[i].0 > actions[j].0 {
-				let temp = actions[i].clone();
-				actions[i] = actions[j].clone();
-				actions[j] = temp;
+	if actions.len() > 0 {
+		for i in 0..actions.len() - 1 {
+			for j in i + 1..actions.len() {
+				if actions[i].0 > actions[j].0 {
+					let temp = actions[i].clone();
+					actions[i] = actions[j].clone();
+					actions[j] = temp;
+				}
 			}
 		}
 	}
