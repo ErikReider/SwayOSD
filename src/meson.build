@@ -1,6 +1,7 @@
 pkgdatadir = join_paths(get_option('prefix'), get_option('datadir'), meson.project_name())
 
 cargo_bin  = find_program('cargo')
+assert(cargo_bin.found())
 cargo_opt  = [ '--manifest-path', meson.project_source_root() / 'Cargo.toml' ]
 cargo_opt += [ '--target-dir', meson.project_build_root()  / 'src' ]
 cargo_env  = [ 'CARGO_HOME=' + meson.project_build_root()  / 'cargo-home' ]

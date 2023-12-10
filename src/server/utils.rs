@@ -1,10 +1,11 @@
-use gtk::glib::user_config_dir;
+use gtk::glib::{system_config_dirs, user_config_dir};
 use lazy_static::lazy_static;
 use substring::Substring;
 
 use std::{
 	fs::{self, File},
 	io::{prelude::*, BufReader},
+	path::{Path, PathBuf},
 	sync::Mutex,
 };
 
@@ -349,6 +350,25 @@ pub fn change_brightness(
 pub fn volume_to_f64(volume: &Volume) -> f64 {
 	let tmp_vol = f64::from(volume.0 - Volume::MUTED.0);
 	(100.0 * tmp_vol / f64::from(Volume::NORMAL.0 - Volume::MUTED.0)).round()
+}
+
+pub fn get_system_css_path() -> Option<PathBuf> {
+	let mut paths: Vec<PathBuf> = Vec::new();
+	for path in system_config_dirs() {
+		paths.push(path.join("swayosd").join("style.css"));
+	}
+
+	paths.push(Path::new("/usr/local/etc/xdg/swaync/style.css").to_path_buf());
+
+	let mut path: Option<PathBuf> = None;
+	for try_path in paths {
+		if try_path.exists() {
+			path = Some(try_path);
+			break;
+		}
+	}
+
+	path
 }
 
 pub fn user_style_path() -> Option<String> {

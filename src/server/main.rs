@@ -32,7 +32,7 @@ use gtk::{
 };
 use std::future::pending;
 use std::str::FromStr;
-use utils::user_style_path;
+use utils::{get_system_css_path, user_style_path};
 use zbus::{dbus_interface, ConnectionBuilder};
 
 struct DbusServer {
@@ -92,12 +92,17 @@ fn main() {
 
 	// Load the provided default CSS theme
 	let provider = CssProvider::new();
-	provider.load_from_resource(&format!("{}/style/style.css", GRESOURCE_BASE_PATH));
-	StyleContext::add_provider_for_screen(
-		&screen,
-		&provider,
-		gtk::STYLE_PROVIDER_PRIORITY_APPLICATION as u32,
-	);
+	match get_system_css_path() {
+		Some(path) => match provider.load_from_path(path.to_str().unwrap()) {
+			Ok(_) => StyleContext::add_provider_for_screen(
+				&screen,
+				&provider,
+				gtk::STYLE_PROVIDER_PRIORITY_APPLICATION as u32,
+			),
+			Err(error) => eprintln!("Could not load default CSS stylesheet: {}", error),
+		},
+		None => eprintln!("Could not find the system CSS file..."),
+	}
 
 	// Try loading the users CSS theme
 	if let Some(user_config_path) = user_style_path() {

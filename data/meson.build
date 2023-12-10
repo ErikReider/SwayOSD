@@ -53,3 +53,20 @@ configure_file(
   output: '@BASENAME@',
   install_dir: systemd_service_install_dir
 )
+
+# SCSS Compilation
+style_css = custom_target(
+  'SCSS Compilation',
+  build_by_default: true,
+  input : 'style/style.scss',
+  output : 'style.css',
+  install: true,
+  install_dir: config_path,
+  command : [
+    sassc,
+    '@INPUT@',
+    '@OUTPUT@'
+  ],
+)
+
+message(style_css.full_path())
