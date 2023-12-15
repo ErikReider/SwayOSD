@@ -68,9 +68,22 @@ pub(crate) fn handle_application_args(
 			}
 			"brightness" => {
 				let value = child.value().str().unwrap_or("");
+				let coef = if value.starts_with('+') {
+					1
+				} else if value.starts_with('-') {
+					-1
+				} else {
+					0
+				};
+
 				match (value, value.parse::<i8>()) {
 					// Parse custom step values
-					(_, Ok(num)) => (ArgTypes::BrightnessSet, Some(num.abs().to_string())),
+					(_, Ok(num)) if coef == 1 => (ArgTypes::BrightnessRaise, Some(num.to_string())),
+					(_, Ok(num)) if coef == -1 => {
+						(ArgTypes::BrightnessLower, Some(num.abs().to_string()))
+					}
+					(_, Ok(num)) if coef == 0 => (ArgTypes::BrightnessSet, Some(num.to_string())),
+
 					("raise", _) => (ArgTypes::BrightnessRaise, None),
 					("lower", _) => (ArgTypes::BrightnessLower, None),
 					(e, _) => {
