@@ -99,11 +99,13 @@ impl SwayosdWindow {
 
 		let icon = self.build_icon_widget(icon_name);
 		let progress = self.build_progress_widget(volume / max_volume);
+		let label = self.build_text_widget(Some(&format!("{}%", volume)));
 
 		progress.set_sensitive(!device.mute);
 
 		self.container.add(&icon);
 		self.container.add(&progress);
+		self.container.add(&label);
 
 		self.run_timeout();
 	}
@@ -117,9 +119,11 @@ impl SwayosdWindow {
 		let brightness = brightness_backend.get_current() as f64;
 		let max = brightness_backend.get_max() as f64;
 		let progress = self.build_progress_widget(brightness / max);
+		let label = self.build_text_widget(Some(&format!("{}%", (brightness / max * 100.) as i32)));
 
 		self.container.add(&icon);
 		self.container.add(&progress);
+		self.container.add(&label);
 
 		self.run_timeout();
 	}
