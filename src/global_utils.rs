@@ -70,7 +70,6 @@ pub(crate) fn handle_application_args(
 				let value = child.value().str().unwrap_or("");
 
 				match (value, value.parse::<i8>()) {
-					// Parse custom step values
 					(_, Ok(num)) => {
 						if !value.contains('+') && !value.contains('-') {
 							(ArgTypes::BrightnessSet, Some(num.abs().to_string()))
