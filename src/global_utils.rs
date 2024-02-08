@@ -72,10 +72,13 @@ pub(crate) fn handle_application_args(
 				match (value, value.parse::<i8>()) {
 					// Parse custom step values
 					(_, Ok(num)) => {
-						if num < 0 {
+						if !value.contains('+') && !value.contains('-') {
+							(ArgTypes::BrightnessSet, Some(num.abs().to_string()))
+						}
+						else if num < 0 {
 							(ArgTypes::BrightnessLower, Some(num.abs().to_string()))
 						} else {
-							(ArgTypes::BrightnessRaise, Some(num.to_string()))
+                            (ArgTypes::BrightnessRaise, Some(num.to_string()))
 						}
 					}
 					("raise", _) => (ArgTypes::BrightnessRaise, None),
