@@ -68,9 +68,16 @@ pub(crate) fn handle_application_args(
 			}
 			"brightness" => {
 				let value = child.value().str().unwrap_or("");
-				match (value, value.parse::<i8>()) {
+
+				match (value, value.parse::<i16>()) {
 					// Parse custom step values
-					(_, Ok(num)) => (ArgTypes::BrightnessSet, Some(num.abs().to_string())),
+					(_, Ok(num)) => {
+						if num < 0 {
+							(ArgTypes::BrightnessLower, Some(num.abs().to_string()))
+						} else {
+							(ArgTypes::BrightnessRaise, Some(num.to_string()))
+						}
+					}
 					("raise", _) => (ArgTypes::BrightnessRaise, None),
 					("lower", _) => (ArgTypes::BrightnessLower, None),
 					(e, _) => {
