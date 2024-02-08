@@ -73,11 +73,10 @@ pub(crate) fn handle_application_args(
 					(_, Ok(num)) => {
 						if !value.contains('+') && !value.contains('-') {
 							(ArgTypes::BrightnessSet, Some(num.abs().to_string()))
-						}
-						else if num < 0 {
+						} else if num < 0 {
 							(ArgTypes::BrightnessLower, Some(num.abs().to_string()))
 						} else {
-                            (ArgTypes::BrightnessRaise, Some(num.to_string()))
+							(ArgTypes::BrightnessRaise, Some(num.to_string()))
 						}
 					}
 					("raise", _) => (ArgTypes::BrightnessRaise, None),
