@@ -69,7 +69,7 @@ pub(crate) fn handle_application_args(
 			"brightness" => {
 				let value = child.value().str().unwrap_or("");
 
-				match (value, value.parse::<i16>()) {
+				match (value, value.parse::<i8>()) {
 					// Parse custom step values
 					(_, Ok(num)) => {
 						if num < 0 {
