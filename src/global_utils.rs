@@ -78,11 +78,11 @@ pub(crate) fn handle_application_args(
 
 				match (value, value.parse::<i8>()) {
 					// Parse custom step values
-					(_, Ok(num)) if coef == 1 => (ArgTypes::BrightnessRaise, Some(num.to_string())),
-					(_, Ok(num)) if coef == -1 => {
-						(ArgTypes::BrightnessLower, Some(num.abs().to_string()))
-					}
-					(_, Ok(num)) if coef == 0 => (ArgTypes::BrightnessSet, Some(num.to_string())),
+					(_, Ok(num)) => match coef {
+						1 => (ArgTypes::BrightnessRaise, Some(num.to_string())),
+						-1 => (ArgTypes::BrightnessLower, Some(num.abs().to_string())),
+						_ => (ArgTypes::BrightnessSet, Some(num.to_string())),
+					},
 
 					("raise", _) => (ArgTypes::BrightnessRaise, None),
 					("lower", _) => (ArgTypes::BrightnessLower, None),
