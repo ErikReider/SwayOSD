@@ -47,6 +47,15 @@ impl SwayOSDApplication {
 			Some("<from 0.0 to 1.0>"),
 		);
 
+		app.add_main_option(
+			"show-percentage",
+			glib::Char::from(0),
+			OptionFlags::NONE,
+			OptionArg::None,
+			&format!("Show percentage for volume and brightness. Default is false",),
+			None,
+		);
+
 		let osd_app = SwayOSDApplication {
 			app: app.clone(),
 			windows: Rc::new(RefCell::new(Vec::new())),
@@ -60,6 +69,9 @@ impl SwayOSDApplication {
 		}
 		if let Some(max_volume) = server_config.max_volume {
 			set_default_max_volume(max_volume);
+		}
+		if let Some(show) = server_config.show_percentage {
+			set_show_percentage(show);
 		}
 
 		// Parse args
@@ -86,6 +98,9 @@ impl SwayOSDApplication {
 						if let Some(max) = max {
 							set_default_max_volume(max);
 						}
+					},
+					(ArgTypes::ShowPercentage, _) => {
+						set_show_percentage(true);
 					},
 					(arg_type, data) => Self::action_activated(&osd_app, arg_type, data),
 				}

@@ -23,6 +23,7 @@ lazy_static! {
 	static ref DEVICE_NAME: Mutex<Option<String>> = Mutex::new(None);
 	pub static ref TOP_MARGIN_DEFAULT: f32 = 0.85_f32;
 	static ref TOP_MARGIN: Mutex<f32> = Mutex::new(*TOP_MARGIN_DEFAULT);
+	pub static ref SHOW_PERCENTAGE: Mutex<bool> = Mutex::new(false);
 }
 
 pub enum KeysLocks {
@@ -61,6 +62,15 @@ pub fn get_top_margin() -> f32 {
 pub fn set_top_margin(margin: f32) {
 	let mut margin_mut = TOP_MARGIN.lock().unwrap();
 	*margin_mut = margin;
+}
+
+pub fn get_show_percentage() -> bool {
+	*SHOW_PERCENTAGE.lock().unwrap()
+}
+
+pub fn set_show_percentage(show: bool) {
+	let mut show_mut = SHOW_PERCENTAGE.lock().unwrap();
+	*show_mut = show;
 }
 
 pub fn get_device_name() -> Option<String> {

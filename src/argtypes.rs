@@ -7,6 +7,7 @@ pub enum ArgTypes {
 	DeviceName = isize::MIN,
 	TopMargin = isize::MIN + 1,
 	MaxVolume = isize::MIN + 2,
+	ShowPercentage = isize::MIN + 3,
 	// Other
 	None = 0,
 	CapsLock = 1,
@@ -29,6 +30,7 @@ impl fmt::Display for ArgTypes {
 			ArgTypes::None => "NONE",
 			ArgTypes::CapsLock => "CAPSLOCK",
 			ArgTypes::MaxVolume => "MAX-VOLUME",
+			ArgTypes::ShowPercentage => "SHOW-PERCENTAGE",
 			ArgTypes::SinkVolumeRaise => "SINK-VOLUME-RAISE",
 			ArgTypes::SinkVolumeLower => "SINK-VOLUME-LOWER",
 			ArgTypes::SinkVolumeMuteToggle => "SINK-VOLUME-MUTE-TOGGLE",
@@ -67,6 +69,7 @@ impl str::FromStr for ArgTypes {
 			"SCROLL-LOCK" => ArgTypes::ScrollLock,
 			"DEVICE-NAME" => ArgTypes::DeviceName,
 			"TOP-MARGIN" => ArgTypes::TopMargin,
+			"SHOW-PERCENTAGE" => ArgTypes::ShowPercentage,
 			other_type => return Err(other_type.to_owned()),
 		};
 		Ok(result)

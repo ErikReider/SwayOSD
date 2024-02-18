@@ -11,7 +11,10 @@ use pulsectl::controllers::types::DeviceInfo;
 
 use crate::{
 	brightness_backend::BrightnessBackend,
-	utils::{get_max_volume, get_top_margin, volume_to_f64, KeysLocks, VolumeDeviceType},
+	utils::{
+		get_max_volume, get_show_percentage, get_top_margin, volume_to_f64, KeysLocks,
+		VolumeDeviceType,
+	},
 };
 
 const ICON_SIZE: i32 = 32;
@@ -105,7 +108,9 @@ impl SwayosdWindow {
 
 		self.container.add(&icon);
 		self.container.add(&progress);
-		self.container.add(&label);
+		if get_show_percentage() {
+			self.container.add(&label);
+		}
 
 		self.run_timeout();
 	}
@@ -123,7 +128,9 @@ impl SwayosdWindow {
 
 		self.container.add(&icon);
 		self.container.add(&progress);
-		self.container.add(&label);
+		if get_show_percentage() {
+			self.container.add(&label);
+		}
 
 		self.run_timeout();
 	}
