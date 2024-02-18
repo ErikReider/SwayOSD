@@ -42,6 +42,11 @@ impl LibinputInterface for Interface {
 }
 
 fn main() -> Result<(), zbus::Error> {
+	// Parse Config
+	let _input_config = config::backend::read_backend_config()
+		.expect("Failed to parse config file")
+		.input;
+
 	// Create DBUS server
 	let connection = task::block_on(DbusServer.init());
 	let object_server = connection.object_server();

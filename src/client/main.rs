@@ -30,6 +30,11 @@ pub fn get_proxy() -> zbus::Result<ServerProxyBlocking<'static>> {
 }
 
 fn main() -> Result<(), glib::Error> {
+	// Parse Config
+	let _client_config = config::user::read_user_config()
+		.expect("Failed to parse config file")
+		.client;
+
 	// Make sure that the server is running
 	let proxy = match get_proxy() {
 		Ok(proxy) => match proxy.introspect() {

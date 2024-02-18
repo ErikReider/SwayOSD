@@ -79,6 +79,11 @@ fn main() {
 		std::process::exit(1);
 	}
 
+	// Parse Config
+	let server_config = config::user::read_user_config()
+		.expect("Failed to parse config file")
+		.server;
+
 	// Load the compiled resource bundle
 	let resources_bytes = include_bytes!(concat!(env!("OUT_DIR"), "/swayosd.gresource"));
 	let resource_data = Bytes::from(&resources_bytes[..]);
@@ -107,7 +112,7 @@ fn main() {
 	}
 
 	// Try loading the users CSS theme
-	let mut custom_user_css: Option<PathBuf> = None;
+	let mut custom_user_css: Option<PathBuf> = server_config.style.clone();
 	let mut args = args_os().into_iter();
 	while let Some(arg) = args.next() {
 		match arg.to_str() {
@@ -135,5 +140,5 @@ fn main() {
 	// Start the DBus Server
 	async_std::task::spawn(DbusServer::new(sender));
 	// Start the GTK Application
-	std::process::exit(SwayOSDApplication::new(receiver).start());
+	std::process::exit(SwayOSDApplication::new(server_config, receiver).start());
 }
