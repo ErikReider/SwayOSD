@@ -13,6 +13,8 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
+use super::config::user::ServerConfig;
+
 #[derive(Clone, Shrinkwrap)]
 pub struct SwayOSDApplication {
 	#[shrinkwrap(main_field)]
@@ -21,7 +23,7 @@ pub struct SwayOSDApplication {
 }
 
 impl SwayOSDApplication {
-	pub fn new(action_receiver: Receiver<(ArgTypes, String)>) -> Self {
+	pub fn new(server_config: ServerConfig, action_receiver: Receiver<(ArgTypes, String)>) -> Self {
 		let app = Application::new(Some(APPLICATION_NAME), ApplicationFlags::FLAGS_NONE);
 
 		app.add_main_option(
@@ -45,10 +47,32 @@ impl SwayOSDApplication {
 			Some("<from 0.0 to 1.0>"),
 		);
 
+		app.add_main_option(
+			"show-percentage",
+			glib::Char::from(0),
+			OptionFlags::NONE,
+			OptionArg::None,
+			&format!("Show percentage for volume and brightness. Default is false",),
+			None,
+		);
+
 		let osd_app = SwayOSDApplication {
 			app: app.clone(),
 			windows: Rc::new(RefCell::new(Vec::new())),
 		};
+
+		// Apply Server Config
+		if let Some(margin) = server_config.top_margin {
+			if (0_f32..1_f32).contains(&margin) {
+				set_top_margin(margin);
+			}
+		}
+		if let Some(max_volume) = server_config.max_volume {
+			set_default_max_volume(max_volume);
+		}
+		if let Some(show) = server_config.show_percentage {
+			set_show_percentage(show);
+		}
 
 		// Parse args
 		app.connect_handle_local_options(clone!(@strong osd_app => move |_app, args| {
@@ -59,24 +83,24 @@ impl SwayOSDApplication {
 			for (arg_type, data) in actions {
 				match (arg_type, data) {
 					(ArgTypes::TopMargin, margin) => {
-						let margin: Option<f32> = match margin {
-							Some(margin) => match margin.parse::<f32>() {
-								Ok(margin) => (0_f32..1_f32).contains(&margin).then_some(margin),
-								_ => None,
-							},
-							_ => None,
-						};
-						set_top_margin(margin.unwrap_or(*TOP_MARGIN_DEFAULT))
+						let margin: Option<f32> = margin
+							.and_then(|margin| margin.parse().ok())
+							.and_then(|margin| (0_f32..1_f32).contains(&margin).then_some(margin));
+
+						if let Some(margin) = margin {
+							set_top_margin(margin)
+						}
 					},
 					(ArgTypes::MaxVolume, max) => {
-						let volume: u8 = match max {
-								Some(max) => match max.parse() {
-									Ok(max) => max,
-									_ => get_default_max_volume(),
-								}
-								_ => get_default_max_volume(),
-							};
-						set_default_max_volume(volume);
+						let max: Option<u8> = max
+							.and_then(|max| max.parse().ok());
+
+						if let Some(max) = max {
+							set_default_max_volume(max);
+						}
+					},
+					(ArgTypes::ShowPercentage, _) => {
+						set_show_percentage(true);
 					},
 					(arg_type, data) => Self::action_activated(&osd_app, arg_type, data),
 				}

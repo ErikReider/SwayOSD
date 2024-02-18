@@ -111,6 +111,7 @@ pub(crate) fn handle_application_args(
 					}
 				}
 			}
+			"show-percentage" => (ArgTypes::ShowPercentage, None),
 			"style" => continue,
 			e => {
 				eprintln!("Unknown Variant Key: \"{}\"!...", e);
