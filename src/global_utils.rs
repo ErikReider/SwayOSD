@@ -68,12 +68,11 @@ pub(crate) fn handle_application_args(
 			}
 			"brightness" => {
 				let value = child.value().str().unwrap_or("");
-				let coef = if value.starts_with('+') {
-					1
-				} else if value.starts_with('-') {
-					-1
-				} else {
-					0
+
+				let coef: i32 = match value.get(..1) {
+					Some("+") => 1,
+					Some("-") => -1,
+					_ => 0,
 				};
 
 				match (value, value.parse::<i8>()) {
