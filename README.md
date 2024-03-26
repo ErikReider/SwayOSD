@@ -99,9 +99,9 @@ bindsym XF86MonBrightnessUp exec swayosd-client --brightness raise
 # Brightness lower
 bindsym XF86MonBrightnessDown exec swayosd-client --brightness lower
 
-# Brightness raise with custom value
-bindsym XF86MonBrightnessUp  exec swayosd-client --brightness 10
-# Brightness lower with custom value
+# Brightness raise with custom value('+' sign needed)
+bindsym XF86MonBrightnessUp  exec swayosd-client --brightness +10
+# Brightness lower with custom value('-' sign needed)
 bindsym XF86MonBrightnessDown exec swayosd-client --brightness -10
 ```
 
