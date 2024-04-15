@@ -69,17 +69,11 @@ pub(crate) fn handle_application_args(
 			"brightness" => {
 				let value = child.value().str().unwrap_or("");
 
-				let coef: i32 = match value.get(..1) {
-					Some("+") => 1,
-					Some("-") => -1,
-					_ => 0,
-				};
-
 				match (value, value.parse::<i8>()) {
 					// Parse custom step values
-					(_, Ok(num)) => match coef {
-						1 => (ArgTypes::BrightnessRaise, Some(num.to_string())),
-						-1 => (ArgTypes::BrightnessLower, Some(num.abs().to_string())),
+					(_, Ok(num)) => match value.get(..1) {
+						Some("+") => (ArgTypes::BrightnessRaise, Some(num.to_string())),
+						Some("-") => (ArgTypes::BrightnessLower, Some(num.abs().to_string())),
 						_ => (ArgTypes::BrightnessSet, Some(num.to_string())),
 					},
 
