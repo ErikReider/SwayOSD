@@ -13,6 +13,8 @@ use global_utils::{handle_application_args, HandleLocalStatus};
 use gtk::glib::{OptionArg, OptionFlags};
 use gtk::{gio::ApplicationFlags, Application};
 use gtk::{glib, prelude::*};
+use std::env::args_os;
+use std::path::PathBuf;
 use zbus::{blocking::Connection, dbus_proxy};
 
 #[dbus_proxy(
@@ -30,8 +32,22 @@ pub fn get_proxy() -> zbus::Result<ServerProxyBlocking<'static>> {
 }
 
 fn main() -> Result<(), glib::Error> {
+	// Get config path from command line
+	let mut config_path: Option<PathBuf> = None;
+	let mut args = args_os().into_iter();
+	while let Some(arg) = args.next() {
+		match arg.to_str() {
+			Some("--config") => {
+				if let Some(path) = args.next() {
+					config_path = Some(path.into());
+				}
+			}
+			_ => (),
+		}
+	}
+
 	// Parse Config
-	let _client_config = config::user::read_user_config()
+	let _client_config = config::user::read_user_config(config_path.as_deref())
 		.expect("Failed to parse config file")
 		.client;
 
@@ -51,6 +67,16 @@ fn main() -> Result<(), glib::Error> {
 	};
 
 	let app = Application::new(Some(APPLICATION_NAME), ApplicationFlags::FLAGS_NONE);
+
+	// Config cmdline arg for documentation
+	app.add_main_option(
+		"config",
+		glib::Char::from(0),
+		OptionFlags::NONE,
+		OptionArg::String,
+		"Use a custom config file instead of looking for one.",
+		Some("<CONFIG FILE PATH>"),
+	);
 
 	// Capslock cmdline arg
 	app.add_main_option(

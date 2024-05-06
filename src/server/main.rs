@@ -79,11 +79,6 @@ fn main() {
 		std::process::exit(1);
 	}
 
-	// Parse Config
-	let server_config = config::user::read_user_config()
-		.expect("Failed to parse config file")
-		.server;
-
 	// Load the compiled resource bundle
 	let resources_bytes = include_bytes!(concat!(env!("OUT_DIR"), "/swayosd.gresource"));
 	let resource_data = Bytes::from(&resources_bytes[..]);
@@ -111,18 +106,37 @@ fn main() {
 		None => eprintln!("Could not find the system CSS file..."),
 	}
 
-	// Try loading the users CSS theme
-	let mut custom_user_css: Option<PathBuf> = server_config.style.clone();
+	// Get config path and CSS theme path from command line
+	let mut config_path: Option<PathBuf> = None;
+	let mut custom_user_css: Option<PathBuf> = None;
 	let mut args = args_os().into_iter();
 	while let Some(arg) = args.next() {
 		match arg.to_str() {
-			Some("-s") | Some("--style") => match args.next() {
-				Some(path) => custom_user_css = path.to_str().map(|s| PathBuf::from(s)),
-				_ => (),
-			},
+			Some("--config") => {
+				if let Some(path) = args.next() {
+					config_path = Some(path.into());
+				}
+			}
+			Some("-s") | Some("--style") => {
+				if let Some(path) = args.next() {
+					custom_user_css = Some(path.into());
+				}
+			}
 			_ => (),
 		}
 	}
+
+	// Parse Config
+	let server_config = config::user::read_user_config(config_path.as_deref())
+		.expect("Failed to parse config file")
+		.server;
+
+	// Load style path from config if none is given on CLI
+	if custom_user_css.is_none() {
+		custom_user_css = server_config.style.clone();
+	}
+
+	// Try loading the users CSS theme
 	if let Some(user_config_path) = user_style_path(custom_user_css) {
 		let user_provider = CssProvider::new();
 		user_provider

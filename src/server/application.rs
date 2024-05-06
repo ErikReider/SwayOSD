@@ -27,6 +27,15 @@ impl SwayOSDApplication {
 		let app = Application::new(Some(APPLICATION_NAME), ApplicationFlags::FLAGS_NONE);
 
 		app.add_main_option(
+			"config",
+			glib::Char::from(0),
+			OptionFlags::NONE,
+			OptionArg::String,
+			"Use a custom config file instead of looking for one.",
+			Some("<CONFIG FILE PATH>"),
+		);
+
+		app.add_main_option(
 			"style",
 			glib::Char::from('s' as u8),
 			OptionFlags::NONE,
