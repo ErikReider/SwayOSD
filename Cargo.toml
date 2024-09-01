@@ -31,7 +31,7 @@ pulse = { version = "2.26.0", package = "libpulse-binding" }
 pulsectl-rs = "0.3.2"
 substring = "1.4.5"
 lazy_static = "1.4.0"
-zbus = "3.14.1"
+zbus = "4"
 # Backend Dependencies
 input = "0.8"
 libc = "0.2.147"
