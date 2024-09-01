@@ -173,6 +173,24 @@ fn main() -> Result<(), glib::Error> {
 		Some("Pulseaudio device name (pactl list short sinks|sources)"),
 	);
 
+	app.add_main_option(
+		"custom-message",
+		glib::Char::from(0),
+		OptionFlags::NONE,
+		OptionArg::String,
+		"Message to display",
+		Some("text"),
+	);
+
+	app.add_main_option(
+		"custom-icon",
+		glib::Char::from(0),
+		OptionFlags::NONE,
+		OptionArg::String,
+		"Icon to display when using custom-message. Icon name is from Freedesktop specification (https://specifications.freedesktop.org/icon-naming-spec/latest/)",
+		Some("Icon name"),
+	);
+
 	// Parse args
 	app.connect_handle_local_options(move |_app, args| {
 		let variant = args.to_variant();

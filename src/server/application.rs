@@ -342,6 +342,17 @@ impl SwayOSDApplication {
 			(ArgTypes::DeviceName, name) => {
 				set_device_name(name.unwrap_or(DEVICE_NAME_DEFAULT.to_string()))
 			}
+			(ArgTypes::CustomMessage, message) => {
+				if let Some(message) = message {
+					for window in osd_app.windows.borrow().to_owned() {
+						window.custom_message(message.as_str(), get_icon_name().as_deref());
+					}
+				}
+				reset_icon_name();
+			}
+			(ArgTypes::CustomIcon, icon) => {
+				set_icon_name(icon.unwrap_or(ICON_NAME_DEFAULT.to_string()))
+			}
 			(arg_type, data) => {
 				eprintln!(
 					"Failed to parse command... Type: {:?}, Data: {:?}",

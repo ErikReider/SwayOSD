@@ -174,6 +174,20 @@ impl SwayosdWindow {
 		self.run_timeout();
 	}
 
+	pub fn custom_message(&self, message: &str, icon_name: Option<&str>) {
+		self.clear_osd();
+
+		if let Some(icon_name) = icon_name {
+			let icon = self.build_icon_widget(icon_name);
+			self.container.add(&icon);
+		}
+
+		let label = self.build_text_widget(Some(message));
+		self.container.add(&label);
+
+		self.run_timeout();
+	}
+
 	/// Clear all container children
 	fn clear_osd(&self) {
 		for widget in self.container.children() {
