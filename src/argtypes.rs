@@ -7,7 +7,7 @@ pub enum ArgTypes {
 	DeviceName = isize::MIN,
 	TopMargin = isize::MIN + 1,
 	MaxVolume = isize::MIN + 2,
-	CustomIcon = isize::MIN + 4,
+	CustomIcon = isize::MIN + 3,
 	// Other
 	None = 0,
 	CapsLock = 1,
