@@ -11,7 +11,10 @@ use pulsectl::controllers::types::DeviceInfo;
 
 use crate::{
 	brightness_backend::BrightnessBackend,
-	utils::{get_max_volume, get_top_margin, volume_to_f64, KeysLocks, VolumeDeviceType},
+	utils::{
+		get_max_volume, get_show_percentage, get_top_margin, volume_to_f64, KeysLocks,
+		VolumeDeviceType,
+	},
 };
 
 const ICON_SIZE: i32 = 32;
@@ -99,11 +102,15 @@ impl SwayosdWindow {
 
 		let icon = self.build_icon_widget(icon_name);
 		let progress = self.build_progress_widget(volume / max_volume);
+		let label = self.build_text_widget(Some(&format!("{}%", volume)));
 
 		progress.set_sensitive(!device.mute);
 
 		self.container.add(&icon);
 		self.container.add(&progress);
+		if get_show_percentage() {
+			self.container.add(&label);
+		}
 
 		self.run_timeout();
 	}
@@ -117,9 +124,13 @@ impl SwayosdWindow {
 		let brightness = brightness_backend.get_current() as f64;
 		let max = brightness_backend.get_max() as f64;
 		let progress = self.build_progress_widget(brightness / max);
+		let label = self.build_text_widget(Some(&format!("{}%", (brightness / max * 100.) as i32)));
 
 		self.container.add(&icon);
 		self.container.add(&progress);
+		if get_show_percentage() {
+			self.container.add(&label);
+		}
 
 		self.run_timeout();
 	}

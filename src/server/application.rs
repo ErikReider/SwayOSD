@@ -70,6 +70,9 @@ impl SwayOSDApplication {
 		if let Some(max_volume) = server_config.max_volume {
 			set_default_max_volume(max_volume);
 		}
+		if let Some(show) = server_config.show_percentage {
+			set_show_percentage(show);
+		}
 
 		// Parse args
 		app.connect_handle_local_options(clone!(@strong osd_app => move |_app, args| {

@@ -15,6 +15,7 @@ pub struct ServerConfig {
 	pub style: Option<PathBuf>,
 	pub top_margin: Option<f32>,
 	pub max_volume: Option<u8>,
+	pub show_percentage: Option<bool>,
 }
 
 #[derive(Deserialize, Default, Debug)]
