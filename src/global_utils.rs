@@ -105,6 +105,26 @@ pub(crate) fn handle_application_args(
 				};
 				(ArgTypes::DeviceName, Some(value))
 			}
+			"custom-message" => {
+				let value = match child.value().str() {
+					Some(v) => v.to_string(),
+					None => {
+						eprintln!("--custom-message found but no message given");
+						return (HandleLocalStatus::FAILURE, actions);
+					}
+				};
+				(ArgTypes::CustomMessage, Some(value))
+			}
+			"custom-icon" => {
+				let value = match child.value().str() {
+					Some(v) => v.to_string(),
+					None => {
+						eprintln!("--custom-icon found but no icon given");
+						return (HandleLocalStatus::FAILURE, actions);
+					}
+				};
+				(ArgTypes::CustomIcon, Some(value))
+			}
 			"top-margin" => {
 				let value = child.value().str().unwrap_or("").trim();
 				match value.parse::<f32>() {

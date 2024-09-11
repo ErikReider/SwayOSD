@@ -21,6 +21,8 @@ lazy_static! {
 	static ref MAX_VOLUME: Mutex<u8> = Mutex::new(PRIV_MAX_VOLUME_DEFAULT);
 	pub static ref DEVICE_NAME_DEFAULT: &'static str = "default";
 	static ref DEVICE_NAME: Mutex<Option<String>> = Mutex::new(None);
+	pub static ref ICON_NAME_DEFAULT: &'static str = "text-x-generic";
+	static ref ICON_NAME: Mutex<Option<String>> = Mutex::new(None);
 	pub static ref TOP_MARGIN_DEFAULT: f32 = 0.85_f32;
 	static ref TOP_MARGIN: Mutex<f32> = Mutex::new(*TOP_MARGIN_DEFAULT);
 	pub static ref SHOW_PERCENTAGE: Mutex<bool> = Mutex::new(false);
@@ -85,6 +87,20 @@ pub fn set_device_name(name: String) {
 pub fn reset_device_name() {
 	let mut global_name = DEVICE_NAME.lock().unwrap();
 	*global_name = None;
+}
+
+pub fn get_icon_name() -> Option<String> {
+	(*ICON_NAME.lock().unwrap()).clone()
+}
+
+pub fn set_icon_name(name: String) {
+	let mut icon_name = ICON_NAME.lock().unwrap();
+	*icon_name = Some(name);
+}
+
+pub fn reset_icon_name() {
+	let mut icon_name = ICON_NAME.lock().unwrap();
+	*icon_name = None;
 }
 
 pub fn get_key_lock_state(key: KeysLocks, led: Option<String>) -> bool {
