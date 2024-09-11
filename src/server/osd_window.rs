@@ -44,7 +44,6 @@ impl SwayosdWindow {
 
 		gtk_layer_shell::set_exclusive_zone(&window, -1);
 		gtk_layer_shell::set_layer(&window, gtk_layer_shell::Layer::Overlay);
-		gtk_layer_shell::set_anchor(&window, gtk_layer_shell::Edge::Top, true);
 
 		// Set up the widgets
 		window.set_width_request(250);
@@ -59,8 +58,21 @@ impl SwayosdWindow {
 		// Set the window margin
 		window.connect_map(clone!(@strong monitor => move |win| {
 			let bottom = monitor.workarea().height() - win.allocated_height();
-			let margin = (bottom as f32 * get_top_margin()).round() as i32;
-			gtk_layer_shell::set_margin(win, gtk_layer_shell::Edge::Top, margin);
+			let margin_factor = get_top_margin();
+			let top_margin = (bottom as f32 * margin_factor).round() as i32;
+			let bottom_margin = bottom - top_margin;
+
+			if margin_factor < 0.5 {
+				gtk_layer_shell::set_margin(win, gtk_layer_shell::Edge::Top, top_margin);
+				gtk_layer_shell::set_margin(win, gtk_layer_shell::Edge::Bottom, 0);
+				gtk_layer_shell::set_anchor(win, gtk_layer_shell::Edge::Top, true);
+				gtk_layer_shell::set_anchor(win, gtk_layer_shell::Edge::Bottom, false);
+			} else {
+				gtk_layer_shell::set_margin(win, gtk_layer_shell::Edge::Top, 0);
+				gtk_layer_shell::set_margin(win, gtk_layer_shell::Edge::Bottom, bottom_margin);
+				gtk_layer_shell::set_anchor(win, gtk_layer_shell::Edge::Top, false);
+				gtk_layer_shell::set_anchor(win, gtk_layer_shell::Edge::Bottom, true);
+			}
 		}));
 
 		Self {
