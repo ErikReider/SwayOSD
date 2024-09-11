@@ -53,7 +53,7 @@ fn main() -> Result<(), glib::Error> {
 
 	// Make sure that the server is running
 	let proxy = match get_proxy() {
-		Ok(proxy) => match proxy.introspect() {
+		Ok(proxy) => match proxy.0.introspect() {
 			Ok(_) => proxy,
 			Err(err) => {
 				eprintln!("Could not connect to SwayOSD Server with error: {}", err);
