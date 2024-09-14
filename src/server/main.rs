@@ -35,13 +35,13 @@ use std::future::pending;
 use std::path::PathBuf;
 use std::str::FromStr;
 use utils::{get_system_css_path, user_style_path};
-use zbus::{dbus_interface, ConnectionBuilder};
+use zbus::{interface, ConnectionBuilder};
 
 struct DbusServer {
 	sender: Sender<(ArgTypes, String)>,
 }
 
-#[dbus_interface(name = "org.erikreider.swayosd")]
+#[interface(name = "org.erikreider.swayosd")]
 impl DbusServer {
 	pub fn handle_action(&self, arg_type: String, data: String) -> bool {
 		let arg_type = match ArgTypes::from_str(&arg_type) {
