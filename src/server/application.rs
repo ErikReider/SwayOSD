@@ -4,7 +4,7 @@ use crate::global_utils::{handle_application_args, HandleLocalStatus};
 use crate::osd_window::SwayosdWindow;
 use crate::utils::{self, *};
 use async_channel::Receiver;
-use glib::{MainContext, ControlFlow::Continue, ControlFlow::Break};
+use glib::{ControlFlow::Break, ControlFlow::Continue, MainContext};
 use gtk::gio::SignalSubscriptionId;
 use gtk::gio::{ApplicationFlags, BusNameWatcherFlags, BusType};
 use gtk::glib::{clone, OptionArg, OptionFlags};

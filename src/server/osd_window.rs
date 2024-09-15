@@ -17,6 +17,8 @@ use crate::{
 	},
 };
 
+use gtk_layer_shell::LayerShell;
+
 const ICON_SIZE: i32 = 32;
 
 /// A window that our application can open that contains the main project view.
@@ -38,13 +40,13 @@ impl SwayosdWindow {
 			.style_context()
 			.add_class(&gtk::STYLE_CLASS_OSD.to_string());
 
-		gtk_layer_shell::init_for_window(&window);
-		gtk_layer_shell::set_monitor(&window, monitor);
-		gtk_layer_shell::set_namespace(&window, "swayosd");
+		window.init_layer_shell();
+		window.set_monitor(monitor);
+		window.set_namespace("swayosd");
 
-		gtk_layer_shell::set_exclusive_zone(&window, -1);
-		gtk_layer_shell::set_layer(&window, gtk_layer_shell::Layer::Overlay);
-		gtk_layer_shell::set_anchor(&window, gtk_layer_shell::Edge::Top, true);
+		window.set_exclusive_zone(-1);
+		window.set_layer(gtk_layer_shell::Layer::Overlay);
+		window.set_anchor(gtk_layer_shell::Edge::Top, true);
 
 		// Set up the widgets
 		window.set_width_request(250);
@@ -60,7 +62,7 @@ impl SwayosdWindow {
 		window.connect_map(clone!(@strong monitor => move |win| {
 			let bottom = monitor.workarea().height() - win.allocated_height();
 			let margin = (bottom as f32 * get_top_margin()).round() as i32;
-			gtk_layer_shell::set_margin(win, gtk_layer_shell::Edge::Top, margin);
+			win.set_layer_shell_margin(gtk_layer_shell::Edge::Top, margin);
 		}));
 
 		Self {
