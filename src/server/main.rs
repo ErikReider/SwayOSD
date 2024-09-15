@@ -20,8 +20,8 @@ extern crate cascade;
 
 use application::SwayOSDApplication;
 use argtypes::ArgTypes;
+use async_channel::Sender;
 use config::{DBUS_PATH, DBUS_SERVER_NAME};
-use gtk::glib::{MainContext, Priority, Sender};
 use gtk::prelude::*;
 use gtk::{
 	gdk::Screen,
@@ -43,7 +43,7 @@ struct DbusServer {
 
 #[interface(name = "org.erikreider.swayosd")]
 impl DbusServer {
-	pub fn handle_action(&self, arg_type: String, data: String) -> bool {
+	pub async fn handle_action(&self, arg_type: String, data: String) -> bool {
 		let arg_type = match ArgTypes::from_str(&arg_type) {
 			Ok(arg_type) => arg_type,
 			Err(other_type) => {
@@ -51,7 +51,7 @@ impl DbusServer {
 				return false;
 			}
 		};
-		if let Err(error) = self.sender.send((arg_type, data)) {
+		if let Err(error) = self.sender.send((arg_type, data)).await {
 			eprintln!("Channel Send error: {}", error);
 			return false;
 		}
@@ -150,7 +150,7 @@ fn main() {
 		println!("Loaded user defined CSS file");
 	}
 
-	let (sender, receiver) = MainContext::channel::<(ArgTypes, String)>(Priority::default());
+	let (sender, receiver) = async_channel::bounded::<(ArgTypes, String)>(1);
 	// Start the DBus Server
 	async_std::task::spawn(DbusServer::new(sender));
 	// Start the GTK Application

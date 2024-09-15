@@ -3,9 +3,11 @@ use crate::config::{self, APPLICATION_NAME, DBUS_BACKEND_NAME};
 use crate::global_utils::{handle_application_args, HandleLocalStatus};
 use crate::osd_window::SwayosdWindow;
 use crate::utils::{self, *};
+use async_channel::Receiver;
+use glib::MainContext;
 use gtk::gio::SignalSubscriptionId;
 use gtk::gio::{ApplicationFlags, BusNameWatcherFlags, BusType};
-use gtk::glib::{clone, MainContext, OptionArg, OptionFlags, Priority, Receiver};
+use gtk::glib::{clone, OptionArg, OptionFlags};
 use gtk::prelude::*;
 use gtk::*;
 use pulsectl::controllers::{SinkController, SourceController};
@@ -107,19 +109,17 @@ impl SwayOSDApplication {
 		}));
 
 		// Listen to any Client actions
-		action_receiver.attach(
-			None,
-			clone!(@strong osd_app => @default-return Continue(false), move |(arg_type, data)| {
+		MainContext::default().spawn_local(clone!(@strong osd_app => async move {
+			while let Ok((arg_type, data)) = action_receiver.recv().await {
 				Self::action_activated(&osd_app, arg_type, (!data.is_empty()).then_some(data));
-				Continue(true)
-			}),
-		);
+			}
+			Continue(false)
+		}));
 
 		// Listen to the LibInput Backend and activate the Application action
-		let (sender, receiver) = MainContext::channel::<(u16, i32)>(Priority::default());
-		receiver.attach(
-			None,
-			clone!(@strong osd_app => @default-return Continue(false), move |(key_code, state)| {
+		let (sender, receiver) = async_channel::bounded::<(u16, i32)>(1);
+		MainContext::default().spawn_local(clone!(@strong osd_app => async move {
+			while let Ok((key_code, state)) = receiver.recv().await {
 				let (arg_type, data): (ArgTypes, Option<String>) =
 					match evdev_rs::enums::int_to_ev_key(key_code as u32) {
 						Some(evdev_rs::enums::EV_KEY::KEY_CAPSLOCK) => {
@@ -134,9 +134,9 @@ impl SwayOSDApplication {
 						_ => return Continue(true),
 					};
 				Self::action_activated(&osd_app, arg_type, data);
-				Continue(true)
-			}),
-		);
+			}
+			Continue(false)
+		}));
 		// Start watching for the LibInput Backend
 		let signal_id: Arc<Mutex<Option<SignalSubscriptionId>>> = Arc::new(Mutex::new(None));
 		gio::bus_watch_name(
@@ -164,7 +164,7 @@ impl SwayOSDApplication {
 						let state = variant.try_child_get::<i32>(1);
 						match (key_code, state) {
 							(Ok(Some(key_code)), Ok(Some(state))) => {
-								if let Err(error) = sender.send((key_code, state)) {
+								if let Err(error) = sender.send_blocking((key_code, state)) {
 									eprintln!("Channel Send error: {}", error);
 								}
 							},
