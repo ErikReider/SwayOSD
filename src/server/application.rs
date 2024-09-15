@@ -5,9 +5,10 @@ use crate::osd_window::SwayosdWindow;
 use crate::utils::{self, *};
 use async_channel::Receiver;
 use glib::{ControlFlow::Break, ControlFlow::Continue, MainContext};
+use gtk::gio::prelude::*;
 use gtk::gio::SignalSubscriptionId;
 use gtk::gio::{ApplicationFlags, BusNameWatcherFlags, BusType};
-use gtk::glib::{clone, OptionArg, OptionFlags};
+use gtk::glib::{clone, variant::ToVariant, OptionArg, OptionFlags};
 use gtk::prelude::*;
 use gtk::*;
 use pulsectl::controllers::{SinkController, SourceController};
@@ -77,111 +78,143 @@ impl SwayOSDApplication {
 		}
 
 		// Parse args
-		app.connect_handle_local_options(clone!(@strong osd_app => move |_app, args| {
-			let actions = match handle_application_args(args.to_variant()) {
-				(HandleLocalStatus::SUCCESS | HandleLocalStatus::CONTINUE, actions) => actions,
-				(status @ HandleLocalStatus::FAILURE, _) => return status as i32,
-			};
-			for (arg_type, data) in actions {
-				match (arg_type, data) {
-					(ArgTypes::TopMargin, margin) => {
-						let margin: Option<f32> = margin
-							.and_then(|margin| margin.parse().ok())
-							.and_then(|margin| (0_f32..1_f32).contains(&margin).then_some(margin));
+		app.connect_handle_local_options(clone!(
+			#[strong]
+			osd_app,
+			move |_app, args| {
+				let actions = match handle_application_args(args.to_variant()) {
+					(HandleLocalStatus::SUCCESS | HandleLocalStatus::CONTINUE, actions) => actions,
+					(status @ HandleLocalStatus::FAILURE, _) => return status as i32,
+				};
+				for (arg_type, data) in actions {
+					match (arg_type, data) {
+						(ArgTypes::TopMargin, margin) => {
+							let margin: Option<f32> = margin
+								.and_then(|margin| margin.parse().ok())
+								.and_then(|margin| {
+									(0_f32..1_f32).contains(&margin).then_some(margin)
+								});
 
-						if let Some(margin) = margin {
-							set_top_margin(margin)
+							if let Some(margin) = margin {
+								set_top_margin(margin)
+							}
 						}
-					},
-					(ArgTypes::MaxVolume, max) => {
-						let max: Option<u8> = max
-							.and_then(|max| max.parse().ok());
+						(ArgTypes::MaxVolume, max) => {
+							let max: Option<u8> = max.and_then(|max| max.parse().ok());
 
-						if let Some(max) = max {
-							set_default_max_volume(max);
+							if let Some(max) = max {
+								set_default_max_volume(max);
+							}
 						}
-					},
-					(arg_type, data) => Self::action_activated(&osd_app, arg_type, data),
+						(arg_type, data) => Self::action_activated(&osd_app, arg_type, data),
+					}
 				}
-			}
 
-			HandleLocalStatus::CONTINUE as i32
-		}));
+				HandleLocalStatus::CONTINUE as i32
+			}
+		));
 
 		// Listen to any Client actions
-		MainContext::default().spawn_local(clone!(@strong osd_app => async move {
-			while let Ok((arg_type, data)) = action_receiver.recv().await {
-				Self::action_activated(&osd_app, arg_type, (!data.is_empty()).then_some(data));
+		MainContext::default().spawn_local(clone!(
+			#[strong]
+			osd_app,
+			async move {
+				while let Ok((arg_type, data)) = action_receiver.recv().await {
+					Self::action_activated(&osd_app, arg_type, (!data.is_empty()).then_some(data));
+				}
+				Break
 			}
-			Break
-		}));
+		));
 
 		// Listen to the LibInput Backend and activate the Application action
 		let (sender, receiver) = async_channel::bounded::<(u16, i32)>(1);
-		MainContext::default().spawn_local(clone!(@strong osd_app => async move {
-			while let Ok((key_code, state)) = receiver.recv().await {
-				let (arg_type, data): (ArgTypes, Option<String>) =
-					match evdev_rs::enums::int_to_ev_key(key_code as u32) {
-						Some(evdev_rs::enums::EV_KEY::KEY_CAPSLOCK) => {
-							(ArgTypes::CapsLock, Some(state.to_string()))
-						}
-						Some(evdev_rs::enums::EV_KEY::KEY_NUMLOCK) => {
-							(ArgTypes::NumLock, Some(state.to_string()))
-						}
-						Some(evdev_rs::enums::EV_KEY::KEY_SCROLLLOCK) => {
-							(ArgTypes::ScrollLock, Some(state.to_string()))
-						}
-						_ => continue,
-					};
-				Self::action_activated(&osd_app, arg_type, data);
+		MainContext::default().spawn_local(clone!(
+			#[strong]
+			osd_app,
+			async move {
+				while let Ok((key_code, state)) = receiver.recv().await {
+					let (arg_type, data): (ArgTypes, Option<String>) =
+						match evdev_rs::enums::int_to_ev_key(key_code as u32) {
+							Some(evdev_rs::enums::EV_KEY::KEY_CAPSLOCK) => {
+								(ArgTypes::CapsLock, Some(state.to_string()))
+							}
+							Some(evdev_rs::enums::EV_KEY::KEY_NUMLOCK) => {
+								(ArgTypes::NumLock, Some(state.to_string()))
+							}
+							Some(evdev_rs::enums::EV_KEY::KEY_SCROLLLOCK) => {
+								(ArgTypes::ScrollLock, Some(state.to_string()))
+							}
+							_ => continue,
+						};
+					Self::action_activated(&osd_app, arg_type, data);
+				}
+				Break
 			}
-			Break
-		}));
+		));
 		// Start watching for the LibInput Backend
 		let signal_id: Arc<Mutex<Option<SignalSubscriptionId>>> = Arc::new(Mutex::new(None));
 		gio::bus_watch_name(
 			BusType::System,
 			DBUS_BACKEND_NAME,
 			BusNameWatcherFlags::NONE,
-			clone!(@strong sender, @strong signal_id => move |connection, _, _| {
-				println!("Connecting to the SwayOSD LibInput Backend");
-				let mut mutex = match signal_id.lock() {
-					Ok(mut mutex) => match mutex.as_mut() {
-						Some(_) => return,
-						None => mutex,
-					},
-					Err(error) => return println!("Mutex lock Error: {}", error),
-				};
-				mutex.replace(connection.signal_subscribe(
-					Some(config::DBUS_BACKEND_NAME),
-					Some(config::DBUS_BACKEND_NAME),
-					Some("KeyPressed"),
-					Some(config::DBUS_PATH),
-					None,
-					gio::DBusSignalFlags::NONE,
-					clone!(@strong sender => move |_, _, _, _, _, variant| {
-						let key_code = variant.try_child_get::<u16>(0);
-						let state = variant.try_child_get::<i32>(1);
-						match (key_code, state) {
-							(Ok(Some(key_code)), Ok(Some(state))) => {
-								if let Err(error) = sender.send_blocking((key_code, state)) {
-									eprintln!("Channel Send error: {}", error);
-								}
-							},
-							variables => return eprintln!("Variables don't match: {:?}", variables),
-						};
-					}),
-				));
-			}),
-			clone!(@strong signal_id => move|connection, _| {
-				eprintln!("SwayOSD LibInput Backend isn't available, waiting...");
-				match signal_id.lock() {
-					Ok(mut mutex) => if let Some(sig_id) = mutex.take() {
-						connection.signal_unsubscribe(sig_id);
-					},
-					Err(error) => println!("Mutex lock Error: {}", error),
+			clone!(
+				#[strong]
+				sender,
+				#[strong]
+				signal_id,
+				move |connection, _, _| {
+					println!("Connecting to the SwayOSD LibInput Backend");
+					let mut mutex = match signal_id.lock() {
+						Ok(mut mutex) => match mutex.as_mut() {
+							Some(_) => return,
+							None => mutex,
+						},
+						Err(error) => return println!("Mutex lock Error: {}", error),
+					};
+					mutex.replace(connection.signal_subscribe(
+						Some(config::DBUS_BACKEND_NAME),
+						Some(config::DBUS_BACKEND_NAME),
+						Some("KeyPressed"),
+						Some(config::DBUS_PATH),
+						None,
+						gio::DBusSignalFlags::NONE,
+						clone!(
+							#[strong]
+							sender,
+							move |_, _, _, _, _, variant| {
+								let key_code = variant.try_child_get::<u16>(0);
+								let state = variant.try_child_get::<i32>(1);
+								match (key_code, state) {
+									(Ok(Some(key_code)), Ok(Some(state))) => {
+										if let Err(error) = sender.send_blocking((key_code, state))
+										{
+											eprintln!("Channel Send error: {}", error);
+										}
+									}
+									variables => {
+										return eprintln!("Variables don't match: {:?}", variables)
+									}
+								};
+							}
+						),
+					));
 				}
-			}),
+			),
+			clone!(
+				#[strong]
+				signal_id,
+				move |connection, _| {
+					eprintln!("SwayOSD LibInput Backend isn't available, waiting...");
+					match signal_id.lock() {
+						Ok(mut mutex) => {
+							if let Some(sig_id) = mutex.take() {
+								connection.signal_unsubscribe(sig_id);
+							}
+						}
+						Err(error) => println!("Mutex lock Error: {}", error),
+					}
+				}
+			),
 		);
 
 		return osd_app;
@@ -372,24 +405,43 @@ impl SwayOSDApplication {
 
 		let _self = self;
 
-		display.connect_opened(clone!(@strong _self => move |d| {
-			_self.init_windows(d);
-		}));
-
-		display.connect_closed(clone!(@strong _self => move |_d, is_error| {
-			if is_error {
-				eprintln!("Display closed due to errors...");
+		display.connect_opened(clone!(
+			#[strong]
+			_self,
+			move |d| {
+				_self.init_windows(d);
 			}
-			_self.close_all_windows();
-		}));
+		));
 
-		display.connect_monitor_added(clone!(@strong _self => move |d, mon| {
-			_self.add_window(d, mon);
-		}));
+		display.connect_closed(clone!(
+			#[strong]
+			_self,
+			move |_d, is_error| {
+				if is_error {
+					eprintln!("Display closed due to errors...");
+				}
+				_self.close_all_windows();
+			}
+		));
 
-		display.connect_monitor_removed(clone!(@strong _self => move |d, _mon| {
-			_self.init_windows(d);
-		}));
+		display.monitors().connect_items_changed(clone!(
+			#[strong]
+			_self,
+			move |monitors, position, removed, added| {
+				if removed != 0 {
+					_self.init_windows(&display);
+				} else if added != 0 {
+					for i in 0..added {
+						if let Some(mon) = monitors
+							.item(position + i)
+							.and_then(|obj| obj.downcast::<gdk::Monitor>().ok())
+						{
+							_self.add_window(&display, &mon);
+						}
+					}
+				}
+			}
+		));
 	}
 
 	fn add_window(&self, display: &gdk::Display, monitor: &gdk::Monitor) {
@@ -400,8 +452,12 @@ impl SwayOSDApplication {
 	fn init_windows(&self, display: &gdk::Display) {
 		self.close_all_windows();
 
-		for i in 0..display.n_monitors() {
-			let monitor: gdk::Monitor = match display.monitor(i) {
+		let monitors = display.monitors();
+		for i in 0..monitors.n_items() {
+			let monitor = match monitors
+				.item(i)
+				.and_then(|obj| obj.downcast::<gdk::Monitor>().ok())
+			{
 				Some(x) => x,
 				_ => continue,
 			};

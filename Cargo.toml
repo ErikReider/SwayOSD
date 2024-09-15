@@ -23,8 +23,8 @@ toml = "0.8"
 serde = "1"
 serde_derive = "1"
 # GUI Dependencies
-gtk = "0.18.1"
-gtk-layer-shell = "0.8.1"
+gtk = { package = "gtk4", version = "0.9.1" }
+gtk-layer-shell = { package = "gtk4-layer-shell", version = "0.4.0" }
 shrinkwraprs = "0.3.0"
 cascade = "1.0.1"
 pulse = { version = "2.26.0", package = "libpulse-binding" }

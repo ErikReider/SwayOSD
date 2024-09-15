@@ -24,11 +24,10 @@ use async_channel::Sender;
 use config::{DBUS_PATH, DBUS_SERVER_NAME};
 use gtk::prelude::*;
 use gtk::{
-	gdk::Screen,
+	gdk::Display,
 	gio::{self, Resource},
 	glib::Bytes,
-	traits::IconThemeExt,
-	CssProvider, IconTheme, StyleContext,
+	CssProvider, IconTheme,
 };
 use std::env::args_os;
 use std::future::pending;
@@ -86,23 +85,26 @@ fn main() {
 	gio::resources_register(&res);
 
 	// Load the icon theme
-	let theme = IconTheme::default().expect("Could not get IconTheme");
+	let theme = IconTheme::default();
 	theme.add_resource_path(&format!("{}/icons", GRESOURCE_BASE_PATH));
 
 	// Load the CSS themes
-	let screen = Screen::default().expect("Failed getting the default screen");
+	let display = Display::default().expect("Failed getting the default screen");
 
 	// Load the provided default CSS theme
 	let provider = CssProvider::new();
+	provider.connect_parsing_error(|_provider, _section, error| {
+		eprintln!("Could not load default CSS stylesheet: {}", error);
+	});
 	match get_system_css_path() {
-		Some(path) => match provider.load_from_path(path.to_str().unwrap()) {
-			Ok(_) => StyleContext::add_provider_for_screen(
-				&screen,
+		Some(path) => {
+			provider.load_from_path(path.to_str().unwrap());
+			gtk::style_context_add_provider_for_display(
+				&display,
 				&provider,
 				gtk::STYLE_PROVIDER_PRIORITY_APPLICATION as u32,
-			),
-			Err(error) => eprintln!("Could not load default CSS stylesheet: {}", error),
-		},
+			);
+		}
 		None => eprintln!("Could not find the system CSS file..."),
 	}
 
@@ -139,11 +141,12 @@ fn main() {
 	// Try loading the users CSS theme
 	if let Some(user_config_path) = user_style_path(custom_user_css) {
 		let user_provider = CssProvider::new();
-		user_provider
-			.load_from_path(&user_config_path)
-			.expect("Failed loading user defined style.css");
-		StyleContext::add_provider_for_screen(
-			&screen,
+		user_provider.connect_parsing_error(|_provider, _section, error| {
+			eprintln!("Failed loading user defined style.css: {}", error);
+		});
+		user_provider.load_from_path(&user_config_path);
+		gtk::style_context_add_provider_for_display(
+			&display,
 			&user_provider,
 			gtk::STYLE_PROVIDER_PRIORITY_APPLICATION as u32,
 		);

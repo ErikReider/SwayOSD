@@ -36,9 +36,7 @@ impl SwayosdWindow {
 	pub fn new(app: &gtk::Application, display: &gdk::Display, monitor: &gdk::Monitor) -> Self {
 		let window = gtk::ApplicationWindow::new(app);
 		window.set_widget_name("osd");
-		window
-			.style_context()
-			.add_class(&gtk::STYLE_CLASS_OSD.to_string());
+		window.add_css_class("osd");
 
 		window.init_layer_shell();
 		window.set_monitor(monitor);
@@ -56,14 +54,18 @@ impl SwayosdWindow {
 			..set_widget_name("container");
 		};
 
-		window.add(&container);
+		window.set_child(Some(&container));
 
 		// Set the window margin
-		window.connect_map(clone!(@strong monitor => move |win| {
-			let bottom = monitor.workarea().height() - win.allocated_height();
-			let margin = (bottom as f32 * get_top_margin()).round() as i32;
-			win.set_layer_shell_margin(gtk_layer_shell::Edge::Top, margin);
-		}));
+		window.connect_map(clone!(
+			#[strong]
+			monitor,
+			move |win| {
+				let bottom = monitor.geometry().height() - win.allocated_height();
+				let margin = (bottom as f32 * get_top_margin()).round() as i32;
+				win.set_margin(gtk_layer_shell::Edge::Top, margin);
+			}
+		));
 
 		Self {
 			window,
@@ -108,10 +110,10 @@ impl SwayosdWindow {
 
 		progress.set_sensitive(!device.mute);
 
-		self.container.add(&icon);
-		self.container.add(&progress);
+		self.container.append(&icon);
+		self.container.append(&progress);
 		if get_show_percentage() {
-			self.container.add(&label);
+			self.container.append(&label);
 		}
 
 		self.run_timeout();
@@ -128,10 +130,10 @@ impl SwayosdWindow {
 		let progress = self.build_progress_widget(brightness / max);
 		let label = self.build_text_widget(Some(&format!("{}%", (brightness / max * 100.) as i32)));
 
-		self.container.add(&icon);
-		self.container.add(&progress);
+		self.container.append(&icon);
+		self.container.append(&progress);
 		if get_show_percentage() {
-			self.container.add(&label);
+			self.container.append(&label);
 		}
 
 		self.run_timeout();
@@ -170,8 +172,8 @@ impl SwayosdWindow {
 
 		icon.set_sensitive(state);
 
-		self.container.add(&icon);
-		self.container.add(&label);
+		self.container.append(&icon);
+		self.container.append(&label);
 
 		self.run_timeout();
 	}
@@ -183,16 +185,19 @@ impl SwayosdWindow {
 
 		if let Some(icon_name) = icon_name {
 			let icon = self.build_icon_widget(icon_name);
-			self.container.add(&icon);
-			self.container.add(&label);
+			self.container.append(&icon);
+			self.container.append(&label);
 			let box_spacing = self.container.spacing();
-			icon.connect_size_allocate(move |icon, allocate| {
+			icon.connect_realize(move |icon| {
 				label.set_margin_end(
-					allocate.width() + icon.margin_start() + icon.margin_end() + box_spacing,
+					icon.allocation().width()
+						+ icon.margin_start()
+						+ icon.margin_end()
+						+ box_spacing,
 				);
 			});
 		} else {
-			self.container.add(&label);
+			self.container.append(&label);
 		}
 
 		self.run_timeout();
@@ -200,8 +205,10 @@ impl SwayosdWindow {
 
 	/// Clear all container children
 	fn clear_osd(&self) {
-		for widget in self.container.children() {
+		let mut next = self.container.first_child();
+		while let Some(widget) = next {
 			self.container.remove(&widget);
+			next = widget.next_sibling();
 		}
 	}
 
@@ -219,17 +226,17 @@ impl SwayosdWindow {
 			},
 		)));
 
-		self.window.show_all();
+		self.window.show();
 	}
 
 	fn build_icon_widget(&self, icon_name: &str) -> gtk::Image {
 		let icon_name = match gtk::IconTheme::default() {
-			Some(theme) if theme.has_icon(icon_name) => icon_name,
+			theme if theme.has_icon(icon_name) => icon_name,
 			_ => "missing-symbolic",
 		};
 
 		cascade! {
-			gtk::Image::from_icon_name(Some(icon_name), gtk::IconSize::Invalid);
+			gtk::Image::from_icon_name(icon_name);
 			..set_pixel_size(ICON_SIZE);
 		}
 	}
@@ -239,7 +246,7 @@ impl SwayosdWindow {
 			gtk::Label::new(text);
 			..set_halign(gtk::Align::Center);
 			..set_hexpand(true);
-			..style_context().add_class("title-4");
+			..add_css_class("title-4");
 		}
 	}
 
@@ -248,7 +255,7 @@ impl SwayosdWindow {
 			gtk::ProgressBar::new();
 			..set_fraction(fraction);
 			..set_valign(gtk::Align::Center);
-			..set_expand(true);
+			..set_hexpand(true);
 		}
 	}
 }
