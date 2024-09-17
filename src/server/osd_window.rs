@@ -57,7 +57,7 @@ impl SwayosdWindow {
 		window.set_child(Some(&container));
 
 		// Set the window margin
-		window.connect_map(clone!(
+		window.connect_realize(clone!(
 			#[strong]
 			monitor,
 			move |win| {
