@@ -230,13 +230,10 @@ impl SwayosdWindow {
 	}
 
 	fn build_icon_widget(&self, icon_name: &str) -> gtk::Image {
-		let icon_name = match gtk::IconTheme::default() {
-			theme if theme.has_icon(icon_name) => icon_name,
-			_ => "missing-symbolic",
-		};
+		let icon = gtk::gio::ThemedIcon::from_names(&[icon_name, "missing-symbolic"]);
 
 		cascade! {
-			gtk::Image::from_icon_name(icon_name);
+			gtk::Image::from_gicon(&icon.upcast::<gtk::gio::Icon>());
 			..set_pixel_size(ICON_SIZE);
 		}
 	}
