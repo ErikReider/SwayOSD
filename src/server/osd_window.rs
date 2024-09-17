@@ -207,8 +207,8 @@ impl SwayosdWindow {
 	fn clear_osd(&self) {
 		let mut next = self.container.first_child();
 		while let Some(widget) = next {
-			self.container.remove(&widget);
 			next = widget.next_sibling();
+			self.container.remove(&widget);
 		}
 	}
 
