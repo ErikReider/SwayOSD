@@ -56,15 +56,34 @@ impl SwayosdWindow {
 
 		window.set_child(Some(&container));
 
+		let update_margins = |window: &gtk::ApplicationWindow, monitor: &gdk::Monitor| {
+			// Monitor scale factor is not always correct
+			// Transform monitor height into coordinate system of window
+			let mon_height =
+				monitor.geometry().height() * monitor.scale_factor() / window.scale_factor();
+			// Calculate new margin
+			let bottom = mon_height - window.allocated_height();
+			let margin = (bottom as f32 * get_top_margin()).round() as i32;
+			window.set_margin(gtk_layer_shell::Edge::Top, margin);
+		};
+
 		// Set the window margin
-		window.connect_realize(clone!(
-			#[strong]
+		update_margins(&window, monitor);
+		// Ensure window margin is updated when necessary
+		window.connect_scale_factor_notify(clone!(
+			#[weak]
 			monitor,
-			move |win| {
-				let bottom = monitor.geometry().height() - win.allocated_height();
-				let margin = (bottom as f32 * get_top_margin()).round() as i32;
-				win.set_margin(gtk_layer_shell::Edge::Top, margin);
-			}
+			move |window| update_margins(window, &monitor)
+		));
+		monitor.connect_scale_factor_notify(clone!(
+			#[weak]
+			window,
+			move |monitor| update_margins(&window, monitor)
+		));
+		monitor.connect_geometry_notify(clone!(
+			#[weak]
+			window,
+			move |monitor| update_margins(&window, monitor)
 		));
 
 		Self {
