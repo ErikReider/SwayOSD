@@ -1,12 +1,12 @@
-use zbus::{dbus_interface, Connection, ConnectionBuilder, SignalContext};
+use zbus::{interface, Connection, ConnectionBuilder, SignalContext};
 
 use crate::config::{DBUS_BACKEND_NAME, DBUS_PATH};
 
 pub struct DbusServer;
 
-#[dbus_interface(name = "org.erikreider.swayosd")]
+#[interface(name = "org.erikreider.swayosd")]
 impl DbusServer {
-	#[dbus_interface(signal)]
+	#[zbus(signal)]
 	pub async fn key_pressed(
 		signal_ctxt: &SignalContext<'_>,
 		key_code: u16,
