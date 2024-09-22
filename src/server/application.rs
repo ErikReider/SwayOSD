@@ -4,7 +4,7 @@ use crate::global_utils::{handle_application_args, HandleLocalStatus};
 use crate::osd_window::SwayosdWindow;
 use crate::utils::{self, *};
 use async_channel::Receiver;
-use glib::MainContext;
+use glib::{MainContext, ControlFlow::Continue, ControlFlow::Break};
 use gtk::gio::SignalSubscriptionId;
 use gtk::gio::{ApplicationFlags, BusNameWatcherFlags, BusType};
 use gtk::glib::{clone, OptionArg, OptionFlags};
@@ -113,7 +113,7 @@ impl SwayOSDApplication {
 			while let Ok((arg_type, data)) = action_receiver.recv().await {
 				Self::action_activated(&osd_app, arg_type, (!data.is_empty()).then_some(data));
 			}
-			Continue(false)
+			Break
 		}));
 
 		// Listen to the LibInput Backend and activate the Application action
@@ -135,7 +135,7 @@ impl SwayOSDApplication {
 					};
 				Self::action_activated(&osd_app, arg_type, data);
 			}
-			Continue(false)
+			Break
 		}));
 		// Start watching for the LibInput Backend
 		let signal_id: Arc<Mutex<Option<SignalSubscriptionId>>> = Arc::new(Mutex::new(None));
