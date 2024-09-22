@@ -131,7 +131,7 @@ impl SwayOSDApplication {
 						Some(evdev_rs::enums::EV_KEY::KEY_SCROLLLOCK) => {
 							(ArgTypes::ScrollLock, Some(state.to_string()))
 						}
-						_ => return Continue(true),
+						_ => continue,
 					};
 				Self::action_activated(&osd_app, arg_type, data);
 			}
