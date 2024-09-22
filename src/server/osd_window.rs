@@ -17,6 +17,8 @@ use crate::{
 	},
 };
 
+use gtk_layer_shell::LayerShell;
+
 const ICON_SIZE: i32 = 32;
 
 /// A window that our application can open that contains the main project view.
@@ -34,17 +36,15 @@ impl SwayosdWindow {
 	pub fn new(app: &gtk::Application, display: &gdk::Display, monitor: &gdk::Monitor) -> Self {
 		let window = gtk::ApplicationWindow::new(app);
 		window.set_widget_name("osd");
-		window
-			.style_context()
-			.add_class(&gtk::STYLE_CLASS_OSD.to_string());
+		window.add_css_class("osd");
 
-		gtk_layer_shell::init_for_window(&window);
-		gtk_layer_shell::set_monitor(&window, monitor);
-		gtk_layer_shell::set_namespace(&window, "swayosd");
+		window.init_layer_shell();
+		window.set_monitor(monitor);
+		window.set_namespace("swayosd");
 
-		gtk_layer_shell::set_exclusive_zone(&window, -1);
-		gtk_layer_shell::set_layer(&window, gtk_layer_shell::Layer::Overlay);
-		gtk_layer_shell::set_anchor(&window, gtk_layer_shell::Edge::Top, true);
+		window.set_exclusive_zone(-1);
+		window.set_layer(gtk_layer_shell::Layer::Overlay);
+		window.set_anchor(gtk_layer_shell::Edge::Top, true);
 
 		// Set up the widgets
 		window.set_width_request(250);
@@ -54,14 +54,37 @@ impl SwayosdWindow {
 			..set_widget_name("container");
 		};
 
-		window.add(&container);
+		window.set_child(Some(&container));
+
+		let update_margins = |window: &gtk::ApplicationWindow, monitor: &gdk::Monitor| {
+			// Monitor scale factor is not always correct
+			// Transform monitor height into coordinate system of window
+			let mon_height =
+				monitor.geometry().height() * monitor.scale_factor() / window.scale_factor();
+			// Calculate new margin
+			let bottom = mon_height - window.allocated_height();
+			let margin = (bottom as f32 * get_top_margin()).round() as i32;
+			window.set_margin(gtk_layer_shell::Edge::Top, margin);
+		};
 
 		// Set the window margin
-		window.connect_map(clone!(@strong monitor => move |win| {
-			let bottom = monitor.workarea().height() - win.allocated_height();
-			let margin = (bottom as f32 * get_top_margin()).round() as i32;
-			gtk_layer_shell::set_margin(win, gtk_layer_shell::Edge::Top, margin);
-		}));
+		update_margins(&window, monitor);
+		// Ensure window margin is updated when necessary
+		window.connect_scale_factor_notify(clone!(
+			#[weak]
+			monitor,
+			move |window| update_margins(window, &monitor)
+		));
+		monitor.connect_scale_factor_notify(clone!(
+			#[weak]
+			window,
+			move |monitor| update_margins(&window, monitor)
+		));
+		monitor.connect_geometry_notify(clone!(
+			#[weak]
+			window,
+			move |monitor| update_margins(&window, monitor)
+		));
 
 		Self {
 			window,
@@ -106,10 +129,10 @@ impl SwayosdWindow {
 
 		progress.set_sensitive(!device.mute);
 
-		self.container.add(&icon);
-		self.container.add(&progress);
+		self.container.append(&icon);
+		self.container.append(&progress);
 		if get_show_percentage() {
-			self.container.add(&label);
+			self.container.append(&label);
 		}
 
 		self.run_timeout();
@@ -126,10 +149,10 @@ impl SwayosdWindow {
 		let progress = self.build_progress_widget(brightness / max);
 		let label = self.build_text_widget(Some(&format!("{}%", (brightness / max * 100.) as i32)));
 
-		self.container.add(&icon);
-		self.container.add(&progress);
+		self.container.append(&icon);
+		self.container.append(&progress);
 		if get_show_percentage() {
-			self.container.add(&label);
+			self.container.append(&label);
 		}
 
 		self.run_timeout();
@@ -168,8 +191,8 @@ impl SwayosdWindow {
 
 		icon.set_sensitive(state);
 
-		self.container.add(&icon);
-		self.container.add(&label);
+		self.container.append(&icon);
+		self.container.append(&label);
 
 		self.run_timeout();
 	}
@@ -181,16 +204,19 @@ impl SwayosdWindow {
 
 		if let Some(icon_name) = icon_name {
 			let icon = self.build_icon_widget(icon_name);
-			self.container.add(&icon);
-			self.container.add(&label);
+			self.container.append(&icon);
+			self.container.append(&label);
 			let box_spacing = self.container.spacing();
-			icon.connect_size_allocate(move |icon, allocate| {
+			icon.connect_realize(move |icon| {
 				label.set_margin_end(
-					allocate.width() + icon.margin_start() + icon.margin_end() + box_spacing,
+					icon.allocation().width()
+						+ icon.margin_start()
+						+ icon.margin_end()
+						+ box_spacing,
 				);
 			});
 		} else {
-			self.container.add(&label);
+			self.container.append(&label);
 		}
 
 		self.run_timeout();
@@ -198,7 +224,9 @@ impl SwayosdWindow {
 
 	/// Clear all container children
 	fn clear_osd(&self) {
-		for widget in self.container.children() {
+		let mut next = self.container.first_child();
+		while let Some(widget) = next {
+			next = widget.next_sibling();
 			self.container.remove(&widget);
 		}
 	}
@@ -217,17 +245,14 @@ impl SwayosdWindow {
 			},
 		)));
 
-		self.window.show_all();
+		self.window.show();
 	}
 
 	fn build_icon_widget(&self, icon_name: &str) -> gtk::Image {
-		let icon_name = match gtk::IconTheme::default() {
-			Some(theme) if theme.has_icon(icon_name) => icon_name,
-			_ => "missing-symbolic",
-		};
+		let icon = gtk::gio::ThemedIcon::from_names(&[icon_name, "missing-symbolic"]);
 
 		cascade! {
-			gtk::Image::from_icon_name(Some(icon_name), gtk::IconSize::Invalid);
+			gtk::Image::from_gicon(&icon.upcast::<gtk::gio::Icon>());
 			..set_pixel_size(ICON_SIZE);
 		}
 	}
@@ -237,7 +262,7 @@ impl SwayosdWindow {
 			gtk::Label::new(text);
 			..set_halign(gtk::Align::Center);
 			..set_hexpand(true);
-			..style_context().add_class("title-4");
+			..add_css_class("title-4");
 		}
 	}
 
@@ -246,7 +271,7 @@ impl SwayosdWindow {
 			gtk::ProgressBar::new();
 			..set_fraction(fraction);
 			..set_valign(gtk::Align::Center);
-			..set_expand(true);
+			..set_hexpand(true);
 		}
 	}
 }

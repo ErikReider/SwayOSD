@@ -15,9 +15,9 @@ use gtk::{gio::ApplicationFlags, Application};
 use gtk::{glib, prelude::*};
 use std::env::args_os;
 use std::path::PathBuf;
-use zbus::{blocking::Connection, dbus_proxy};
+use zbus::{blocking::Connection, proxy};
 
-#[dbus_proxy(
+#[proxy(
 	interface = "org.erikreider.swayosd",
 	default_service = "org.erikreider.swayosd-server",
 	default_path = "/org/erikreider/swayosd"
