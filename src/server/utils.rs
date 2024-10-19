@@ -13,6 +13,7 @@ use pulse::volume::Volume;
 use pulsectl::controllers::{types::DeviceInfo, DeviceControl, SinkController, SourceController};
 
 use crate::brightness_backend;
+use crate::playerctl::PlayerctlDeviceRaw;
 
 static PRIV_MAX_VOLUME_DEFAULT: u8 = 100_u8;
 
@@ -23,6 +24,7 @@ lazy_static! {
 	static ref DEVICE_NAME: Mutex<Option<String>> = Mutex::new(None);
 	pub static ref ICON_NAME_DEFAULT: &'static str = "text-x-generic";
 	static ref ICON_NAME: Mutex<Option<String>> = Mutex::new(None);
+	static ref PLAYER_NAME: Mutex<PlayerctlDeviceRaw> = Mutex::new(PlayerctlDeviceRaw::None);
 	pub static ref TOP_MARGIN_DEFAULT: f32 = 0.85_f32;
 	static ref TOP_MARGIN: Mutex<f32> = Mutex::new(*TOP_MARGIN_DEFAULT);
 	pub static ref SHOW_PERCENTAGE: Mutex<bool> = Mutex::new(false);
@@ -101,6 +103,21 @@ pub fn set_icon_name(name: String) {
 pub fn reset_icon_name() {
 	let mut icon_name = ICON_NAME.lock().unwrap();
 	*icon_name = None;
+}
+
+pub fn set_player(name: String) {
+	let mut global_player = PLAYER_NAME.lock().unwrap();
+	*global_player = PlayerctlDeviceRaw::from(name).unwrap_or(PlayerctlDeviceRaw::None);
+}
+
+pub fn reset_player() {
+	let mut global_name = PLAYER_NAME.lock().unwrap();
+	*global_name = PlayerctlDeviceRaw::None;
+}
+
+pub fn get_player() -> PlayerctlDeviceRaw {
+	let player = PLAYER_NAME.lock().unwrap();
+	player.clone()
 }
 
 pub fn get_key_lock_state(key: KeysLocks, led: Option<String>) -> bool {

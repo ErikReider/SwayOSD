@@ -12,6 +12,9 @@ mod global_utils;
 #[path = "../brightness_backend/mod.rs"]
 mod brightness_backend;
 
+#[path = "../mpris-backend/mod.rs"]
+mod playerctl;
+
 #[macro_use]
 extern crate shrinkwraprs;
 

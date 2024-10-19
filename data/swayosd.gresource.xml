@@ -18,5 +18,13 @@
     <file>icons/scalable/status/source-volume-medium-symbolic.svg</file>
     <file>icons/scalable/status/source-volume-low-symbolic.svg</file>
     <file>icons/scalable/status/source-volume-muted-symbolic.svg</file>
+
+    <file>icons/scalable/status/pause-large-symbolic.svg</file>
+    <file>icons/scalable/status/play-large-symbolic.svg</file>
+    <file>icons/scalable/status/seek-backward-large-symbolic.svg</file>
+    <file>icons/scalable/status/seek-forward-large-symbolic.svg</file>
+    <file>icons/scalable/status/playlist-consecutive-symbolic.svg</file>
+    <file>icons/scalable/status/playlist-shuffle-symbolic.svg</file>
+    <file>icons/scalable/status/stop-large-symbolic.svg</file>
   </gresource>
 </gresources>
