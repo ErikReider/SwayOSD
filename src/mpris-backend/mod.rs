@@ -85,7 +85,7 @@ impl Playerctl {
         let mut metadata = Err("some errro");
         let icon = match &self.player {
             PlayerctlDevice::Some(player) => {
-                metadata = player.get_metadata().or_else(|x| Err(""));
+                metadata = player.get_metadata().or_else(|_| Err(""));
                 run_single(player)?
             },
             PlayerctlDevice::All(players) => {
@@ -98,7 +98,7 @@ impl Playerctl {
                         }
                     };
                     if let Err(_) = metadata {
-                        metadata = player.get_metadata().or_else(|x| Err(""));
+                        metadata = player.get_metadata().or_else(|_| Err(""));
                     }
                 }
                 icon?
