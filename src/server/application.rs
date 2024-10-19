@@ -386,6 +386,32 @@ impl SwayOSDApplication {
 				};
 				set_max_volume(volume)
 			}
+			(ArgTypes::Player, name) => {
+				set_player(name.unwrap_or("".to_string()))
+			}
+			(ArgTypes::Playerctl, value) => {
+				use crate::playerctl::*;
+				let value = &value.unwrap_or("".to_string());
+
+				let action = PlayerctlAction::from(value).unwrap();
+				if let Ok(mut player) = Playerctl::new(action) {
+					match player.run() {
+						Ok(_) => {
+							let (icon, label) = (player.icon.unwrap(), player.label.unwrap());
+							for window in osd_app.windows.borrow().to_owned() {
+								window.changed_player(&icon, &label)
+							}
+						},
+						Err(x) => {
+							eprintln!("couldn't run player change: \"{:?}\"!", x)
+						},
+					}
+				} else {
+					eprintln!("Unable to get players! are any opened?")
+				}
+
+				reset_player();
+			}
 			(ArgTypes::DeviceName, name) => {
 				set_device_name(name.unwrap_or(DEVICE_NAME_DEFAULT.to_string()))
 			}
