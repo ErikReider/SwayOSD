@@ -22,7 +22,6 @@ use application::SwayOSDApplication;
 use argtypes::ArgTypes;
 use async_channel::Sender;
 use config::{DBUS_PATH, DBUS_SERVER_NAME};
-use gtk::prelude::*;
 use gtk::{
 	gdk::Display,
 	gio::{self, Resource},
