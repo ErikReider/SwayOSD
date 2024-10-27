@@ -186,10 +186,17 @@ impl SwayOSDApplication {
 								let state = variant.try_child_get::<i32>(1);
 								match (key_code, state) {
 									(Ok(Some(key_code)), Ok(Some(state))) => {
-										if let Err(error) = sender.send_blocking((key_code, state))
-										{
-											eprintln!("Channel Send error: {}", error);
-										}
+										MainContext::default().spawn_local(clone!(
+											#[strong]
+											sender,
+											async move {
+												if let Err(error) =
+													sender.send((key_code, state)).await
+												{
+													eprintln!("Channel Send error: {}", error);
+												}
+											}
+										));
 									}
 									variables => {
 										return eprintln!("Variables don't match: {:?}", variables)
