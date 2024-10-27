@@ -4,13 +4,17 @@ use crate::global_utils::{handle_application_args, HandleLocalStatus};
 use crate::osd_window::SwayosdWindow;
 use crate::utils::{self, *};
 use async_channel::Receiver;
-use glib::{ControlFlow::Break, MainContext};
-use gtk::gio::prelude::*;
-use gtk::gio::SignalSubscriptionId;
-use gtk::gio::{ApplicationFlags, BusNameWatcherFlags, BusType};
-use gtk::glib::{clone, variant::ToVariant, OptionArg, OptionFlags};
-use gtk::prelude::*;
-use gtk::*;
+use gtk::{
+	gdk,
+	gio::{
+		self, ApplicationFlags, BusNameWatcherFlags, BusType, DBusSignalFlags, SignalSubscriptionId,
+	},
+	glib::{
+		clone, variant::ToVariant, Char, ControlFlow::Break, MainContext, OptionArg, OptionFlags,
+	},
+	prelude::*,
+	Application,
+};
 use pulsectl::controllers::{SinkController, SourceController};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -31,7 +35,7 @@ impl SwayOSDApplication {
 
 		app.add_main_option(
 			"config",
-			glib::Char::from(0),
+			Char::from(0),
 			OptionFlags::NONE,
 			OptionArg::String,
 			"Use a custom config file instead of looking for one.",
@@ -40,7 +44,7 @@ impl SwayOSDApplication {
 
 		app.add_main_option(
 			"style",
-			glib::Char::from('s' as u8),
+			Char::from('s' as u8),
 			OptionFlags::NONE,
 			OptionArg::String,
 			"Use a custom Stylesheet file instead of looking for one",
@@ -49,7 +53,7 @@ impl SwayOSDApplication {
 
 		app.add_main_option(
 			"top-margin",
-			glib::Char::from(0),
+			Char::from(0),
 			OptionFlags::NONE,
 			OptionArg::String,
 			&format!(
@@ -177,7 +181,7 @@ impl SwayOSDApplication {
 						Some("KeyPressed"),
 						Some(config::DBUS_PATH),
 						None,
-						gio::DBusSignalFlags::NONE,
+						DBusSignalFlags::NONE,
 						clone!(
 							#[strong]
 							sender,
