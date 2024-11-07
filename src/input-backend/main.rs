@@ -11,6 +11,7 @@ use libc::{O_RDONLY, O_RDWR};
 use nix::poll::{poll, PollFd, PollFlags};
 use std::fs::{File, OpenOptions};
 use std::os::fd::AsRawFd;
+use std::os::fd::BorrowedFd;
 use std::os::unix::{fs::OpenOptionsExt, io::OwnedFd};
 use std::path::Path;
 use std::time::Duration;
@@ -57,9 +58,11 @@ fn main() -> Result<(), zbus::Error> {
 	input
 		.udev_assign_seat("seat0")
 		.expect("Could not assign seat0");
-
-	let pollfd = PollFd::new(input.as_raw_fd(), PollFlags::POLLIN);
-	while poll(&mut [pollfd], -1).is_ok() {
+	let fd = input.as_raw_fd();
+	assert!(fd != -1);
+	let borrowed_fd = unsafe { BorrowedFd::borrow_raw(input.as_raw_fd()) };
+	let pollfd = PollFd::new(borrowed_fd, PollFlags::POLLIN);
+	while poll(&mut [pollfd], None::<u8>).is_ok() {
 		event(&mut input, &iface_ref);
 	}
 
