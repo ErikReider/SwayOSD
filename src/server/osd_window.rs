@@ -56,6 +56,14 @@ impl SwayosdWindow {
 
 		window.set_child(Some(&container));
 
+		// Disable mouse input
+		window.connect_map(|window| {
+			if let Some(surface) = window.surface() {
+				let region = gtk::cairo::Region::create();
+				surface.set_input_region(&region);
+			}
+		});
+
 		let update_margins = |window: &gtk::ApplicationWindow, monitor: &gdk::Monitor| {
 			// Monitor scale factor is not always correct
 			// Transform monitor height into coordinate system of window
