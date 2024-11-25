@@ -27,11 +27,13 @@ pub struct SwayOSDApplication {
 	#[shrinkwrap(main_field)]
 	app: gtk::Application,
 	windows: Rc<RefCell<Vec<SwayosdWindow>>>,
+	_hold: Rc<gio::ApplicationHoldGuard>,
 }
 
 impl SwayOSDApplication {
 	pub fn new(server_config: ServerConfig, action_receiver: Receiver<(ArgTypes, String)>) -> Self {
 		let app = Application::new(Some(APPLICATION_NAME), ApplicationFlags::FLAGS_NONE);
+		let hold = Rc::new(app.hold());
 
 		app.add_main_option(
 			"config",
@@ -66,6 +68,7 @@ impl SwayOSDApplication {
 		let osd_app = SwayOSDApplication {
 			app: app.clone(),
 			windows: Rc::new(RefCell::new(Vec::new())),
+			_hold: hold,
 		};
 
 		// Apply Server Config
