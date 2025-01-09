@@ -17,6 +17,8 @@ pub enum PlayerctlAction {
     Shuffle,
 }
 
+use super::config::user::ServerConfig;
+
 #[derive(Clone, Debug)]
 pub enum PlayerctlDeviceRaw {
     None,
@@ -34,10 +36,11 @@ pub struct Playerctl {
     action: PlayerctlAction,
     pub icon: Option<String>,
     pub label: Option<String>,
+    fmt_str: Option<String>,
 }
 
 impl Playerctl {
-    pub fn new(action: PlayerctlAction) -> Result<Playerctl, Box<dyn Error>> {
+    pub fn new(action: PlayerctlAction, config: &ServerConfig) -> Result<Playerctl, Box<dyn Error>> {
         let playerfinder = PlayerFinder::new()?;
         let player = get_player();
         let player = match player {
@@ -47,11 +50,13 @@ impl Playerctl {
             },
             PlayerctlDeviceRaw::All => PlayerctlDevice::All(playerfinder.find_all()?),
         };
+        let fmt_str = config.playerctl_format.clone();
         Ok(Self {
             player,
             action,
             icon: None,
             label: None,
+            fmt_str,
         })
     }
     pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
@@ -107,32 +112,40 @@ impl Playerctl {
 
         self.icon = Some(icon.to_string());
         let label = if let Ok(metadata) = metadata {
-            let artist = metadata.artists().and_then(|x| {
-                if x.len() != 0 {
-                    Some(x[0].to_string())
-                } else {
-                    None
-                }
-            });
-            let title = metadata.title().and_then(|x| Some(x.to_string()));
-            if title.is_none() {
-                if artist.is_none() {
-                    None
-                } else {
-                    artist
-                }
-            } else {
-                if artist.is_none() {
-                    title
-                } else {
-                    Some(format!("{} - {}", title.unwrap(), artist.unwrap()))
-                }
-            }
+            Some(self.fmt_string(metadata))
         } else {
             None
         };
         self.label = label;
         Ok(())
+    }
+    fn fmt_string(&self, metadata: mpris::Metadata) -> String {
+        use strfmt::{strfmt, Format};
+        use std::collections::HashMap;
+
+        let mut vars = HashMap::new();
+        let artists = metadata.artists().unwrap_or(vec![""]);
+        let artists_album = metadata.album_artists().unwrap_or(vec![""]);
+        let artist = artists.get(0).map_or("", |v| v);
+        let artist_album = artists_album.get(0).map_or("", |v| v);
+
+        let title = metadata.title().unwrap_or("");
+        let album = metadata.album_name().unwrap_or("");
+        let track_num = metadata.track_number().and_then(|x| Some(x.to_string())).unwrap_or(String::new());
+        let disc_num = metadata.disc_number().and_then(|x| Some(x.to_string())).unwrap_or(String::new());
+        let autorating = metadata.auto_rating().and_then(|x| Some(x.to_string())).unwrap_or(String::new());
+
+        vars.insert("artist".to_string(), artist);
+        vars.insert("albumArtist".to_string(), artist_album);
+        vars.insert("title".to_string(), title);
+        vars.insert("trackNumber".to_string(), &track_num);
+        vars.insert("discNumber".to_string(), &disc_num);
+        vars.insert("autoRating".to_string(), &autorating);
+
+        self.fmt_str.clone().unwrap_or("{artist} - {title}".into()).format(&vars).unwrap_or_else(|e| {
+            eprintln!("error: {}. using default string", e);
+            "{artist} - {title}".format(&vars).unwrap()
+        })
     }
 }
 
