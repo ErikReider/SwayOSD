@@ -98,15 +98,16 @@ pub(crate) fn handle_application_args(
 			"playerctl" => {
 				let value = child.value().str().unwrap_or("");
 				match value {
-					"play-pause" | "play" | "pause" | "next" |"prev" | "previous" | "shuffle" | "stop" => (),
+					"play-pause" | "play" | "pause" | "next" | "prev" | "previous" | "shuffle"
+					| "stop" => (),
 					x => {
 						eprintln!("Unknown Playerctl command: \"{}\"!...", x);
-						return (HandleLocalStatus::FAILURE, actions)
+						return (HandleLocalStatus::FAILURE, actions);
 					}
 				}
 
 				(ArgTypes::Playerctl, Some(value.to_string()))
-			},
+			}
 			"device" => {
 				let value = match child.value().str() {
 					Some(v) => v.to_string(),
