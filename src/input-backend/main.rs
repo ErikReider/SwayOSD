@@ -14,7 +14,7 @@ use std::os::fd::AsRawFd;
 use std::os::unix::{fs::OpenOptionsExt, io::OwnedFd};
 use std::path::Path;
 use std::time::Duration;
-use zbus::InterfaceRef;
+use zbus::object_server::InterfaceRef;
 
 #[path = "../config.rs"]
 mod config;
@@ -145,7 +145,7 @@ async fn call(event_info: EventInfo, iface_ref: InterfaceRef<DbusServer>) {
 
 	// Send signal
 	let signal_result = DbusServer::key_pressed(
-		iface_ref.signal_context(),
+		iface_ref.signal_emitter(),
 		event_info.ev_key as u16,
 		lock_state.unwrap_or(-1),
 	)
