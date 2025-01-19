@@ -33,7 +33,7 @@ use std::future::pending;
 use std::path::PathBuf;
 use std::str::FromStr;
 use utils::{get_system_css_path, user_style_path};
-use zbus::{interface, ConnectionBuilder};
+use zbus::{connection, interface};
 
 struct DbusServer {
 	sender: Sender<(ArgTypes, String)>,
@@ -59,7 +59,7 @@ impl DbusServer {
 
 impl DbusServer {
 	async fn new(sender: Sender<(ArgTypes, String)>) -> zbus::Result<()> {
-		let _connection = ConnectionBuilder::session()?
+		let _connection = connection::Builder::session()?
 			.name(DBUS_SERVER_NAME)?
 			.serve_at(DBUS_PATH, DbusServer { sender })?
 			.build()

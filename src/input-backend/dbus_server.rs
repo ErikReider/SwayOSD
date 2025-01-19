@@ -1,4 +1,5 @@
-use zbus::{interface, Connection, ConnectionBuilder, SignalContext};
+use zbus::object_server::SignalEmitter;
+use zbus::{connection, interface, Connection};
 
 use crate::config::{DBUS_BACKEND_NAME, DBUS_PATH};
 
@@ -8,7 +9,7 @@ pub struct DbusServer;
 impl DbusServer {
 	#[zbus(signal)]
 	pub async fn key_pressed(
-		signal_ctxt: &SignalContext<'_>,
+		signal_ctxt: &SignalEmitter<'_>,
 		key_code: u16,
 		state: i32,
 	) -> zbus::Result<()>;
@@ -16,7 +17,7 @@ impl DbusServer {
 
 impl DbusServer {
 	async fn get_connection(&self) -> zbus::Result<Connection> {
-		let conn = ConnectionBuilder::system()?
+		let conn = connection::Builder::system()?
 			.name(DBUS_BACKEND_NAME)?
 			.serve_at(DBUS_PATH, DbusServer)?
 			.build()
