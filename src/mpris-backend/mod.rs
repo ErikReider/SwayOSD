@@ -143,10 +143,14 @@ impl Playerctl {
         fn get_metadata(&self, player: &Player) -> Result<Metadata, mpris::DBusError> {
                 match self.action {
                         Next | Prev => {
-                                // loop until metadata updates or to a max of 200ms
-                                // the music won't have changed before that anyway
+                                if let Ok(track_list) = player.get_track_list() {
+                                        if let Some(track) = track_list.get(0) {
+                                                return player.get_track_metadata(track)
+                                        }
+                                }
                                 let metadata = player.get_metadata()?;
                                 let name1 = metadata.url().unwrap();
+                                println!("{name1}");
                                 let mut counter = 0;
                                 while counter < 20 {
                                         std::thread::sleep(std::time::Duration::from_millis(5));
