@@ -44,7 +44,7 @@ impl LibinputInterface for Interface {
 
 fn main() -> Result<(), zbus::Error> {
 	// Parse Config
-	let _input_config = config::backend::read_backend_config()
+	let input_config = config::backend::read_backend_config()
 		.expect("Failed to parse config file")
 		.input;
 
@@ -63,13 +63,17 @@ fn main() -> Result<(), zbus::Error> {
 	let borrowed_fd = unsafe { BorrowedFd::borrow_raw(input.as_raw_fd()) };
 	let pollfd = PollFd::new(borrowed_fd, PollFlags::POLLIN);
 	while poll(&mut [pollfd], None::<u8>).is_ok() {
-		event(&mut input, &iface_ref);
+		event(&input_config, &mut input, &iface_ref);
 	}
 
 	Ok(())
 }
 
-fn event(input: &mut Libinput, iface_ref: &InterfaceRef<DbusServer>) {
+fn event(
+	input_config: &config::backend::InputBackendConfig,
+	input: &mut Libinput,
+	iface_ref: &InterfaceRef<DbusServer>,
+) {
 	input.dispatch().unwrap();
 	for event in input.into_iter() {
 		if let Event::Keyboard(KeyboardEvent::Key(event)) = event {
@@ -117,6 +121,13 @@ fn event(input: &mut Libinput, iface_ref: &InterfaceRef<DbusServer>) {
 				Some(key @ EV_KEY::KEY_NEXTSONG) => key,
 				_ => continue,
 			};
+
+			// Special case because several people have the caps lock key
+			// bound to escape, so it doesn't affect the caps lock status
+			if ev_key == EV_KEY::KEY_CAPSLOCK && input_config.ignore_caps_lock_key.unwrap_or(false)
+			{
+				continue;
+			}
 
 			if let Some(path) = device.devnode() {
 				if let Some(path) = path.to_str() {
