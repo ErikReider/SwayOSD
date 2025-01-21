@@ -9,13 +9,14 @@ use std::path::PathBuf;
 #[serde(deny_unknown_fields)]
 pub struct ClientConfig {}
 
-#[derive(Deserialize, Default, Debug)]
+#[derive(Deserialize, Default, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct ServerConfig {
 	pub style: Option<PathBuf>,
 	pub top_margin: Option<f32>,
 	pub max_volume: Option<u8>,
 	pub show_percentage: Option<bool>,
+	pub ignore_caps_lock: Option<bool>,
 }
 
 #[derive(Deserialize, Default, Debug)]

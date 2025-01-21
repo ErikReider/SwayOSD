@@ -28,6 +28,7 @@ pub struct SwayOSDApplication {
 	app: gtk::Application,
 	windows: Rc<RefCell<Vec<SwayosdWindow>>>,
 	_hold: Rc<gio::ApplicationHoldGuard>,
+	server_config: ServerConfig,
 }
 
 impl SwayOSDApplication {
@@ -69,6 +70,7 @@ impl SwayOSDApplication {
 			app: app.clone(),
 			windows: Rc::new(RefCell::new(Vec::new())),
 			_hold: hold,
+			server_config: server_config.clone(),
 		};
 
 		// Apply Server Config
@@ -347,13 +349,15 @@ impl SwayOSDApplication {
 				}
 			}
 			(ArgTypes::CapsLock, value) => {
-				let i32_value = value.clone().unwrap_or("-1".to_owned());
-				let state = match i32_value.parse::<i32>() {
-					Ok(value) if value >= 0 && value <= 1 => value == 1,
-					_ => get_key_lock_state(KeysLocks::CapsLock, value),
-				};
-				for window in osd_app.windows.borrow().to_owned() {
-					window.changed_keylock(KeysLocks::CapsLock, state)
+				if ! osd_app.server_config.ignore_caps_lock.unwrap_or(false) {
+					let i32_value = value.clone().unwrap_or("-1".to_owned());
+					let state = match i32_value.parse::<i32>() {
+						Ok(value) if value >= 0 && value <= 1 => value == 1,
+						_ => get_key_lock_state(KeysLocks::CapsLock, value),
+					};
+					for window in osd_app.windows.borrow().to_owned() {
+						window.changed_keylock(KeysLocks::CapsLock, state)
+					}
 				}
 			}
 			(ArgTypes::NumLock, value) => {
