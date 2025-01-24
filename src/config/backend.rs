@@ -5,7 +5,9 @@ use std::path::PathBuf;
 
 #[derive(Deserialize, Default, Debug)]
 #[serde(deny_unknown_fields)]
-pub struct InputBackendConfig {}
+pub struct InputBackendConfig {
+	pub ignore_caps_lock_key: Option<bool>,
+}
 
 #[derive(Deserialize, Default, Debug)]
 #[serde(deny_unknown_fields)]
