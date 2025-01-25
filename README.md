@@ -43,6 +43,12 @@ Available on the AUR thanks to @jgmdev! (Don't open a issue here about AUR packa
 
 - [swayosd-git](https://aur.archlinux.org/packages/swayosd-git)
 
+### Debian / Ubuntu
+
+Starting with Debian trixie and Ubuntu Plucky swayosd is available via apt.
+
+- [swayosd](https://tracker.debian.org/swayosd)
+
 ## Usage:
 
 ### SwayOSD LibInput Backend
