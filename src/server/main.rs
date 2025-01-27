@@ -12,6 +12,9 @@ mod global_utils;
 #[path = "../brightness_backend/mod.rs"]
 mod brightness_backend;
 
+#[path = "../mpris-backend/mod.rs"]
+mod playerctl;
+
 #[macro_use]
 extern crate shrinkwraprs;
 
@@ -28,12 +31,9 @@ use gtk::{
 	glib::Bytes,
 	CssProvider, IconTheme,
 };
-use std::env::args_os;
-use std::future::pending;
-use std::path::PathBuf;
-use std::str::FromStr;
+use std::{env::args_os, future::pending, path::PathBuf, str::FromStr, sync::Arc};
 use utils::{get_system_css_path, user_style_path};
-use zbus::{connection, interface};
+use zbus::{interface, ConnectionBuilder};
 
 struct DbusServer {
 	sender: Sender<(ArgTypes, String)>,
@@ -59,7 +59,7 @@ impl DbusServer {
 
 impl DbusServer {
 	async fn new(sender: Sender<(ArgTypes, String)>) -> zbus::Result<()> {
-		let _connection = connection::Builder::session()?
+		let _connection = ConnectionBuilder::session()?
 			.name(DBUS_SERVER_NAME)?
 			.serve_at(DBUS_PATH, DbusServer { sender })?
 			.build()
@@ -128,9 +128,11 @@ fn main() {
 	}
 
 	// Parse Config
-	let server_config = config::user::read_user_config(config_path.as_deref())
-		.expect("Failed to parse config file")
-		.server;
+	let server_config = Arc::new(
+		config::user::read_user_config(config_path.as_deref())
+			.expect("Failed to parse config file")
+			.server,
+	);
 
 	// Load style path from config if none is given on CLI
 	if custom_user_css.is_none() {
