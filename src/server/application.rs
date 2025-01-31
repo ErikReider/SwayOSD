@@ -244,6 +244,25 @@ impl SwayOSDApplication {
 		self.app.run().into()
 	}
 
+	fn choose_windows(osd_app: &SwayOSDApplication) -> Vec<SwayosdWindow> {
+		let mut selected_windows = Vec::new();
+
+		match get_monitor_name() {
+			Some(monitor_name) => {
+				for window in osd_app.windows.borrow().to_owned() {
+					if let Some(monitor_connector) = window.monitor.connector() {
+						if monitor_name == monitor_connector {
+							selected_windows.push(window);
+						}
+					}
+				}
+			}
+			None => return osd_app.windows.borrow().to_owned(),
+		}
+
+		return selected_windows;
+	}
+
 	fn action_activated(osd_app: &SwayOSDApplication, arg_type: ArgTypes, value: Option<String>) {
 		match (arg_type, value) {
 			(ArgTypes::SinkVolumeRaise, step) => {
@@ -251,100 +270,109 @@ impl SwayOSDApplication {
 				if let Some(device) =
 					change_device_volume(&mut device_type, VolumeChangeType::Raise, step)
 				{
-					for window in osd_app.windows.borrow().to_owned() {
+					for window in Self::choose_windows(osd_app) {
 						window.changed_volume(&device, &device_type);
 					}
 				}
 				reset_max_volume();
 				reset_device_name();
+				reset_monitor_name();
 			}
 			(ArgTypes::SinkVolumeLower, step) => {
 				let mut device_type = VolumeDeviceType::Sink(SinkController::create().unwrap());
 				if let Some(device) =
 					change_device_volume(&mut device_type, VolumeChangeType::Lower, step)
 				{
-					for window in osd_app.windows.borrow().to_owned() {
+					for window in Self::choose_windows(osd_app) {
 						window.changed_volume(&device, &device_type);
 					}
 				}
 				reset_max_volume();
 				reset_device_name();
+				reset_monitor_name();
 			}
 			(ArgTypes::SinkVolumeMuteToggle, _) => {
 				let mut device_type = VolumeDeviceType::Sink(SinkController::create().unwrap());
 				if let Some(device) =
 					change_device_volume(&mut device_type, VolumeChangeType::MuteToggle, None)
 				{
-					for window in osd_app.windows.borrow().to_owned() {
+					for window in Self::choose_windows(osd_app) {
 						window.changed_volume(&device, &device_type);
 					}
 				}
 				reset_max_volume();
 				reset_device_name();
+				reset_monitor_name();
 			}
 			(ArgTypes::SourceVolumeRaise, step) => {
 				let mut device_type = VolumeDeviceType::Source(SourceController::create().unwrap());
 				if let Some(device) =
 					change_device_volume(&mut device_type, VolumeChangeType::Raise, step)
 				{
-					for window in osd_app.windows.borrow().to_owned() {
+					for window in Self::choose_windows(osd_app) {
 						window.changed_volume(&device, &device_type);
 					}
 				}
 				reset_max_volume();
 				reset_device_name();
+				reset_monitor_name();
 			}
 			(ArgTypes::SourceVolumeLower, step) => {
 				let mut device_type = VolumeDeviceType::Source(SourceController::create().unwrap());
 				if let Some(device) =
 					change_device_volume(&mut device_type, VolumeChangeType::Lower, step)
 				{
-					for window in osd_app.windows.borrow().to_owned() {
+					for window in Self::choose_windows(osd_app) {
 						window.changed_volume(&device, &device_type);
 					}
 				}
 				reset_max_volume();
 				reset_device_name();
+				reset_monitor_name();
 			}
 			(ArgTypes::SourceVolumeMuteToggle, _) => {
 				let mut device_type = VolumeDeviceType::Source(SourceController::create().unwrap());
 				if let Some(device) =
 					change_device_volume(&mut device_type, VolumeChangeType::MuteToggle, None)
 				{
-					for window in osd_app.windows.borrow().to_owned() {
+					for window in Self::choose_windows(osd_app) {
 						window.changed_volume(&device, &device_type);
 					}
 				}
 				reset_max_volume();
 				reset_device_name();
+				reset_monitor_name();
 			}
 			// TODO: Brightness
 			(ArgTypes::BrightnessRaise, step) => {
 				if let Ok(mut brightness_backend) =
 					change_brightness(BrightnessChangeType::Raise, step)
 				{
-					for window in osd_app.windows.borrow().to_owned() {
+					for window in Self::choose_windows(osd_app) {
 						window.changed_brightness(brightness_backend.as_mut());
 					}
 				}
+				reset_monitor_name();
 			}
 			(ArgTypes::BrightnessLower, step) => {
 				if let Ok(mut brightness_backend) =
 					change_brightness(BrightnessChangeType::Lower, step)
 				{
-					for window in osd_app.windows.borrow().to_owned() {
+					for window in Self::choose_windows(osd_app) {
 						window.changed_brightness(brightness_backend.as_mut());
 					}
 				}
+				reset_monitor_name();
 			}
 			(ArgTypes::BrightnessSet, value) => {
 				if let Ok(mut brightness_backend) =
 					change_brightness(BrightnessChangeType::Set, value)
 				{
-					for window in osd_app.windows.borrow().to_owned() {
+					for window in Self::choose_windows(osd_app) {
 						window.changed_brightness(brightness_backend.as_mut());
 					}
 				}
+				reset_monitor_name();
 			}
 			(ArgTypes::CapsLock, value) => {
 				let i32_value = value.clone().unwrap_or("-1".to_owned());
@@ -352,9 +380,10 @@ impl SwayOSDApplication {
 					Ok(value) if value >= 0 && value <= 1 => value == 1,
 					_ => get_key_lock_state(KeysLocks::CapsLock, value),
 				};
-				for window in osd_app.windows.borrow().to_owned() {
+				for window in Self::choose_windows(osd_app) {
 					window.changed_keylock(KeysLocks::CapsLock, state)
 				}
+				reset_monitor_name();
 			}
 			(ArgTypes::NumLock, value) => {
 				let i32_value = value.clone().unwrap_or("-1".to_owned());
@@ -362,9 +391,10 @@ impl SwayOSDApplication {
 					Ok(value) if value >= 0 && value <= 1 => value == 1,
 					_ => get_key_lock_state(KeysLocks::NumLock, value),
 				};
-				for window in osd_app.windows.borrow().to_owned() {
+				for window in Self::choose_windows(osd_app) {
 					window.changed_keylock(KeysLocks::NumLock, state)
 				}
+				reset_monitor_name();
 			}
 			(ArgTypes::ScrollLock, value) => {
 				let i32_value = value.clone().unwrap_or("-1".to_owned());
@@ -372,9 +402,10 @@ impl SwayOSDApplication {
 					Ok(value) if value >= 0 && value <= 1 => value == 1,
 					_ => get_key_lock_state(KeysLocks::ScrollLock, value),
 				};
-				for window in osd_app.windows.borrow().to_owned() {
+				for window in Self::choose_windows(osd_app) {
 					window.changed_keylock(KeysLocks::ScrollLock, state)
 				}
+				reset_monitor_name();
 			}
 			(ArgTypes::MaxVolume, max) => {
 				let volume: u8 = match max {
@@ -389,13 +420,19 @@ impl SwayOSDApplication {
 			(ArgTypes::DeviceName, name) => {
 				set_device_name(name.unwrap_or(DEVICE_NAME_DEFAULT.to_string()))
 			}
+			(ArgTypes::MonitorName, name) => {
+				if let Some(name) = name {
+					set_monitor_name(name)
+				}
+			}
 			(ArgTypes::CustomMessage, message) => {
 				if let Some(message) = message {
-					for window in osd_app.windows.borrow().to_owned() {
+					for window in Self::choose_windows(osd_app) {
 						window.custom_message(message.as_str(), get_icon_name().as_deref());
 					}
 				}
 				reset_icon_name();
+				reset_monitor_name();
 			}
 			(ArgTypes::CustomIcon, icon) => {
 				set_icon_name(icon.unwrap_or(ICON_NAME_DEFAULT.to_string()))

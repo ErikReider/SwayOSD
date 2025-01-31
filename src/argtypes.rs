@@ -8,6 +8,7 @@ pub enum ArgTypes {
 	TopMargin = isize::MIN + 1,
 	MaxVolume = isize::MIN + 2,
 	CustomIcon = isize::MIN + 3,
+	MonitorName = isize::MIN + 4,
 	// Other
 	None = 0,
 	CapsLock = 1,
@@ -46,6 +47,7 @@ impl fmt::Display for ArgTypes {
 			ArgTypes::TopMargin => "TOP-MARGIN",
 			ArgTypes::CustomMessage => "CUSTOM-MESSAGE",
 			ArgTypes::CustomIcon => "CUSTOM-ICON",
+			ArgTypes::MonitorName => "MONITOR-NAME",
 		};
 		return write!(f, "{}", string);
 	}
@@ -73,6 +75,7 @@ impl str::FromStr for ArgTypes {
 			"TOP-MARGIN" => ArgTypes::TopMargin,
 			"CUSTOM-MESSAGE" => ArgTypes::CustomMessage,
 			"CUSTOM-ICON" => ArgTypes::CustomIcon,
+			"MONITOR-NAME" => ArgTypes::MonitorName,
 			other_type => return Err(other_type.to_owned()),
 		};
 		Ok(result)

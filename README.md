@@ -118,6 +118,18 @@ bindsym XF86MonBrightnessDown exec swayosd-client --brightness -10
 - It only changes the target device for the current action that changes the volume.
 - You can list your input audio devices using `pactl list short sources`, for outputs replace `sources` with `sinks`.
 
+### Notes on using `--monitor`:
+
+- By default, without using --monitor the osd will be shown on all monitors
+- On setups with multiple monitors, if you only want to show the osd on the focused monitor, you can do so with the help of window manager specific commands:
+```sh
+# Sway
+swayosd-client --monitor "$(swaymsg -t get_outputs | jq -r '.[] | select(.focused == true).name')" --output-volume raise
+
+# Hyprland
+swayosd-client --monitor "$(hyprctl monitors -j | jq -r '.[] | select(.focused == true).name')" --output-volume raise
+```
+
 ## Theming
 
 Since SwayOSD uses GTK, its appearance can be changed. Initially scss is used, which GTK does not support, so we need to use plain css. 
