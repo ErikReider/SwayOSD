@@ -118,6 +118,16 @@ pub(crate) fn handle_application_args(
 				};
 				(ArgTypes::DeviceName, Some(value))
 			}
+			"monitor" => {
+				let value = match child.value().str() {
+					Some(v) => v.to_string(),
+					None => {
+						eprintln!("--monitor found but no name given");
+						return (HandleLocalStatus::FAILURE, actions);
+					}
+				};
+				(ArgTypes::MonitorName, Some(value))
+			}
 			"custom-message" => {
 				let value = match child.value().str() {
 					Some(v) => v.to_string(),
