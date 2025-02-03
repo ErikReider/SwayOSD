@@ -8,6 +8,7 @@ pub enum ArgTypes {
 	TopMargin = isize::MIN + 1,
 	MaxVolume = isize::MIN + 2,
 	CustomIcon = isize::MIN + 3,
+	Player = isize::MIN + 4,
 	// Other
 	None = 0,
 	CapsLock = 1,
@@ -23,6 +24,7 @@ pub enum ArgTypes {
 	NumLock = 10,
 	ScrollLock = 11,
 	CustomMessage = 13,
+	Playerctl = 14,
 }
 
 impl fmt::Display for ArgTypes {
@@ -46,6 +48,8 @@ impl fmt::Display for ArgTypes {
 			ArgTypes::TopMargin => "TOP-MARGIN",
 			ArgTypes::CustomMessage => "CUSTOM-MESSAGE",
 			ArgTypes::CustomIcon => "CUSTOM-ICON",
+			ArgTypes::Playerctl => "PLAYERCTL",
+			ArgTypes::Player => "PLAYER",
 		};
 		return write!(f, "{}", string);
 	}
@@ -73,6 +77,8 @@ impl str::FromStr for ArgTypes {
 			"TOP-MARGIN" => ArgTypes::TopMargin,
 			"CUSTOM-MESSAGE" => ArgTypes::CustomMessage,
 			"CUSTOM-ICON" => ArgTypes::CustomIcon,
+			"PLAYERCTL" => ArgTypes::Playerctl,
+			"PLAYER" => ArgTypes::Player,
 			other_type => return Err(other_type.to_owned()),
 		};
 		Ok(result)
