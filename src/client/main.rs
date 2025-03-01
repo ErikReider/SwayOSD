@@ -26,7 +26,7 @@ trait Server {
 	async fn handle_action(&self, arg_type: String, data: String) -> zbus::Result<bool>;
 }
 
-pub fn get_proxy() -> zbus::Result<ServerProxyBlocking<'static>> {
+fn get_proxy() -> zbus::Result<ServerProxyBlocking<'static>> {
 	let connection = Connection::session()?;
 	Ok(ServerProxyBlocking::new(&connection)?)
 }

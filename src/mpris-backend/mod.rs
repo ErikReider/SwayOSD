@@ -147,7 +147,7 @@ impl Playerctl {
 				let name1 = metadata.url().unwrap();
 				let mut counter = 0;
 				while counter < 20 {
-					std::thread::sleep(std::time::Duration::from_millis(5));
+					sleep(Duration::from_millis(5));
 					counter += 1;
 					let metadata = player.get_metadata()?;
 					let name2 = metadata.url().unwrap();

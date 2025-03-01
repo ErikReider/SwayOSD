@@ -2,6 +2,7 @@ use crate::argtypes::ArgTypes;
 use crate::config::{self, APPLICATION_NAME, DBUS_BACKEND_NAME};
 use crate::global_utils::{handle_application_args, HandleLocalStatus};
 use crate::osd_window::SwayosdWindow;
+use crate::playerctl::*;
 use crate::utils::{self, *};
 use async_channel::Receiver;
 use gtk::{
@@ -411,7 +412,6 @@ impl SwayOSDApplication {
 			}
 			(ArgTypes::Player, name) => set_player(name.unwrap_or("".to_string())),
 			(ArgTypes::Playerctl, value) => {
-				use crate::playerctl::*;
 				let value = &value.unwrap_or("".to_string());
 
 				let action = PlayerctlAction::from(value).unwrap();
