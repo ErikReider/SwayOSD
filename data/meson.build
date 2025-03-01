@@ -70,3 +70,7 @@ style_css = custom_target(
 )
 
 message(style_css.full_path())
+
+install_data(['config/config.toml', 'config/backend.toml'],
+  install_dir : config_path
+)

@@ -26,7 +26,7 @@ trait Server {
 	async fn handle_action(&self, arg_type: String, data: String) -> zbus::Result<bool>;
 }
 
-pub fn get_proxy() -> zbus::Result<ServerProxyBlocking<'static>> {
+fn get_proxy() -> zbus::Result<ServerProxyBlocking<'static>> {
 	let connection = Connection::session()?;
 	Ok(ServerProxyBlocking::new(&connection)?)
 }
@@ -156,6 +156,16 @@ fn main() -> Result<(), glib::Error> {
 		"Shows brightness osd and raises or loweres all available sources of brightness device",
 		Some("raise|lower|(±)number"),
 	);
+
+	// Control players cmdline arg
+	app.add_main_option(
+		"playerctl",
+		glib::Char::from(0),
+		OptionFlags::NONE,
+		OptionArg::String,
+		"Shows Playerctl osd and runs the playerctl command",
+		Some("play-pause|play|pause|stop|next|prev|shuffle"),
+	);
 	app.add_main_option(
 		"max-volume",
 		glib::Char::from(0),
@@ -171,6 +181,14 @@ fn main() -> Result<(), glib::Error> {
 		OptionArg::String,
 		"For which device to increase/decrease audio",
 		Some("Pulseaudio device name (pactl list short sinks|sources)"),
+	);
+	app.add_main_option(
+		"player",
+		glib::Char::from(0),
+		OptionFlags::NONE,
+		OptionArg::String,
+		"For which player to run the playerctl commands",
+		Some("auto|all|(playerctl -l)"),
 	);
 
 	app.add_main_option(

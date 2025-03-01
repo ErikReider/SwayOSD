@@ -95,6 +95,19 @@ pub(crate) fn handle_application_args(
 					}
 				}
 			}
+			"playerctl" => {
+				let value = child.value().str().unwrap_or("");
+				match value {
+					"play-pause" | "play" | "pause" | "next" | "prev" | "previous" | "shuffle"
+					| "stop" => (),
+					x => {
+						eprintln!("Unknown Playerctl command: \"{}\"!...", x);
+						return (HandleLocalStatus::FAILURE, actions);
+					}
+				}
+
+				(ArgTypes::Playerctl, Some(value.to_string()))
+			}
 			"device" => {
 				let value = match child.value().str() {
 					Some(v) => v.to_string(),
@@ -124,6 +137,16 @@ pub(crate) fn handle_application_args(
 					}
 				};
 				(ArgTypes::CustomIcon, Some(value))
+			}
+			"player" => {
+				let value = match child.value().str() {
+					Some(v) => v.to_string(),
+					None => {
+						eprintln!("--player found but no name given");
+						return (HandleLocalStatus::FAILURE, actions);
+					}
+				};
+				(ArgTypes::Player, Some(value))
 			}
 			"top-margin" => {
 				let value = child.value().str().unwrap_or("").trim();

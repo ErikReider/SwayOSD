@@ -1,0 +1,19 @@
+[client]
+## style file for the OSD
+# style = /etc/xdg/swayosd/style.css
+
+## on which height to show the OSD
+# top_margin = 0.85
+
+## The maximum volume that can be reached in %
+# max_volume = 150
+
+## show percentage on the right of the OSD
+# show_percentage = true
+
+## set format for the media player OSD
+# playerctl_format = "{artist} - {title}"
+## Available values:
+## artist, albumArtist, title, album, trackNumber, discNumber, autoRating
+
+[server]

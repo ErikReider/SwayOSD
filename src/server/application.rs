@@ -2,6 +2,7 @@ use crate::argtypes::ArgTypes;
 use crate::config::{self, APPLICATION_NAME, DBUS_BACKEND_NAME};
 use crate::global_utils::{handle_application_args, HandleLocalStatus};
 use crate::osd_window::SwayosdWindow;
+use crate::playerctl::*;
 use crate::utils::{self, *};
 use async_channel::Receiver;
 use gtk::{
@@ -31,7 +32,10 @@ pub struct SwayOSDApplication {
 }
 
 impl SwayOSDApplication {
-	pub fn new(server_config: ServerConfig, action_receiver: Receiver<(ArgTypes, String)>) -> Self {
+	pub fn new(
+		server_config: Arc<ServerConfig>,
+		action_receiver: Receiver<(ArgTypes, String)>,
+	) -> Self {
 		let app = Application::new(Some(APPLICATION_NAME), ApplicationFlags::FLAGS_NONE);
 		let hold = Rc::new(app.hold());
 
@@ -84,6 +88,8 @@ impl SwayOSDApplication {
 			set_show_percentage(show);
 		}
 
+		let server_config_shared = server_config.clone();
+
 		// Parse args
 		app.connect_handle_local_options(clone!(
 			#[strong]
@@ -113,7 +119,12 @@ impl SwayOSDApplication {
 								set_default_max_volume(max);
 							}
 						}
-						(arg_type, data) => Self::action_activated(&osd_app, arg_type, data),
+						(arg_type, data) => Self::action_activated(
+							&osd_app,
+							server_config_shared.clone(),
+							arg_type,
+							data,
+						),
 					}
 				}
 
@@ -121,17 +132,25 @@ impl SwayOSDApplication {
 			}
 		));
 
-		// Listen to any Client actions
+		let server_config_shared = server_config.clone();
+
 		MainContext::default().spawn_local(clone!(
 			#[strong]
 			osd_app,
 			async move {
 				while let Ok((arg_type, data)) = action_receiver.recv().await {
-					Self::action_activated(&osd_app, arg_type, (!data.is_empty()).then_some(data));
+					Self::action_activated(
+						&osd_app,
+						server_config_shared.clone(),
+						arg_type,
+						(!data.is_empty()).then_some(data),
+					);
 				}
 				Break
 			}
 		));
+
+		let server_config_shared = server_config.clone();
 
 		// Listen to the LibInput Backend and activate the Application action
 		let (sender, receiver) = async_channel::bounded::<(u16, i32)>(1);
@@ -153,7 +172,7 @@ impl SwayOSDApplication {
 							}
 							_ => continue,
 						};
-					Self::action_activated(&osd_app, arg_type, data);
+					Self::action_activated(&osd_app, server_config_shared.clone(), arg_type, data);
 				}
 				Break
 			}
@@ -244,7 +263,12 @@ impl SwayOSDApplication {
 		self.app.run().into()
 	}
 
-	fn action_activated(osd_app: &SwayOSDApplication, arg_type: ArgTypes, value: Option<String>) {
+	fn action_activated(
+		osd_app: &SwayOSDApplication,
+		server_config: Arc<ServerConfig>,
+		arg_type: ArgTypes,
+		value: Option<String>,
+	) {
 		match (arg_type, value) {
 			(ArgTypes::SinkVolumeRaise, step) => {
 				let mut device_type = VolumeDeviceType::Sink(SinkController::create().unwrap());
@@ -385,6 +409,29 @@ impl SwayOSDApplication {
 					_ => get_default_max_volume(),
 				};
 				set_max_volume(volume)
+			}
+			(ArgTypes::Player, name) => set_player(name.unwrap_or("".to_string())),
+			(ArgTypes::Playerctl, value) => {
+				let value = &value.unwrap_or("".to_string());
+
+				let action = PlayerctlAction::from(value).unwrap();
+				if let Ok(mut player) = Playerctl::new(action, server_config) {
+					match player.run() {
+						Ok(_) => {
+							let (icon, label) = (player.icon.unwrap(), player.label.unwrap());
+							for window in osd_app.windows.borrow().to_owned() {
+								window.changed_player(&icon, &label)
+							}
+						}
+						Err(x) => {
+							eprintln!("couldn't run player change: \"{:?}\"!", x)
+						}
+					}
+				} else {
+					eprintln!("Unable to get players! are any opened?")
+				}
+
+				reset_player();
 			}
 			(ArgTypes::DeviceName, name) => {
 				set_device_name(name.unwrap_or(DEVICE_NAME_DEFAULT.to_string()))
