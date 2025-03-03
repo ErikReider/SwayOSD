@@ -22,6 +22,7 @@ lazy_static! {
 	static ref MAX_VOLUME: Mutex<u8> = Mutex::new(PRIV_MAX_VOLUME_DEFAULT);
 	pub static ref DEVICE_NAME_DEFAULT: &'static str = "default";
 	static ref DEVICE_NAME: Mutex<Option<String>> = Mutex::new(None);
+	static ref MONITOR_NAME: Mutex<Option<String>> = Mutex::new(None);
 	pub static ref ICON_NAME_DEFAULT: &'static str = "text-x-generic";
 	static ref ICON_NAME: Mutex<Option<String>> = Mutex::new(None);
 	static ref PLAYER_NAME: Mutex<PlayerctlDeviceRaw> = Mutex::new(PlayerctlDeviceRaw::None);
@@ -89,6 +90,20 @@ pub fn set_device_name(name: String) {
 pub fn reset_device_name() {
 	let mut global_name = DEVICE_NAME.lock().unwrap();
 	*global_name = None;
+}
+
+pub fn get_monitor_name() -> Option<String> {
+	(*MONITOR_NAME.lock().unwrap()).clone()
+}
+
+pub fn set_monitor_name(name: String) {
+	let mut monitor_name = MONITOR_NAME.lock().unwrap();
+	*monitor_name = Some(name);
+}
+
+pub fn reset_monitor_name() {
+	let mut monitor_name = MONITOR_NAME.lock().unwrap();
+	*monitor_name = None;
 }
 
 pub fn get_icon_name() -> Option<String> {

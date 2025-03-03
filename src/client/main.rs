@@ -192,6 +192,15 @@ fn main() -> Result<(), glib::Error> {
 	);
 
 	app.add_main_option(
+		"monitor",
+		glib::Char::from(0),
+		OptionFlags::NONE,
+		OptionArg::String,
+		"Which monitor to display osd on",
+		Some("Monitor identifier (e.g., HDMI-A-1, DP-1)"),
+	);
+
+	app.add_main_option(
 		"custom-message",
 		glib::Char::from(0),
 		OptionFlags::NONE,

@@ -9,6 +9,7 @@ pub enum ArgTypes {
 	MaxVolume = isize::MIN + 2,
 	CustomIcon = isize::MIN + 3,
 	Player = isize::MIN + 4,
+	MonitorName = isize::MIN + 5,
 	// Other
 	None = 0,
 	CapsLock = 1,
@@ -50,6 +51,7 @@ impl fmt::Display for ArgTypes {
 			ArgTypes::CustomIcon => "CUSTOM-ICON",
 			ArgTypes::Playerctl => "PLAYERCTL",
 			ArgTypes::Player => "PLAYER",
+			ArgTypes::MonitorName => "MONITOR-NAME",
 		};
 		return write!(f, "{}", string);
 	}
@@ -79,6 +81,7 @@ impl str::FromStr for ArgTypes {
 			"CUSTOM-ICON" => ArgTypes::CustomIcon,
 			"PLAYERCTL" => ArgTypes::Playerctl,
 			"PLAYER" => ArgTypes::Player,
+			"MONITOR-NAME" => ArgTypes::MonitorName,
 			other_type => return Err(other_type.to_owned()),
 		};
 		Ok(result)
