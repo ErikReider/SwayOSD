@@ -1,11 +1,6 @@
 datadir = get_option('datadir')
 libdir = get_option('libdir')
 
-# LICENSE
-install_data(
-  '../LICENSE',
-  install_dir: join_paths(datadir, 'licenses', meson.project_name())
-)
 # udev rules
 install_data(
   join_paths('udev', '99-swayosd.rules'),
