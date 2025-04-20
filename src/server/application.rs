@@ -454,9 +454,9 @@ impl SwayOSDApplication {
 				if let Ok(mut player) = Playerctl::new(action, server_config) {
 					match player.run() {
 						Ok(_) => {
-							let (icon, label) = (player.icon.unwrap(), player.label.unwrap());
+							let (icon, label) = (player.icon.unwrap_or_default(), &player.label);
 							for window in Self::choose_windows(osd_app) {
-								window.changed_player(&icon, &label)
+								window.changed_player(&icon, label.as_deref())
 							}
 							reset_monitor_name();
 						}
