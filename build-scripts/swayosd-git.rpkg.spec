@@ -25,6 +25,7 @@ BuildRequires:  pkgconfig(libpulse)
 BuildRequires:  pkgconfig(libudev)
 BuildRequires:  pkgconfig(libevdev)
 BuildRequires:  pkgconfig(libinput)
+BuildRequires:  pkgconfig(dbus-1)
 BuildRequires:  systemd-devel
 BuildRequires:  systemd
 BuildRequires:  sassc
