@@ -46,7 +46,14 @@ impl Playerctl {
 		let player = match player {
 			PlayerctlDeviceRaw::None => PlayerctlDevice::Some(playerfinder.find_active()?),
 			PlayerctlDeviceRaw::Some(name) => {
-				PlayerctlDevice::Some(playerfinder.find_by_name(name.as_str())?)
+				let possible_player = playerfinder.find_all()?.into_iter().find(|p| {
+					let bus = p.bus_name();
+					bus.strip_prefix("org.mpris.MediaPlayer2.").unwrap_or(bus) == name
+				});
+				match possible_player {
+					Some(player) => PlayerctlDevice::Some(player),
+					None => return Err(From::from(mpris::FindingError::NoPlayerFound)),
+				}
 			}
 			PlayerctlDeviceRaw::All => PlayerctlDevice::All(playerfinder.find_all()?),
 		};
