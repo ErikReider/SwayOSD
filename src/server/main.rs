@@ -101,7 +101,7 @@ fn main() {
 			gtk::style_context_add_provider_for_display(
 				&display,
 				&provider,
-				gtk::STYLE_PROVIDER_PRIORITY_APPLICATION as u32,
+				gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
 			);
 		}
 		None => eprintln!("Could not find the system CSS file..."),
@@ -149,7 +149,7 @@ fn main() {
 		gtk::style_context_add_provider_for_display(
 			&display,
 			&user_provider,
-			gtk::STYLE_PROVIDER_PRIORITY_APPLICATION as u32,
+			gtk::STYLE_PROVIDER_PRIORITY_USER,
 		);
 		println!("Loaded user defined CSS file");
 	}
