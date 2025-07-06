@@ -148,6 +148,29 @@ pub(crate) fn handle_application_args(
 				};
 				(ArgTypes::CustomIcon, Some(value))
 			}
+			"custom-progress" => {
+				let value = child.value().get::<f64>();
+				match value {
+					Some(value) => (ArgTypes::CustomProgress, Some(value.to_string())),
+					None => {
+						eprintln!(
+							"{} is not a number between 0.0 and 1.0!",
+							child.value().print(true)
+						);
+						return (HandleLocalStatus::FAILURE, actions);
+					}
+				}
+			}
+			"custom-progress-text" => {
+				let value = match child.value().str() {
+					Some(v) => v.to_string(),
+					None => {
+						eprintln!("custom-progress-text found but no text given");
+						return (HandleLocalStatus::FAILURE, actions);
+					}
+				};
+				(ArgTypes::CustomProgressText, Some(value))
+			}
 			"player" => {
 				let value = match child.value().str() {
 					Some(v) => v.to_string(),
