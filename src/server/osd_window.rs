@@ -1,6 +1,6 @@
-use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Duration;
+use std::{cell::RefCell, ops::Deref};
 
 use gtk::{
 	gdk,
@@ -211,6 +211,25 @@ impl SwayosdWindow {
 
 		self.container.append(&icon);
 		self.container.append(&label);
+
+		self.run_timeout();
+	}
+
+	pub fn custom_progress(&self, fraction: f64, text: Option<String>, icon_name: Option<&str>) {
+		self.clear_osd();
+
+		if let Some(icon_name) = icon_name {
+			let icon = self.build_icon_widget(icon_name);
+			self.container.append(&icon);
+		}
+
+		let progress = self.build_progress_widget(fraction.clamp(0.0, 1.0));
+		self.container.append(&progress);
+
+		if let Some(text) = text {
+			let label = self.build_text_widget(Some(text.deref()));
+			self.container.append(&label);
+		}
 
 		self.run_timeout();
 	}

@@ -10,6 +10,7 @@ pub enum ArgTypes {
 	CustomIcon = isize::MIN + 3,
 	Player = isize::MIN + 4,
 	MonitorName = isize::MIN + 5,
+	CustomProgressText = isize::MIN + 6,
 	// Other
 	None = 0,
 	CapsLock = 1,
@@ -26,6 +27,7 @@ pub enum ArgTypes {
 	ScrollLock = 11,
 	CustomMessage = 13,
 	Playerctl = 14,
+	CustomProgress = 15,
 }
 
 impl fmt::Display for ArgTypes {
@@ -52,6 +54,8 @@ impl fmt::Display for ArgTypes {
 			ArgTypes::Playerctl => "PLAYERCTL",
 			ArgTypes::Player => "PLAYER",
 			ArgTypes::MonitorName => "MONITOR-NAME",
+			ArgTypes::CustomProgress => "CUSTOM-PROGRESS",
+			ArgTypes::CustomProgressText => "CUSTOM-PROGRESS-TEXT",
 		};
 		return write!(f, "{}", string);
 	}
@@ -82,6 +86,8 @@ impl str::FromStr for ArgTypes {
 			"PLAYERCTL" => ArgTypes::Playerctl,
 			"PLAYER" => ArgTypes::Player,
 			"MONITOR-NAME" => ArgTypes::MonitorName,
+			"CUSTOM-PROGRESS" => ArgTypes::CustomProgress,
+			"CUSTOM-PROGRESS-TEXT" => ArgTypes::CustomProgressText,
 			other_type => return Err(other_type.to_owned()),
 		};
 		Ok(result)

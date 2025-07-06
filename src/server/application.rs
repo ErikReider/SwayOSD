@@ -487,6 +487,22 @@ impl SwayOSDApplication {
 				reset_icon_name();
 				reset_monitor_name();
 			}
+			(ArgTypes::CustomProgress, fraction) => {
+				if let Some(fraction) = fraction {
+					let fraction: f64 = fraction.parse::<f64>().unwrap_or(1.0);
+					for window in Self::choose_windows(osd_app) {
+						window.custom_progress(
+							fraction,
+							get_progress_text(),
+							get_icon_name().as_deref(),
+						);
+					}
+				}
+				reset_progress_text();
+				reset_icon_name();
+				reset_monitor_name();
+			}
+			(ArgTypes::CustomProgressText, text) => set_progress_text(text),
 			(ArgTypes::CustomIcon, icon) => {
 				set_icon_name(icon.unwrap_or(ICON_NAME_DEFAULT.to_string()))
 			}

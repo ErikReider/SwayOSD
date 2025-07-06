@@ -214,8 +214,26 @@ fn main() -> Result<(), glib::Error> {
 		glib::Char::from(0),
 		OptionFlags::NONE,
 		OptionArg::String,
-		"Icon to display when using custom-message. Icon name is from Freedesktop specification (https://specifications.freedesktop.org/icon-naming-spec/latest/)",
+		"Icon to display when using custom-message/custom-progress. Icon name is from Freedesktop specification (https://specifications.freedesktop.org/icon-naming-spec/latest/)",
 		Some("Icon name"),
+	);
+
+	app.add_main_option(
+		"custom-progress",
+		glib::Char::from(0),
+		OptionFlags::NONE,
+		OptionArg::Double,
+		"Progress to display (0.0 <-> 1.0)",
+		Some("Progress from 0.0 to 1.0"),
+	);
+
+	app.add_main_option(
+		"custom-progress-text",
+		glib::Char::from(0),
+		OptionFlags::NONE,
+		OptionArg::String,
+		"Text to display when using custom-progress",
+		Some("Progress text"),
 	);
 
 	// Parse args

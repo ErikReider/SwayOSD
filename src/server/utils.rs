@@ -25,6 +25,7 @@ lazy_static! {
 	static ref MONITOR_NAME: Mutex<Option<String>> = Mutex::new(None);
 	pub static ref ICON_NAME_DEFAULT: &'static str = "text-x-generic";
 	static ref ICON_NAME: Mutex<Option<String>> = Mutex::new(None);
+	static ref PROGRESS_TEXT: Mutex<Option<String>> = Mutex::new(None);
 	static ref PLAYER_NAME: Mutex<PlayerctlDeviceRaw> = Mutex::new(PlayerctlDeviceRaw::None);
 	pub static ref TOP_MARGIN_DEFAULT: f32 = 0.85_f32;
 	static ref TOP_MARGIN: Mutex<f32> = Mutex::new(*TOP_MARGIN_DEFAULT);
@@ -104,6 +105,20 @@ pub fn set_monitor_name(name: String) {
 pub fn reset_monitor_name() {
 	let mut monitor_name = MONITOR_NAME.lock().unwrap();
 	*monitor_name = None;
+}
+
+pub fn get_progress_text() -> Option<String> {
+	(*PROGRESS_TEXT.lock().unwrap()).clone()
+}
+
+pub fn set_progress_text(name: Option<String>) {
+	let mut progress_text = PROGRESS_TEXT.lock().unwrap();
+	*progress_text = name;
+}
+
+pub fn reset_progress_text() {
+	let mut progress_text = PROGRESS_TEXT.lock().unwrap();
+	*progress_text = None;
 }
 
 pub fn get_icon_name() -> Option<String> {
