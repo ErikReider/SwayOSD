@@ -540,7 +540,7 @@ impl SwayOSDApplication {
 							.item(position + i)
 							.and_then(|obj| obj.downcast::<gdk::Monitor>().ok())
 						{
-							_self.add_window(&display, &mon);
+							_self.add_window(&mon);
 						}
 					}
 				}
@@ -548,8 +548,8 @@ impl SwayOSDApplication {
 		));
 	}
 
-	fn add_window(&self, display: &gdk::Display, monitor: &gdk::Monitor) {
-		let win = SwayosdWindow::new(&self.app, display, monitor);
+	fn add_window(&self, monitor: &gdk::Monitor) {
+		let win = SwayosdWindow::new(&self.app, monitor);
 		self.windows.borrow_mut().push(win);
 	}
 
@@ -565,7 +565,7 @@ impl SwayOSDApplication {
 				Some(x) => x,
 				_ => continue,
 			};
-			self.add_window(display, &monitor);
+			self.add_window(&monitor);
 		}
 	}
 

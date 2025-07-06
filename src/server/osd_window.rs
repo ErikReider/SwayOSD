@@ -25,7 +25,6 @@ const ICON_SIZE: i32 = 32;
 #[derive(Clone, Debug)]
 pub struct SwayosdWindow {
 	pub window: gtk::ApplicationWindow,
-	pub display: gdk::Display,
 	pub monitor: gdk::Monitor,
 	container: gtk::Box,
 	timeout_id: Rc<RefCell<Option<glib::SourceId>>>,
@@ -33,14 +32,14 @@ pub struct SwayosdWindow {
 
 impl SwayosdWindow {
 	/// Create a new window and assign it to the given application.
-	pub fn new(app: &gtk::Application, display: &gdk::Display, monitor: &gdk::Monitor) -> Self {
+	pub fn new(app: &gtk::Application, monitor: &gdk::Monitor) -> Self {
 		let window = gtk::ApplicationWindow::new(app);
 		window.set_widget_name("osd");
 		window.add_css_class("osd");
 
 		window.init_layer_shell();
-		window.set_monitor(monitor);
-		window.set_namespace("swayosd");
+		window.set_monitor(Some(monitor));
+		window.set_namespace(Some("swayosd"));
 
 		window.set_exclusive_zone(-1);
 		window.set_layer(gtk_layer_shell::Layer::Overlay);
@@ -97,7 +96,6 @@ impl SwayosdWindow {
 		Self {
 			window,
 			container,
-			display: display.clone(),
 			monitor: monitor.clone(),
 			timeout_id: Rc::new(RefCell::new(None)),
 		}

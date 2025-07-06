@@ -62,7 +62,7 @@ fn main() -> Result<(), zbus::Error> {
 	assert!(fd != -1);
 	let borrowed_fd = unsafe { BorrowedFd::borrow_raw(input.as_raw_fd()) };
 	let pollfd = PollFd::new(borrowed_fd, PollFlags::POLLIN);
-	while poll(&mut [pollfd], None::<u8>).is_ok() {
+	while poll(&mut [pollfd.clone()], None::<u8>).is_ok() {
 		event(&input_config, &mut input, &iface_ref);
 	}
 
