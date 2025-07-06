@@ -235,17 +235,16 @@ pub fn change_device_volume(
 		VolumeDeviceType::Source(controller) => {
 			let server_info = controller.get_server_info();
 			let global_name = get_device_name();
-			let device_name: String = if global_name.is_none() {
+			let device_name: String = if let Some(name) = global_name {
+				name
+			} else {
 				match server_info {
 					Ok(info) => info.default_source_name.unwrap_or("".to_string()),
 					Err(e) => {
-						eprintln!("Error getting default_source: {}", e);
-						return None;
+						eprintln!("Error getting default_sink: {}, using default", e);
+						DEVICE_NAME_DEFAULT.to_string()
 					}
 				}
-			} else {
-				set_device_name(DEVICE_NAME_DEFAULT.to_string());
-				get_device_name().unwrap()
 			};
 			match controller.get_device_by_name(&device_name) {
 				Ok(device) => (device, device_name.clone()),
