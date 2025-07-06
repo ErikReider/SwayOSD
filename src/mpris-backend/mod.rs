@@ -46,7 +46,14 @@ impl Playerctl {
 		let player = match player {
 			PlayerctlDeviceRaw::None => PlayerctlDevice::Some(playerfinder.find_active()?),
 			PlayerctlDeviceRaw::Some(name) => {
-				PlayerctlDevice::Some(playerfinder.find_by_name(name.as_str())?)
+				let possible_player = playerfinder.find_all()?.into_iter().find(|p| {
+					let bus = p.bus_name();
+					bus.strip_prefix("org.mpris.MediaPlayer2.").unwrap_or(bus) == name
+				});
+				match possible_player {
+					Some(player) => PlayerctlDevice::Some(player),
+					None => return Err(From::from(mpris::FindingError::NoPlayerFound)),
+				}
 			}
 			PlayerctlDeviceRaw::All => PlayerctlDevice::All(playerfinder.find_all()?),
 		};
@@ -60,12 +67,12 @@ impl Playerctl {
 		})
 	}
 	pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
-		let mut metadata = Err("some errro");
+		let mut metadata = None;
 		let mut icon = Err("some errro");
 		match &self.player {
 			PlayerctlDevice::Some(player) => {
 				icon = Ok(self.run_single(player)?);
-				metadata = self.get_metadata(player).or_else(|_| Err(""));
+				metadata = self.get_metadata(player);
 			}
 			PlayerctlDevice::All(players) => {
 				for player in players {
@@ -75,19 +82,15 @@ impl Playerctl {
 							icon = Ok(icon_new);
 						}
 					};
-					if let Err(_) = metadata {
-						metadata = self.get_metadata(player).or_else(|_| Err(""));
+					if metadata.is_none() {
+						metadata = self.get_metadata(player);
 					}
 				}
 			}
 		};
 
 		self.icon = Some(icon.unwrap_or("").to_string());
-		let label = if let Ok(metadata) = metadata {
-			Some(self.fmt_string(metadata))
-		} else {
-			None
-		};
+		let label = metadata.map(|metadata| self.fmt_string(metadata));
 		self.label = label;
 		Ok(())
 	}
@@ -135,29 +138,29 @@ impl Playerctl {
 		};
 		Ok(out)
 	}
-	fn get_metadata(&self, player: &Player) -> Result<Metadata, mpris::DBusError> {
+	fn get_metadata(&self, player: &Player) -> Option<Metadata> {
 		match self.action {
 			Next | Prev => {
 				if let Ok(track_list) = player.get_track_list() {
 					if let Some(track) = track_list.get(0) {
-						return player.get_track_metadata(track);
+						return player.get_track_metadata(track).ok();
 					}
 				}
-				let metadata = player.get_metadata()?;
-				let name1 = metadata.url().unwrap();
+				let metadata = player.get_metadata().ok()?;
+				let name1 = metadata.url()?;
 				let mut counter = 0;
 				while counter < 20 {
 					sleep(Duration::from_millis(5));
 					counter += 1;
-					let metadata = player.get_metadata()?;
-					let name2 = metadata.url().unwrap();
+					let metadata = player.get_metadata().ok()?;
+					let name2 = metadata.url()?;
 					if name1 != name2 {
-						return Ok(metadata);
+						return Some(metadata);
 					}
 				}
-				Ok(metadata)
+				Some(metadata)
 			}
-			_ => player.get_metadata(),
+			_ => player.get_metadata().ok(),
 		}
 	}
 	fn fmt_string(&self, metadata: mpris::Metadata) -> String {
