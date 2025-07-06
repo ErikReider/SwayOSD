@@ -166,11 +166,11 @@ impl SwayosdWindow {
 		self.run_timeout();
 	}
 
-	pub fn changed_player(&self, icon: &str, label: &str) {
+	pub fn changed_player(&self, icon: &str, label: Option<&str>) {
 		self.clear_osd();
 
-		let icon = self.build_icon_widget(&icon);
-		let label = self.build_text_widget(Some(&label));
+		let icon = self.build_icon_widget(icon);
+		let label = self.build_text_widget(label);
 
 		self.container.append(&icon);
 		self.container.append(&label);
