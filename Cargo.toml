@@ -17,6 +17,9 @@ path = "src/input-backend/main.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[profile.release]
+lto = true
+
 [dependencies]
 # Config dependencies
 toml = "0.8"
