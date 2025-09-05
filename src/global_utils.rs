@@ -1,4 +1,5 @@
-use gtk::glib::{variant::DictEntry, Variant};
+use gtk::glib::{variant::DictEntry, ExitCode, Variant};
+use std::ops::ControlFlow;
 
 use crate::argtypes::ArgTypes;
 
@@ -6,6 +7,12 @@ pub enum HandleLocalStatus {
 	FAILURE = 1,
 	SUCCESS = 0,
 	CONTINUE = -1,
+}
+
+impl HandleLocalStatus {
+	pub fn as_return_code(self) -> ControlFlow<ExitCode> {
+		ControlFlow::Break(ExitCode::new(self as u8))
+	}
 }
 
 pub(crate) fn handle_application_args(
