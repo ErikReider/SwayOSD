@@ -109,6 +109,11 @@ bindsym XF86MonBrightnessDown exec swayosd-client --brightness lower
 bindsym XF86MonBrightnessUp  exec swayosd-client --brightness +10
 # Brightness lower with custom value('-' sign needed)
 bindsym XF86MonBrightnessDown exec swayosd-client --brightness -10
+
+# Play/Pause current player
+bindsym XF86AudioPlay exec swayosd-client --playerctl play-pause
+# Next song for current player
+bindsym XF86AudioPlay exec swayosd-client --playerctl play-pause
 ```
 
 ### Notes on using `--device`:
