@@ -1,6 +1,6 @@
 # This is a basic workflow to help you get started with Actions
 
-name: Rust Format
+name: Rust Checks
 
 # Controls when the workflow will run
 on:
@@ -32,12 +32,40 @@ jobs:
 
   clippy_check:
     name: cargo clippy
+    container: fedora:latest
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      # Ensure clippy is installed and setup problem matcher
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: Install system packages
+        run: |
+          microdnf -y install --nodocs --setopt=install_weak_deps=0 \
+            @development-tools @rpm-development-tools rpkg git nodejs rustup \
+            'dnf5-command(builddep)' 'dnf5-command(copr)'
+
+      # It is necessary to checkout into sub-directory, because of some weird ownership problems cause by using containers
+      - name: Check out sources
+        uses: actions/checkout@v5
         with:
-          components: clippy
+          fetch-depth: 0
+          path: swayosd
+
+      - name: Copy spec into root dir
+        run: |
+          cd swayosd
+          cp ./build-scripts/swayosd-git.rpkg.spec ./
+
+      - name: Generate spec
+        run: |
+          cd swayosd
+          mkdir specs -p
+          rpkg spec --source  --outdir specs
+
+      - name: Install build dependencies
+        run: |
+          cd swayosd
+          microdnf -y builddep ./specs/swayosd-git.rpkg.spec
+          rustup-init -y --default-toolchain nightly
+
       - name: Run Clippy
-        run: cargo clippy --all-targets --all-features
+        run: |
+          cd swayosd
+          cargo clippy --all-targets --all-features
