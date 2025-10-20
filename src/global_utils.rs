@@ -4,14 +4,18 @@ use std::ops::ControlFlow;
 use crate::argtypes::ArgTypes;
 
 pub enum HandleLocalStatus {
-	FAILURE = 1,
-	SUCCESS = 0,
-	CONTINUE = -1,
+	FAILURE,
+	SUCCESS,
+	CONTINUE,
 }
 
 impl HandleLocalStatus {
-	pub fn as_return_code(self) -> ControlFlow<ExitCode> {
-		ControlFlow::Break(ExitCode::new(self as u8))
+	pub fn as_return_code(&self) -> ControlFlow<ExitCode> {
+		match self {
+			HandleLocalStatus::CONTINUE => ControlFlow::Continue(()),
+			HandleLocalStatus::FAILURE => ControlFlow::Break(ExitCode::new(1)),
+			HandleLocalStatus::SUCCESS => ControlFlow::Break(ExitCode::new(0)),
+		}
 	}
 }
 
