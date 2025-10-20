@@ -241,19 +241,19 @@ fn main() -> Result<(), glib::Error> {
 		let variant = args.to_variant();
 		if variant.n_children() == 0 {
 			eprintln!("No args provided...");
-			return HandleLocalStatus::FAILURE as i32;
+			return HandleLocalStatus::FAILURE.as_return_code();
 		}
 		let actions = match handle_application_args(variant) {
 			(HandleLocalStatus::SUCCESS, actions) => actions,
-			(status @ HandleLocalStatus::FAILURE, _) => return status as i32,
-			(status @ HandleLocalStatus::CONTINUE, _) => return status as i32,
+			(status @ HandleLocalStatus::FAILURE, _) => return status.as_return_code(),
+			(status @ HandleLocalStatus::CONTINUE, _) => return status.as_return_code(),
 		};
 		// execute the sorted actions
 		for (arg_type, data) in actions {
 			let _ = proxy.handle_action(arg_type.to_string(), data.unwrap_or(String::new()));
 		}
 
-		HandleLocalStatus::SUCCESS as i32
+		HandleLocalStatus::SUCCESS.as_return_code()
 	});
 
 	std::process::exit(app.run().into());

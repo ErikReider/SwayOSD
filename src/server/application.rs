@@ -97,7 +97,7 @@ impl SwayOSDApplication {
 			move |_app, args| {
 				let actions = match handle_application_args(args.to_variant()) {
 					(HandleLocalStatus::SUCCESS | HandleLocalStatus::CONTINUE, actions) => actions,
-					(status @ HandleLocalStatus::FAILURE, _) => return status as i32,
+					(status @ HandleLocalStatus::FAILURE, _) => return status.as_return_code(),
 				};
 				for (arg_type, data) in actions {
 					match (arg_type, data) {
@@ -128,7 +128,7 @@ impl SwayOSDApplication {
 					}
 				}
 
-				HandleLocalStatus::CONTINUE as i32
+				HandleLocalStatus::CONTINUE.as_return_code()
 			}
 		));
 
