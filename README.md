@@ -37,11 +37,10 @@ ninja -C build
 meson install -C build
 ```
 
-### AUR
+### Arch Linux
 
-Available on the AUR thanks to @jgmdev! (Don't open a issue here about AUR package)
-
-- [swayosd-git](https://aur.archlinux.org/packages/swayosd-git)
+- extra: [swayosd](https://archlinux.org/packages/extra/x86_64/swayosd/)
+- AUR: [swayosd-git](https://aur.archlinux.org/packages/swayosd-git) (thanks to @jgmdev! Don't report AUR packaging issues here)
 
 ### Debian / Ubuntu
 
