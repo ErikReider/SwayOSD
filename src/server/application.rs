@@ -4,8 +4,8 @@ use crate::global_utils::{handle_application_args, HandleLocalStatus};
 use crate::osd_window::SwayosdWindow;
 use crate::playerctl::*;
 use crate::utils::{self, *};
-use async_channel::Receiver;
-use gtk::gio::ListModel;
+use async_channel::{Receiver, Sender};
+use gtk::gio::{DBusConnection, ListModel};
 use gtk::{
 	gdk,
 	gio::{
@@ -133,8 +133,8 @@ impl SwayOSDApplication {
 			}
 		));
 
+		// Listen for any actions sent from swayosd-client
 		let server_config_shared = server_config.clone();
-
 		MainContext::default().spawn_local(clone!(
 			#[strong]
 			osd_app,
@@ -152,9 +152,8 @@ impl SwayOSDApplication {
 		));
 
 		let server_config_shared = server_config.clone();
-
-		// Listen to the LibInput Backend and activate the Application action
 		let (sender, receiver) = async_channel::bounded::<(u16, i32)>(1);
+		// Listen to the LibInput Backend and activate the Application action
 		MainContext::default().spawn_local(clone!(
 			#[strong]
 			osd_app,
@@ -189,69 +188,78 @@ impl SwayOSDApplication {
 				sender,
 				#[strong]
 				signal_id,
-				move |connection, _, _| {
-					println!("Connecting to the SwayOSD LibInput Backend");
-					let mut mutex = match signal_id.lock() {
-						Ok(mut mutex) => match mutex.as_mut() {
-							Some(_) => return,
-							None => mutex,
-						},
-						Err(error) => return println!("Mutex lock Error: {}", error),
-					};
-					mutex.replace(connection.signal_subscribe(
-						Some(config::DBUS_BACKEND_NAME),
-						Some(config::DBUS_BACKEND_NAME),
-						Some("KeyPressed"),
-						Some(config::DBUS_PATH),
-						None,
-						DBusSignalFlags::NONE,
-						clone!(
-							#[strong]
-							sender,
-							move |_, _, _, _, _, variant| {
-								let key_code = variant.try_child_get::<u16>(0);
-								let state = variant.try_child_get::<i32>(1);
-								match (key_code, state) {
-									(Ok(Some(key_code)), Ok(Some(state))) => {
-										MainContext::default().spawn_local(clone!(
-											#[strong]
-											sender,
-											async move {
-												if let Err(error) =
-													sender.send((key_code, state)).await
-												{
-													eprintln!("Channel Send error: {}", error);
-												}
-											}
-										));
-									}
-									variables => {
-										return eprintln!("Variables don't match: {:?}", variables)
-									}
-								};
-							}
-						),
-					));
-				}
+				move |connection, _, _| Self::libinput_backend_appeared(
+					&sender, &signal_id, connection
+				)
 			),
 			clone!(
 				#[strong]
 				signal_id,
-				move |connection, _| {
-					eprintln!("SwayOSD LibInput Backend isn't available, waiting...");
-					match signal_id.lock() {
-						Ok(mut mutex) => {
-							if let Some(sig_id) = mutex.take() {
-								connection.signal_unsubscribe(sig_id);
-							}
-						}
-						Err(error) => println!("Mutex lock Error: {}", error),
-					}
-				}
+				move |connection, _| Self::libinput_backend_vanished(&signal_id, connection)
 			),
 		);
 
 		osd_app
+	}
+
+	fn libinput_backend_appeared(
+		sender: &Sender<(u16, i32)>,
+		signal_id: &Arc<Mutex<Option<SignalSubscriptionId>>>,
+		connection: DBusConnection,
+	) {
+		println!("Connecting to the SwayOSD LibInput Backend");
+		let mut mutex = match signal_id.lock() {
+			Ok(mut mutex) => match mutex.as_mut() {
+				Some(_) => return,
+				None => mutex,
+			},
+			Err(error) => return println!("Mutex lock Error: {}", error),
+		};
+		mutex.replace(connection.signal_subscribe(
+			Some(config::DBUS_BACKEND_NAME),
+			Some(config::DBUS_BACKEND_NAME),
+			Some("KeyPressed"),
+			Some(config::DBUS_PATH),
+			None,
+			DBusSignalFlags::NONE,
+			clone!(
+				#[strong]
+				sender,
+				move |_, _, _, _, _, variant| {
+					let key_code = variant.try_child_get::<u16>(0);
+					let state = variant.try_child_get::<i32>(1);
+					match (key_code, state) {
+						(Ok(Some(key_code)), Ok(Some(state))) => {
+							MainContext::default().spawn_local(clone!(
+								#[strong]
+								sender,
+								async move {
+									if let Err(error) = sender.send((key_code, state)).await {
+										eprintln!("Channel Send error: {}", error);
+									}
+								}
+							));
+						}
+						variables => return eprintln!("Variables don't match: {:?}", variables),
+					};
+				}
+			),
+		));
+	}
+
+	fn libinput_backend_vanished(
+		signal_id: &Arc<Mutex<Option<SignalSubscriptionId>>>,
+		connection: DBusConnection,
+	) {
+		eprintln!("SwayOSD LibInput Backend isn't available, waiting...");
+		match signal_id.lock() {
+			Ok(mut mutex) => {
+				if let Some(sig_id) = mutex.take() {
+					connection.signal_unsubscribe(sig_id);
+				}
+			}
+			Err(error) => println!("Mutex lock Error: {}", error),
+		}
 	}
 
 	pub fn start(&self) -> i32 {
