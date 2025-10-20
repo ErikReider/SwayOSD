@@ -115,7 +115,7 @@ impl SwayosdWindow {
 		};
 		let icon_state = &match (device.mute, volume) {
 			(true, _) => "muted",
-			(_, x) if x == 0.0 => "muted",
+			(_, 0.0) => "muted",
 			(false, x) if x > 0.0 && x <= 33.0 => "low",
 			(false, x) if x > 33.0 && x <= 66.0 => "medium",
 			(false, x) if x > 66.0 && x <= 100.0 => "high",

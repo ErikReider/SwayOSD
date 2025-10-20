@@ -28,21 +28,18 @@ trait Server {
 
 fn get_proxy() -> zbus::Result<ServerProxyBlocking<'static>> {
 	let connection = Connection::session()?;
-	Ok(ServerProxyBlocking::new(&connection)?)
+	ServerProxyBlocking::new(&connection)
 }
 
 fn main() -> Result<(), glib::Error> {
 	// Get config path from command line
 	let mut config_path: Option<PathBuf> = None;
-	let mut args = args_os().into_iter();
+	let mut args = args_os();
 	while let Some(arg) = args.next() {
-		match arg.to_str() {
-			Some("--config") => {
-				if let Some(path) = args.next() {
-					config_path = Some(path.into());
-				}
+		if let Some("--config") = arg.to_str() {
+			if let Some(path) = args.next() {
+				config_path = Some(path.into());
 			}
-			_ => (),
 		}
 	}
 

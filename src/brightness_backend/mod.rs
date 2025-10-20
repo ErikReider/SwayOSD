@@ -18,6 +18,7 @@ pub trait BrightnessBackendConstructor: BrightnessBackend + Sized + 'static {
 	}
 }
 
+#[allow(unused)]
 pub trait BrightnessBackend {
 	fn get_current(&mut self) -> u32;
 	fn get_max(&mut self) -> u32;

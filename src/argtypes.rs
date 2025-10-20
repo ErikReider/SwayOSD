@@ -4,13 +4,13 @@ use std::str::{self};
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum ArgTypes {
 	// should always be first to set a global variable before executing related functions
-	DeviceName = isize::MIN,
-	TopMargin = isize::MIN + 1,
-	MaxVolume = isize::MIN + 2,
-	CustomIcon = isize::MIN + 3,
-	Player = isize::MIN + 4,
-	MonitorName = isize::MIN + 5,
-	CustomProgressText = isize::MIN + 6,
+	DeviceName = (i32::MIN) as isize,
+	TopMargin = (i32::MIN + 1) as isize,
+	MaxVolume = (i32::MIN + 2) as isize,
+	CustomIcon = (i32::MIN + 3) as isize,
+	Player = (i32::MIN + 4) as isize,
+	MonitorName = (i32::MIN + 5) as isize,
+	CustomProgressText = (i32::MIN + 6) as isize,
 	// Other
 	None = 0,
 	CapsLock = 1,
@@ -57,7 +57,7 @@ impl fmt::Display for ArgTypes {
 			ArgTypes::CustomProgress => "CUSTOM-PROGRESS",
 			ArgTypes::CustomProgressText => "CUSTOM-PROGRESS-TEXT",
 		};
-		return write!(f, "{}", string);
+		write!(f, "{}", string)
 	}
 }
 

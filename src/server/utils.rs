@@ -32,6 +32,7 @@ lazy_static! {
 	pub static ref SHOW_PERCENTAGE: Mutex<bool> = Mutex::new(false);
 }
 
+#[allow(clippy::enum_variant_names)]
 pub enum KeysLocks {
 	CapsLock,
 	NumLock,

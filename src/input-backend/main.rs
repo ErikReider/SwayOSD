@@ -7,7 +7,7 @@ use input::event::keyboard::KeyboardEventTrait;
 use input::event::tablet_pad::KeyState;
 use input::event::{EventTrait, KeyboardEvent};
 use input::{Event, Libinput, LibinputInterface};
-use libc::{O_RDONLY, O_RDWR};
+use libc::O_RDWR;
 use nix::poll::{poll, PollFd, PollFlags};
 use std::fs::{File, OpenOptions};
 use std::os::fd::AsRawFd;
@@ -32,7 +32,7 @@ impl LibinputInterface for Interface {
 	fn open_restricted(&mut self, path: &Path, flags: i32) -> Result<OwnedFd, i32> {
 		OpenOptions::new()
 			.custom_flags(flags)
-			.read((flags & O_RDONLY != 0) | (flags & O_RDWR != 0))
+			.read(flags & O_RDWR != 0)
 			.open(path)
 			.map(|file| file.into())
 			.map_err(|err| err.raw_os_error().unwrap())

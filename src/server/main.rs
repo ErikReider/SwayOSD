@@ -58,7 +58,7 @@ impl DbusServer {
 }
 
 impl DbusServer {
-	async fn new(sender: Sender<(ArgTypes, String)>) -> zbus::Result<()> {
+	async fn init(sender: Sender<(ArgTypes, String)>) -> zbus::Result<()> {
 		let _connection = connection::Builder::session()?
 			.name(DBUS_SERVER_NAME)?
 			.serve_at(DBUS_PATH, DbusServer { sender })?
@@ -110,7 +110,7 @@ fn main() {
 	// Get config path and CSS theme path from command line
 	let mut config_path: Option<PathBuf> = None;
 	let mut custom_user_css: Option<PathBuf> = None;
-	let mut args = args_os().into_iter();
+	let mut args = args_os();
 	while let Some(arg) = args.next() {
 		match arg.to_str() {
 			Some("--config") => {
@@ -156,7 +156,7 @@ fn main() {
 
 	let (sender, receiver) = async_channel::bounded::<(ArgTypes, String)>(1);
 	// Start the DBus Server
-	async_std::task::spawn(DbusServer::new(sender));
+	async_std::task::spawn(DbusServer::init(sender));
 	// Start the GTK Application
 	std::process::exit(SwayOSDApplication::new(server_config, receiver).start());
 }

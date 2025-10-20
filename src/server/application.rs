@@ -50,7 +50,7 @@ impl SwayOSDApplication {
 
 		app.add_main_option(
 			"style",
-			Char::from('s' as u8),
+			Char::from(b's'),
 			OptionFlags::NONE,
 			OptionArg::String,
 			"Use a custom Stylesheet file instead of looking for one",
@@ -250,7 +250,7 @@ impl SwayOSDApplication {
 			),
 		);
 
-		return osd_app;
+		osd_app
 	}
 
 	pub fn start(&self) -> i32 {
@@ -282,9 +282,9 @@ impl SwayOSDApplication {
 		if selected_windows.is_empty() {
 			eprintln!("Specified monitor name, but found no matching output");
 			return osd_app.windows.borrow().to_owned();
-		} else {
-			return selected_windows;
 		}
+
+		selected_windows
 	}
 
 	fn action_activated(
@@ -406,7 +406,7 @@ impl SwayOSDApplication {
 			(ArgTypes::CapsLock, value) => {
 				let i32_value = value.clone().unwrap_or("-1".to_owned());
 				let state = match i32_value.parse::<i32>() {
-					Ok(value) if value >= 0 && value <= 1 => value == 1,
+					Ok(value) if (0..=1).contains(&value) => value == 1,
 					_ => get_key_lock_state(KeysLocks::CapsLock, value),
 				};
 				for window in Self::choose_windows(osd_app) {
@@ -417,7 +417,7 @@ impl SwayOSDApplication {
 			(ArgTypes::NumLock, value) => {
 				let i32_value = value.clone().unwrap_or("-1".to_owned());
 				let state = match i32_value.parse::<i32>() {
-					Ok(value) if value >= 0 && value <= 1 => value == 1,
+					Ok(value) if (0..=1).contains(&value) => value == 1,
 					_ => get_key_lock_state(KeysLocks::NumLock, value),
 				};
 				for window in Self::choose_windows(osd_app) {
@@ -428,7 +428,7 @@ impl SwayOSDApplication {
 			(ArgTypes::ScrollLock, value) => {
 				let i32_value = value.clone().unwrap_or("-1".to_owned());
 				let state = match i32_value.parse::<i32>() {
-					Ok(value) if value >= 0 && value <= 1 => value == 1,
+					Ok(value) if (0..=1).contains(&value) => value == 1,
 					_ => get_key_lock_state(KeysLocks::ScrollLock, value),
 				};
 				for window in Self::choose_windows(osd_app) {

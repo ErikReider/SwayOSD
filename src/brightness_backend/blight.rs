@@ -2,6 +2,7 @@ use blight::{Device, Direction};
 
 use super::{BrightnessBackend, BrightnessBackendConstructor};
 
+#[allow(unused)]
 pub(super) struct Blight {
 	device: Device,
 }

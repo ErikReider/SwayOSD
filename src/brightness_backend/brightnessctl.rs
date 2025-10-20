@@ -30,6 +30,7 @@ struct VirtualDevice {
 	max: Option<u32>,
 }
 
+#[allow(unused)]
 pub(super) struct BrightnessCtl {
 	device: VirtualDevice,
 }
@@ -40,6 +41,7 @@ pub struct DeviceDoesntExistError {
 	device_name: String,
 }
 
+#[allow(unused)]
 impl VirtualDevice {
 	fn try_new(device_name: Option<String>) -> anyhow::Result<Self> {
 		let s = Self {

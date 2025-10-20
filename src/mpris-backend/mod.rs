@@ -170,23 +170,23 @@ impl Playerctl {
 		let mut vars = HashMap::new();
 		let artists = metadata.artists().unwrap_or(vec![""]);
 		let artists_album = metadata.album_artists().unwrap_or(vec![""]);
-		let artist = artists.get(0).map_or("", |v| v);
-		let artist_album = artists_album.get(0).map_or("", |v| v);
+		let artist = artists.first().map_or("", |v| v);
+		let artist_album = artists_album.first().map_or("", |v| v);
 
 		let title = metadata.title().unwrap_or("");
 		let album = metadata.album_name().unwrap_or("");
 		let track_num = metadata
 			.track_number()
-			.and_then(|x| Some(x.to_string()))
-			.unwrap_or(String::new());
+			.map(|x| x.to_string())
+			.unwrap_or_default();
 		let disc_num = metadata
 			.disc_number()
-			.and_then(|x| Some(x.to_string()))
-			.unwrap_or(String::new());
+			.map(|x| x.to_string())
+			.unwrap_or_default();
 		let autorating = metadata
 			.auto_rating()
-			.and_then(|x| Some(x.to_string()))
-			.unwrap_or(String::new());
+			.map(|x| x.to_string())
+			.unwrap_or_default();
 
 		vars.insert("artist".to_string(), artist);
 		vars.insert("albumArtist".to_string(), artist_album);
