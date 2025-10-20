@@ -1,6 +1,6 @@
 # SwayOSD
 
-A OSD window for common actions like volume and capslock.
+A OSD window for common actions like volume, playback and capslock.
 
 This is my first time coding in Rust so fixes and improvements are appreciated :)
 
@@ -10,8 +10,10 @@ This is my first time coding in Rust so fixes and improvements are appreciated :
   - Caps Lock
   - Num Lock
   - Scroll Lock
+  - Audio playback
 - Input and output volume change indicator
 - Input and output mute change indicator
+- Audio playback indicator
 - Customizable maximum Volume
 - Capslock change (Note: doesn't change the caps lock state)
 - Brightness change indicator
@@ -108,6 +110,11 @@ bindsym XF86MonBrightnessDown exec swayosd-client --brightness lower
 bindsym XF86MonBrightnessUp  exec swayosd-client --brightness +10
 # Brightness lower with custom value('-' sign needed)
 bindsym XF86MonBrightnessDown exec swayosd-client --brightness -10
+
+# Play/Pause current player
+bindsym XF86AudioPlay exec swayosd-client --playerctl play-pause
+# Next song for current player
+bindsym XF86AudioPlay exec swayosd-client --playerctl play-pause
 ```
 
 ### Notes on using `--device`:
