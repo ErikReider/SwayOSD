@@ -5,6 +5,7 @@ use crate::osd_window::SwayosdWindow;
 use crate::playerctl::*;
 use crate::utils::{self, *};
 use async_channel::Receiver;
+use gtk::gio::ListModel;
 use gtk::{
 	gdk,
 	gio::{
@@ -254,13 +255,48 @@ impl SwayOSDApplication {
 	}
 
 	pub fn start(&self) -> i32 {
-		let s = self.clone();
+		let osd_app = self.clone();
 		self.app.connect_activate(move |_| {
-			s.initialize();
+			osd_app.initialize();
 		});
 
-		let _ = self.app.register(gio::Cancellable::NONE);
+		self.app
+			.register(gio::Cancellable::NONE)
+			.expect("Could not register swayosd-server");
 		self.app.run().into()
+	}
+
+	fn initialize(&self) {
+		let display: gdk::Display = gdk::Display::default().expect("Could not get GDK Display!");
+		let monitors = display.monitors();
+
+		let osd_app = self.clone();
+		monitors.connect_items_changed(clone!(
+			#[strong]
+			osd_app,
+			move |monitors, position, removed, added| osd_app
+				.monitors_changed(monitors, position, removed, added)
+		));
+		osd_app.monitors_changed(&monitors, 0, 0, monitors.n_items());
+	}
+
+	fn monitors_changed(&self, monitors: &ListModel, position: u32, removed: u32, added: u32) {
+		let mut windows = self.windows.borrow_mut();
+
+		for i in 0..removed {
+			let window = windows.remove((position + i) as usize);
+			window.close();
+		}
+
+		for i in 0..added {
+			if let Some(monitor) = monitors
+				.item(position + i)
+				.and_then(|obj| obj.downcast::<gdk::Monitor>().ok())
+			{
+				let window = SwayosdWindow::new(&self.app, &monitor);
+				windows.push(window);
+			}
+		}
 	}
 
 	fn choose_windows(osd_app: &SwayOSDApplication) -> Vec<SwayosdWindow> {
@@ -513,82 +549,5 @@ impl SwayOSDApplication {
 				)
 			}
 		};
-	}
-
-	fn initialize(&self) {
-		let display: gdk::Display = match gdk::Display::default() {
-			Some(x) => x,
-			_ => return,
-		};
-
-		self.init_windows(&display);
-
-		let _self = self;
-
-		display.connect_opened(clone!(
-			#[strong]
-			_self,
-			move |d| {
-				_self.init_windows(d);
-			}
-		));
-
-		display.connect_closed(clone!(
-			#[strong]
-			_self,
-			move |_d, is_error| {
-				if is_error {
-					eprintln!("Display closed due to errors...");
-				}
-				_self.close_all_windows();
-			}
-		));
-
-		display.monitors().connect_items_changed(clone!(
-			#[strong]
-			_self,
-			move |monitors, position, removed, added| {
-				if removed != 0 {
-					_self.init_windows(&display);
-				} else if added != 0 {
-					for i in 0..added {
-						if let Some(mon) = monitors
-							.item(position + i)
-							.and_then(|obj| obj.downcast::<gdk::Monitor>().ok())
-						{
-							_self.add_window(&mon);
-						}
-					}
-				}
-			}
-		));
-	}
-
-	fn add_window(&self, monitor: &gdk::Monitor) {
-		let win = SwayosdWindow::new(&self.app, monitor);
-		self.windows.borrow_mut().push(win);
-	}
-
-	fn init_windows(&self, display: &gdk::Display) {
-		self.close_all_windows();
-
-		let monitors = display.monitors();
-		for i in 0..monitors.n_items() {
-			let monitor = match monitors
-				.item(i)
-				.and_then(|obj| obj.downcast::<gdk::Monitor>().ok())
-			{
-				Some(x) => x,
-				_ => continue,
-			};
-			self.add_window(&monitor);
-		}
-	}
-
-	fn close_all_windows(&self) {
-		self.windows.borrow_mut().retain(|window| {
-			window.close();
-			false
-		});
 	}
 }
