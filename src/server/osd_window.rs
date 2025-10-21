@@ -131,7 +131,7 @@ impl SwayosdWindow {
 
 		let icon = self.build_icon_widget(icon_name);
 		let progress = self.build_progress_widget(volume / max_volume);
-		let label = self.build_text_widget(Some(&format!("{}%", volume)));
+		let label = self.build_text_widget(Some(&format!("{}%", volume)), Some(4));
 
 		progress.set_sensitive(!device.mute);
 
@@ -153,7 +153,10 @@ impl SwayosdWindow {
 		let brightness = brightness_backend.get_current() as f64;
 		let max = brightness_backend.get_max() as f64;
 		let progress = self.build_progress_widget(brightness / max);
-		let label = self.build_text_widget(Some(&format!("{}%", (brightness / max * 100.) as i32)));
+		let label = self.build_text_widget(
+			Some(&format!("{}%", (brightness / max * 100.) as i32)),
+			Some(4),
+		);
 
 		self.container.append(&icon);
 		self.container.append(&progress);
@@ -168,7 +171,7 @@ impl SwayosdWindow {
 		self.clear_osd();
 
 		let icon = self.build_icon_widget(icon);
-		let label = self.build_text_widget(label);
+		let label = self.build_text_widget(label, None);
 
 		self.container.append(&icon);
 		self.container.append(&label);
@@ -179,7 +182,7 @@ impl SwayosdWindow {
 	pub fn changed_keylock(&self, key: KeysLocks, state: bool) {
 		self.clear_osd();
 
-		let label = self.build_text_widget(None);
+		let label = self.build_text_widget(None, None);
 
 		let on_off_text = match state {
 			true => "On",
@@ -227,7 +230,7 @@ impl SwayosdWindow {
 		self.container.append(&progress);
 
 		if let Some(text) = text {
-			let label = self.build_text_widget(Some(text.deref()));
+			let label = self.build_text_widget(Some(text.deref()), None);
 			self.container.append(&label);
 		}
 
@@ -237,7 +240,7 @@ impl SwayosdWindow {
 	pub fn custom_message(&self, message: &str, icon_name: Option<&str>) {
 		self.clear_osd();
 
-		let label = self.build_text_widget(Some(message));
+		let label = self.build_text_widget(Some(message), None);
 
 		if let Some(icon_name) = icon_name {
 			let icon = self.build_icon_widget(icon_name);
@@ -294,9 +297,12 @@ impl SwayosdWindow {
 		}
 	}
 
-	fn build_text_widget(&self, text: Option<&str>) -> gtk::Label {
+	fn build_text_widget(&self, text: Option<&str>, min_chars: Option<u32>) -> gtk::Label {
 		cascade! {
 			gtk::Label::new(text);
+			// width-chars is based off of the average font width, so we add 1
+			// to make sure that it's wide enough.
+			..set_width_chars(min_chars.map_or(-1, |v| (v + 1) as i32));
 			..set_halign(gtk::Align::Center);
 			..set_hexpand(true);
 			..add_css_class("title-4");
