@@ -271,6 +271,10 @@ impl SwayOSDApplication {
 		self.app
 			.register(gio::Cancellable::NONE)
 			.expect("Could not register swayosd-server");
+		if self.app.is_remote() {
+			eprintln!("An instance of SwayOSD is already running!\n");
+			std::process::exit(1);
+		}
 		self.app.run().into()
 	}
 
