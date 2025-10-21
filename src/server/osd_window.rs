@@ -66,8 +66,7 @@ impl SwayosdWindow {
 		let update_margins = |window: &gtk::ApplicationWindow, monitor: &gdk::Monitor| {
 			// Monitor scale factor is not always correct
 			// Transform monitor height into coordinate system of window
-			let mon_height =
-				monitor.geometry().height() * monitor.scale_factor() / window.scale_factor();
+			let mon_height = monitor.geometry().height() / window.scale_factor();
 			// Calculate new margin
 			let bottom = mon_height - window.allocated_height();
 			let margin = (bottom as f32 * get_top_margin()).round() as i32;
