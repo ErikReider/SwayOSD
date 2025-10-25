@@ -263,6 +263,6 @@ fn volume_parser(is_sink: bool, value: &str) -> Result<(ArgTypes, Option<String>
 	Ok(v)
 }
 
-pub fn div_round(a: u32, b: u32) -> u32 {
+pub fn div_round_u32(a: u32, b: u32) -> u32 {
 	(a + b / 2) / b
 }

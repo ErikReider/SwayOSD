@@ -1,4 +1,4 @@
-use crate::global_utils::div_round;
+use crate::global_utils::div_round_u32;
 
 use super::{BrightnessBackend, BrightnessBackendConstructor};
 
@@ -113,7 +113,7 @@ impl VirtualDevice {
 
 	fn set_percent(&mut self, mut val: u32) -> anyhow::Result<()> {
 		val = val.clamp(0, 100);
-		self.current = self.max.map(|max| div_round(val * max, 100));
+		self.current = self.max.map(|max| div_round_u32(val * max, 100));
 		let _: String = self.run(("set", &*format!("{val}%")))?;
 		Ok(())
 	}
@@ -121,7 +121,7 @@ impl VirtualDevice {
 	pub fn get_percent(&mut self) -> u32 {
 		let curr = self.get_current();
 		let max = self.get_max();
-		div_round(curr * 100, max)
+		div_round_u32(curr * 100, max)
 	}
 }
 
