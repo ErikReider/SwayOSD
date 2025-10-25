@@ -1,3 +1,5 @@
+use crate::global_utils::div_round_u32;
+
 use super::{BrightnessBackend, BrightnessBackendConstructor};
 
 const EXPECT_STR: &str = "VirtualDevice didn't test the command during initialization";
@@ -111,9 +113,15 @@ impl VirtualDevice {
 
 	fn set_percent(&mut self, mut val: u32) -> anyhow::Result<()> {
 		val = val.clamp(0, 100);
-		self.current = self.max.map(|max| val * max / 100);
+		self.current = self.max.map(|max| div_round_u32(val * max, 100));
 		let _: String = self.run(("set", &*format!("{val}%")))?;
 		Ok(())
+	}
+
+	pub fn get_percent(&mut self) -> u32 {
+		let curr = self.get_current();
+		let max = self.get_max();
+		div_round_u32(curr * 100, max)
 	}
 }
 
@@ -135,20 +143,12 @@ impl BrightnessBackend for BrightnessCtl {
 	}
 
 	fn lower(&mut self, by: u32) -> anyhow::Result<()> {
-		let curr = self.get_current();
-		let max = self.get_max();
-
-		let curr = curr * 100 / max;
-
+		let curr = self.device.get_percent();
 		self.device.set_percent(curr.saturating_sub(by))
 	}
 
 	fn raise(&mut self, by: u32) -> anyhow::Result<()> {
-		let curr = self.get_current();
-		let max = self.get_max();
-
-		let curr = curr * 100 / max;
-
+		let curr = self.device.get_percent();
 		self.device.set_percent(curr + by)
 	}
 
