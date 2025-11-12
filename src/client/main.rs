@@ -219,7 +219,7 @@ fn main() -> Result<(), glib::Error> {
 		"custom-progress",
 		glib::Char::from(0),
 		OptionFlags::NONE,
-		OptionArg::Double,
+		OptionArg::String,
 		"Progress to display (0.0 <-> 1.0)",
 		Some("Progress from 0.0 to 1.0"),
 	);
