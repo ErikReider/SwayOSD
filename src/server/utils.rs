@@ -16,10 +16,13 @@ use crate::brightness_backend;
 use crate::playerctl::PlayerctlDeviceRaw;
 
 static PRIV_MAX_VOLUME_DEFAULT: u8 = 100_u8;
+static PRIV_MIN_BRIGHTNESS_DEFAULT: u32 = 5_u32;
 
 lazy_static! {
 	static ref MAX_VOLUME_DEFAULT: Mutex<u8> = Mutex::new(PRIV_MAX_VOLUME_DEFAULT);
 	static ref MAX_VOLUME: Mutex<u8> = Mutex::new(PRIV_MAX_VOLUME_DEFAULT);
+	static ref MIN_BRIGHTNESS_DEFAULT: Mutex<u32> = Mutex::new(PRIV_MIN_BRIGHTNESS_DEFAULT);
+	static ref MIN_BRIGHTNESS: Mutex<u32> = Mutex::new(PRIV_MIN_BRIGHTNESS_DEFAULT);
 	pub static ref DEVICE_NAME_DEFAULT: &'static str = "default";
 	static ref DEVICE_NAME: Mutex<Option<String>> = Mutex::new(None);
 	static ref MONITOR_NAME: Mutex<Option<String>> = Mutex::new(None);
@@ -60,6 +63,29 @@ pub fn set_max_volume(volume: u8) {
 pub fn reset_max_volume() {
 	let mut vol = MAX_VOLUME.lock().unwrap();
 	*vol = *MAX_VOLUME_DEFAULT.lock().unwrap();
+}
+
+pub fn get_default_min_brightness() -> u32 {
+	*MIN_BRIGHTNESS_DEFAULT.lock().unwrap()
+}
+
+pub fn set_default_min_brightness(brightness: u32) {
+	let mut min = MIN_BRIGHTNESS_DEFAULT.lock().unwrap();
+	*min = brightness;
+}
+
+pub fn get_min_brightness() -> u32 {
+	*MIN_BRIGHTNESS.lock().unwrap()
+}
+
+pub fn set_min_brightness(brightness: u32) {
+	let mut min = MIN_BRIGHTNESS.lock().unwrap();
+	*min = brightness;
+}
+
+pub fn reset_min_brightness() {
+	let mut min = MIN_BRIGHTNESS.lock().unwrap();
+	*min = *MIN_BRIGHTNESS_DEFAULT.lock().unwrap();
 }
 
 pub fn get_top_margin() -> f32 {
@@ -401,19 +427,22 @@ pub fn change_brightness(
 	change_type: BrightnessChangeType,
 	step: Option<String>,
 ) -> brightness_backend::BrightnessBackendResult {
+	let min_brightness = get_min_brightness();
 	const BRIGHTNESS_CHANGE_DELTA: u8 = 5;
 	let value = step.unwrap_or_default().parse::<u8>();
 
 	let mut backend = brightness_backend::get_preferred_backend(get_device_name())?;
 
 	match change_type {
-		BrightnessChangeType::Raise => {
-			backend.raise(value.unwrap_or(BRIGHTNESS_CHANGE_DELTA) as u32)?
-		}
-		BrightnessChangeType::Lower => {
-			backend.lower(value.unwrap_or(BRIGHTNESS_CHANGE_DELTA) as u32)?
-		}
-		BrightnessChangeType::Set => backend.set(value.unwrap() as u32)?,
+		BrightnessChangeType::Raise => backend.raise(
+			value.unwrap_or(BRIGHTNESS_CHANGE_DELTA) as u32,
+			min_brightness,
+		)?,
+		BrightnessChangeType::Lower => backend.lower(
+			value.unwrap_or(BRIGHTNESS_CHANGE_DELTA) as u32,
+			min_brightness,
+		)?,
+		BrightnessChangeType::Set => backend.set(value.unwrap() as u32, min_brightness)?,
 	};
 
 	Ok(backend)

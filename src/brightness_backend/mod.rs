@@ -23,9 +23,9 @@ pub trait BrightnessBackend {
 	fn get_current(&mut self) -> u32;
 	fn get_max(&mut self) -> u32;
 
-	fn lower(&mut self, by: u32) -> anyhow::Result<()>;
-	fn raise(&mut self, by: u32) -> anyhow::Result<()>;
-	fn set(&mut self, val: u32) -> anyhow::Result<()>;
+	fn lower(&mut self, by: u32, min: u32) -> anyhow::Result<()>;
+	fn raise(&mut self, by: u32, min: u32) -> anyhow::Result<()>;
+	fn set(&mut self, val: u32, min: u32) -> anyhow::Result<()>;
 }
 
 #[allow(dead_code)]

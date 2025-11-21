@@ -107,6 +107,16 @@ pub(crate) fn handle_application_args(
 					}
 				}
 			}
+			"min-brightness" => {
+				let value = child.value().str().unwrap_or("").trim();
+				match value.parse::<u8>() {
+					Ok(_) => (ArgTypes::MinBrightness, Some(value.to_string())),
+					Err(_) => {
+						eprintln!("{} is not a number between 0 and {}!", value, 100);
+						return (HandleLocalStatus::FAILURE, actions);
+					}
+				}
+			}
 			"playerctl" => {
 				let value = child.value().str().unwrap_or("");
 				match value {

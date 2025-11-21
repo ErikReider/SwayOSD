@@ -142,17 +142,20 @@ impl BrightnessBackend for BrightnessCtl {
 		self.device.get_max()
 	}
 
-	fn lower(&mut self, by: u32) -> anyhow::Result<()> {
+	fn lower(&mut self, by: u32, min: u32) -> anyhow::Result<()> {
 		let curr = self.device.get_percent();
-		self.device.set_percent(curr.saturating_sub(by))
+		let val = curr.saturating_sub(by).max(min);
+		self.device.set_percent(val)
 	}
 
-	fn raise(&mut self, by: u32) -> anyhow::Result<()> {
+	fn raise(&mut self, by: u32, min: u32) -> anyhow::Result<()> {
 		let curr = self.device.get_percent();
-		self.device.set_percent(curr + by)
+		let val = (curr + by).max(min);
+		self.device.set_percent(val)
 	}
 
-	fn set(&mut self, val: u32) -> anyhow::Result<()> {
+	fn set(&mut self, val: u32, min: u32) -> anyhow::Result<()> {
+		let val = val.max(min);
 		self.device.set_percent(val)
 	}
 }
