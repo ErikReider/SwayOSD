@@ -161,10 +161,10 @@ pub(crate) fn handle_application_args(
 				(ArgTypes::CustomIcon, Some(value))
 			}
 			"custom-progress" => {
-				let value = child.value().get::<f64>();
-				match value {
-					Some(value) => (ArgTypes::CustomProgress, Some(value.to_string())),
-					None => {
+				let value = child.value().str().unwrap_or("").trim();
+				match value.parse::<f64>() {
+					Ok(_) => (ArgTypes::CustomProgress, Some(value.to_string())),
+					Err(_) => {
 						eprintln!(
 							"{} is not a number between 0.0 and 1.0!",
 							child.value().print(true)
