@@ -43,7 +43,8 @@ impl SwayosdWindow {
 
 		window.set_exclusive_zone(-1);
 		window.set_layer(gtk_layer_shell::Layer::Overlay);
-		window.set_anchor(gtk_layer_shell::Edge::Top, true);
+		// Anchor to bottom edge for better reliability with rotated/transformed displays
+		window.set_anchor(gtk_layer_shell::Edge::Bottom, true);
 
 		// Set up the widgets
 		window.set_width_request(250);
@@ -67,10 +68,12 @@ impl SwayosdWindow {
 			// Monitor scale factor is not always correct
 			// Transform monitor height into coordinate system of window
 			let mon_height = monitor.geometry().height() / window.scale_factor();
-			// Calculate new margin
-			let bottom = mon_height - window.allocated_height();
-			let margin = (bottom as f32 * get_top_margin()).round() as i32;
-			window.set_margin(gtk_layer_shell::Edge::Top, margin);
+			// Calculate margin from bottom while preserving top_margin semantics:
+			// top_margin=0.85 means window should be at 85% from top, which equals
+			// 15% from bottom. By anchoring to bottom, we avoid issues with
+			// window.allocated_height() being 0 or incorrect during initialization.
+			let margin = (mon_height as f32 * (1.0 - get_top_margin())).round() as i32;
+			window.set_margin(gtk_layer_shell::Edge::Bottom, margin);
 		};
 
 		// Set the window margin
