@@ -11,6 +11,7 @@ pub enum ArgTypes {
 	Player = (i32::MIN + 4) as isize,
 	MonitorName = (i32::MIN + 5) as isize,
 	CustomProgressText = (i32::MIN + 6) as isize,
+	MinBrightness = (i32::MIN + 7) as isize,
 	// Other
 	None = 0,
 	CapsLock = 1,
@@ -56,6 +57,7 @@ impl fmt::Display for ArgTypes {
 			ArgTypes::MonitorName => "MONITOR-NAME",
 			ArgTypes::CustomProgress => "CUSTOM-PROGRESS",
 			ArgTypes::CustomProgressText => "CUSTOM-PROGRESS-TEXT",
+			ArgTypes::MinBrightness => "MIN-BRIGHTNESS",
 		};
 		write!(f, "{}", string)
 	}
@@ -88,6 +90,7 @@ impl str::FromStr for ArgTypes {
 			"MONITOR-NAME" => ArgTypes::MonitorName,
 			"CUSTOM-PROGRESS" => ArgTypes::CustomProgress,
 			"CUSTOM-PROGRESS-TEXT" => ArgTypes::CustomProgressText,
+			"MIN-BRIGHTNESS" => ArgTypes::MinBrightness,
 			other_type => return Err(other_type.to_owned()),
 		};
 		Ok(result)

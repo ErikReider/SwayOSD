@@ -25,17 +25,18 @@ impl BrightnessBackend for Blight {
 		self.device.max()
 	}
 
-	fn lower(&mut self, by: u32) -> anyhow::Result<()> {
-		let val = self.device.calculate_change(by, Direction::Dec);
+	fn lower(&mut self, by: u32, min: u32) -> anyhow::Result<()> {
+		let val = self.device.calculate_change(by, Direction::Dec).max(min);
 		Ok(self.device.write_value(val)?)
 	}
 
-	fn raise(&mut self, by: u32) -> anyhow::Result<()> {
-		let val = self.device.calculate_change(by, Direction::Inc);
+	fn raise(&mut self, by: u32, min: u32) -> anyhow::Result<()> {
+		let val = self.device.calculate_change(by, Direction::Inc).max(min);
 		Ok(self.device.write_value(val)?)
 	}
 
-	fn set(&mut self, val: u32) -> anyhow::Result<()> {
+	fn set(&mut self, val: u32, min: u32) -> anyhow::Result<()> {
+		let val = val.max(min);
 		Ok(self.device.write_value(val)?)
 	}
 }

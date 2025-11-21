@@ -172,6 +172,14 @@ fn main() -> Result<(), glib::Error> {
 		Some("(+)number"),
 	);
 	app.add_main_option(
+		"min-brightness",
+		glib::Char::from(0),
+		OptionFlags::NONE,
+		OptionArg::String,
+		"Sets the minimum Brightness",
+		Some("(+)number"),
+	);
+	app.add_main_option(
 		"device",
 		glib::Char::from(0),
 		OptionFlags::NONE,

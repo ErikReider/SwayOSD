@@ -84,6 +84,11 @@ impl SwayOSDApplication {
 		}
 		if let Some(max_volume) = server_config.max_volume {
 			set_default_max_volume(max_volume);
+			reset_max_volume();
+		}
+		if let Some(min_brightness) = server_config.min_brightness {
+			set_default_min_brightness(min_brightness);
+			reset_min_brightness();
 		}
 		if let Some(show) = server_config.show_percentage {
 			set_show_percentage(show);
@@ -118,6 +123,13 @@ impl SwayOSDApplication {
 
 							if let Some(max) = max {
 								set_default_max_volume(max);
+							}
+						}
+						(ArgTypes::MinBrightness, min) => {
+							let min: Option<u32> = min.and_then(|min| min.parse().ok());
+
+							if let Some(min) = min {
+								set_default_min_brightness(min);
 							}
 						}
 						(arg_type, data) => Self::action_activated(
@@ -429,6 +441,7 @@ impl SwayOSDApplication {
 						window.changed_brightness(brightness_backend.as_mut());
 					}
 				}
+				reset_min_brightness();
 				reset_monitor_name();
 			}
 			(ArgTypes::BrightnessLower, step) => {
@@ -439,6 +452,7 @@ impl SwayOSDApplication {
 						window.changed_brightness(brightness_backend.as_mut());
 					}
 				}
+				reset_min_brightness();
 				reset_monitor_name();
 			}
 			(ArgTypes::BrightnessSet, value) => {
@@ -449,6 +463,7 @@ impl SwayOSDApplication {
 						window.changed_brightness(brightness_backend.as_mut());
 					}
 				}
+				reset_min_brightness();
 				reset_monitor_name();
 			}
 			(ArgTypes::CapsLock, value) => {
@@ -493,6 +508,16 @@ impl SwayOSDApplication {
 					_ => get_default_max_volume(),
 				};
 				set_max_volume(volume)
+			}
+			(ArgTypes::MinBrightness, min) => {
+				let brightness: u32 = match min {
+					Some(min) => match min.parse() {
+						Ok(min) => min,
+						_ => get_default_min_brightness(),
+					},
+					_ => get_default_min_brightness(),
+				};
+				set_min_brightness(brightness)
 			}
 			(ArgTypes::Player, name) => set_player(name.unwrap_or("".to_string())),
 			(ArgTypes::Playerctl, value) => {

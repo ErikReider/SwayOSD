@@ -17,6 +17,7 @@ pub struct ServerConfig {
 	pub max_volume: Option<u8>,
 	pub show_percentage: Option<bool>,
 	pub playerctl_format: Option<String>,
+	pub min_brightness: Option<u32>,
 }
 
 #[derive(Deserialize, Default, Debug)]
