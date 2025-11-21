@@ -84,9 +84,11 @@ impl SwayOSDApplication {
 		}
 		if let Some(max_volume) = server_config.max_volume {
 			set_default_max_volume(max_volume);
+			reset_max_volume();
 		}
 		if let Some(min_brightness) = server_config.min_brightness {
 			set_default_min_brightness(min_brightness);
+			reset_min_brightness();
 		}
 		if let Some(show) = server_config.show_percentage {
 			set_show_percentage(show);
