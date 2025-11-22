@@ -143,6 +143,7 @@ impl Playerctl {
 			Next | Prev => {
 				if let Ok(track_list) = player.get_track_list() {
 					if let Some(track) = track_list.get(0) {
+						println!("fetched next song");
 						return player.get_track_metadata(track).ok();
 					}
 				}
@@ -153,12 +154,13 @@ impl Playerctl {
 					let metadata = player.get_metadata().ok()?;
 					let name2 = metadata.url()?;
 					if name1 != name2 {
-						println!("fetched data in {counter} * 5ms = {}ms", counter * 5);
+						println!("fetched next song in {counter} * 5ms = {}ms", counter * 5);
 						return Some(metadata);
 					}
 					sleep(Duration::from_millis(5));
 					counter += 1;
 				}
+				println!("fetched old song");
 				Some(metadata)
 			}
 			_ => player.get_metadata().ok(),
