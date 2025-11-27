@@ -18,6 +18,7 @@ pub struct ServerConfig {
 	pub show_percentage: Option<bool>,
 	pub playerctl_format: Option<String>,
 	pub min_brightness: Option<u32>,
+	pub keyboard_backlight: Option<bool>,
 }
 
 #[derive(Deserialize, Default, Debug)]
