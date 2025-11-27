@@ -233,6 +233,15 @@ fn main() -> Result<(), glib::Error> {
 	);
 
 	app.add_main_option(
+		"custom-segmented-progress",
+		glib::Char::from(0),
+		OptionFlags::NONE,
+		OptionArg::String,
+		"Segmented progress to display (value:num-segments). Ex: 2:4",
+		Some("Progress from 0 to num-segments"),
+	);
+
+	app.add_main_option(
 		"custom-progress-text",
 		glib::Char::from(0),
 		OptionFlags::NONE,

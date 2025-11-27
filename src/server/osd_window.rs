@@ -9,6 +9,7 @@ use gtk::{
 };
 use pulsectl::controllers::types::DeviceInfo;
 
+use crate::widgets::segmented_progress_widget::SegmentedProgressWidget;
 use crate::{
 	brightness_backend::BrightnessBackend,
 	utils::{
@@ -30,6 +31,9 @@ pub struct SwayosdWindow {
 	timeout_id: Rc<RefCell<Option<glib::SourceId>>>,
 }
 
+// TODO: Use custom widget
+// - Use start, center, and end children
+//   - Always center the centered widget (both left and right sides are the same width)
 impl SwayosdWindow {
 	/// Create a new window and assign it to the given application.
 	pub fn new(app: &gtk::Application, monitor: &gdk::Monitor) -> Self {
@@ -174,6 +178,7 @@ impl SwayosdWindow {
 
 		let icon = self.build_icon_widget(icon);
 		let label = self.build_text_widget(label, None);
+		label.set_hexpand(true);
 
 		self.container.append(&icon);
 		self.container.append(&label);
@@ -185,6 +190,7 @@ impl SwayosdWindow {
 		self.clear_osd();
 
 		let label = self.build_text_widget(None, None);
+		label.set_hexpand(true);
 
 		let on_off_text = match state {
 			true => "On",
@@ -239,10 +245,37 @@ impl SwayosdWindow {
 		self.run_timeout();
 	}
 
+	pub fn custom_segmented_progress(
+		&self,
+		value: u32,
+		n_segments: u32,
+		text: Option<String>,
+		icon_name: Option<&str>,
+	) {
+		self.clear_osd();
+
+		if let Some(icon_name) = icon_name {
+			let icon = self.build_icon_widget(icon_name);
+			self.container.append(&icon);
+		}
+
+		let value = value.min(n_segments);
+		let progress = self.build_segmented_progress_widget(value, n_segments);
+		self.container.append(&progress);
+
+		if let Some(text) = text {
+			let label = self.build_text_widget(Some(text.deref()), None);
+			self.container.append(&label);
+		}
+
+		self.run_timeout();
+	}
+
 	pub fn custom_message(&self, message: &str, icon_name: Option<&str>) {
 		self.clear_osd();
 
 		let label = self.build_text_widget(Some(message), None);
+		label.set_hexpand(true);
 
 		if let Some(icon_name) = icon_name {
 			let icon = self.build_icon_widget(icon_name);
@@ -306,7 +339,6 @@ impl SwayosdWindow {
 			// to make sure that it's wide enough.
 			..set_width_chars(min_chars.map_or(-1, |v| (v + 1) as i32));
 			..set_halign(gtk::Align::Center);
-			..set_hexpand(true);
 			..add_css_class("title-4");
 		}
 	}
@@ -315,6 +347,19 @@ impl SwayosdWindow {
 		cascade! {
 			gtk::ProgressBar::new();
 			..set_fraction(fraction);
+			..set_valign(gtk::Align::Center);
+			..set_hexpand(true);
+		}
+	}
+
+	fn build_segmented_progress_widget(
+		&self,
+		value: u32,
+		n_segments: u32,
+	) -> SegmentedProgressWidget {
+		cascade! {
+			SegmentedProgressWidget::new(n_segments);
+			..set_value(value);
 			..set_valign(gtk::Align::Center);
 			..set_hexpand(true);
 		}

@@ -1,6 +1,6 @@
 use crate::argtypes::ArgTypes;
 use crate::config::{self, APPLICATION_NAME, DBUS_BACKEND_NAME};
-use crate::global_utils::{handle_application_args, HandleLocalStatus};
+use crate::global_utils::{handle_application_args, segmented_progress_parser, HandleLocalStatus};
 use crate::osd_window::SwayosdWindow;
 use crate::playerctl::*;
 use crate::utils::{self, *};
@@ -569,6 +569,23 @@ impl SwayOSDApplication {
 							get_progress_text(),
 							get_icon_name().as_deref(),
 						);
+					}
+				}
+				reset_progress_text();
+				reset_icon_name();
+				reset_monitor_name();
+			}
+			(ArgTypes::CustomSegmentedProgress, values) => {
+				if let Some(values) = values {
+					if let Ok((value, n_segments)) = segmented_progress_parser(&values) {
+						for window in Self::choose_windows(osd_app) {
+							window.custom_segmented_progress(
+								value,
+								n_segments,
+								get_progress_text(),
+								get_icon_name().as_deref(),
+							);
+						}
 					}
 				}
 				reset_progress_text();

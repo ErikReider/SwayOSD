@@ -1,6 +1,7 @@
 mod application;
 mod osd_window;
 mod utils;
+mod widgets;
 
 #[path = "../argtypes.rs"]
 mod argtypes;

@@ -183,6 +183,20 @@ pub(crate) fn handle_application_args(
 					}
 				}
 			}
+			"custom-segmented-progress" => {
+				let value = child.value().str().unwrap_or("").trim();
+				let parsed = segmented_progress_parser(value);
+				match parsed {
+					Ok((value, n_segments)) => (
+						ArgTypes::CustomSegmentedProgress,
+						Some(format!("{}:{}", value, n_segments)),
+					),
+					Err(msg) => {
+						eprintln!("{}", msg);
+						return (HandleLocalStatus::FAILURE, actions);
+					}
+				}
+			}
 			"custom-progress-text" => {
 				let value = match child.value().str() {
 					Some(v) => v.to_string(),
@@ -271,6 +285,25 @@ fn volume_parser(is_sink: bool, value: &str) -> Result<(ArgTypes, Option<String>
 		}
 	}
 	Ok(v)
+}
+
+pub fn segmented_progress_parser(ref_value: &str) -> Result<(u32, u32), String> {
+	let (value, n_segments) = match ref_value.split_once(":") {
+		Some(v) => v,
+		None => {
+			return Err(format!(
+				"Value {} not valid for segmented_progress",
+				ref_value
+			));
+		}
+	};
+	match (value.parse::<u32>(), n_segments.parse::<u32>()) {
+		(Ok(value), Ok(max)) => Ok((value, max)),
+		_ => Err(format!(
+			"Value {} not valid for segmented_progress. Must contain positive integers",
+			ref_value
+		)),
+	}
 }
 
 pub fn div_round_u32(a: u32, b: u32) -> u32 {
