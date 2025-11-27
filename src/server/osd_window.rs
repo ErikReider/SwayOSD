@@ -186,6 +186,31 @@ impl SwayosdWindow {
 		self.run_timeout();
 	}
 
+	pub fn changed_kbd_backlight(&self, value: u32, max: u32) {
+		self.clear_osd();
+
+		let value = value.min(max);
+
+		let icon_name = match value {
+			0 => "keyboard-brightness-off-symbolic",
+			v if (v == max) => "keyboard-brightness-high-symbolic",
+			_ => "keyboard-brightness-medium-symbolic",
+		};
+		let icon = self.build_icon_widget(icon_name);
+		self.container.append(&icon);
+
+		// A segmented progress bar looks cramped when there are too many segments
+		if max < 5 {
+			let progress = self.build_segmented_progress_widget(value, max);
+			self.container.append(&progress);
+		} else {
+			let progress = self.build_progress_widget((value / max) as f64);
+			self.container.append(&progress);
+		}
+
+		self.run_timeout();
+	}
+
 	pub fn changed_keylock(&self, key: KeysLocks, state: bool) {
 		self.clear_osd();
 

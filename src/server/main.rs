@@ -1,5 +1,6 @@
 mod application;
 mod osd_window;
+mod upower;
 mod utils;
 mod widgets;
 

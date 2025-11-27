@@ -2,10 +2,12 @@ use crate::argtypes::ArgTypes;
 use crate::config::{self, APPLICATION_NAME, DBUS_BACKEND_NAME};
 use crate::global_utils::{handle_application_args, segmented_progress_parser, HandleLocalStatus};
 use crate::osd_window::SwayosdWindow;
-use crate::playerctl::*;
 use crate::utils::{self, *};
+use crate::{playerctl::*, upower};
 use async_channel::{Receiver, Sender};
+use async_std::stream::StreamExt;
 use gtk::gio::{DBusConnection, ListModel};
+use gtk::glib::ControlFlow;
 use gtk::{
 	gdk,
 	gio::{
@@ -94,12 +96,12 @@ impl SwayOSDApplication {
 			set_show_percentage(show);
 		}
 
-		let server_config_shared = server_config.clone();
-
 		// Parse args
 		app.connect_handle_local_options(clone!(
 			#[strong]
 			osd_app,
+			#[strong]
+			server_config,
 			move |_app, args| {
 				let actions = match handle_application_args(args.to_variant()) {
 					(HandleLocalStatus::SUCCESS | HandleLocalStatus::CONTINUE, actions) => actions,
@@ -132,12 +134,9 @@ impl SwayOSDApplication {
 								set_default_min_brightness(min);
 							}
 						}
-						(arg_type, data) => Self::action_activated(
-							&osd_app,
-							server_config_shared.clone(),
-							arg_type,
-							data,
-						),
+						(arg_type, data) => {
+							osd_app.action_activated(server_config.clone(), arg_type, data)
+						}
 					}
 				}
 
@@ -146,15 +145,15 @@ impl SwayOSDApplication {
 		));
 
 		// Listen for any actions sent from swayosd-client
-		let server_config_shared = server_config.clone();
 		MainContext::default().spawn_local(clone!(
 			#[strong]
 			osd_app,
+			#[strong]
+			server_config,
 			async move {
 				while let Ok((arg_type, data)) = action_receiver.recv().await {
-					Self::action_activated(
-						&osd_app,
-						server_config_shared.clone(),
+					osd_app.action_activated(
+						server_config.clone(),
 						arg_type,
 						(!data.is_empty()).then_some(data),
 					);
@@ -163,12 +162,25 @@ impl SwayOSDApplication {
 			}
 		));
 
-		let server_config_shared = server_config.clone();
+		// Listen for UPower keyboard backlight changes
+		if server_config.keyboard_backlight.unwrap_or(true) {
+			// let server_config_shared = server_config.clone();
+			MainContext::default().spawn_local(clone!(
+				#[strong]
+				osd_app,
+				#[strong]
+				server_config,
+				async move { osd_app.listen_to_upower_kbd_backlight(&server_config).await }
+			));
+		}
+
 		let (sender, receiver) = async_channel::bounded::<(u16, i32)>(1);
 		// Listen to the LibInput Backend and activate the Application action
 		MainContext::default().spawn_local(clone!(
 			#[strong]
 			osd_app,
+			#[strong]
+			server_config,
 			async move {
 				while let Ok((key_code, state)) = receiver.recv().await {
 					let (arg_type, data): (ArgTypes, Option<String>) =
@@ -184,7 +196,7 @@ impl SwayOSDApplication {
 							}
 							_ => continue,
 						};
-					Self::action_activated(&osd_app, server_config_shared.clone(), arg_type, data);
+					osd_app.action_activated(server_config.clone(), arg_type, data);
 				}
 				Break
 			}
@@ -212,6 +224,34 @@ impl SwayOSDApplication {
 		);
 
 		osd_app
+	}
+
+	async fn listen_to_upower_kbd_backlight(
+		&self,
+		server_config: &Arc<ServerConfig>,
+	) -> zbus::Result<ControlFlow> {
+		// TODO: Support other UPower KdbBacklights with version 1.91
+		let proxy = upower::KbdBacklight::init().await?;
+		let max_brightness = proxy.get_max_brightness().await?;
+		let mut changed_stream = proxy.receive_brightness_changed_with_source().await?;
+		while let Some(msg) = changed_stream.next().await {
+			if let Ok(args) = msg.args() {
+				if args.source != "internal" {
+					// Only display the OSD if the hardware changed the keyboard brightness itself
+					// (automatically or through a firmware-handled hotkey being pressed)
+					continue;
+				}
+				self.action_activated(
+					server_config.clone(),
+					ArgTypes::KbdBacklight,
+					Some(format!("{}:{}", args.value, max_brightness)),
+				);
+			} else {
+				eprintln!("UPower args aren't valid {:?}", msg.args());
+			}
+		}
+		eprintln!("UPower stream ended unexpectedly");
+		zbus::Result::Ok(Break)
 	}
 
 	fn libinput_backend_appeared(
@@ -323,12 +363,12 @@ impl SwayOSDApplication {
 		}
 	}
 
-	fn choose_windows(osd_app: &SwayOSDApplication) -> Vec<SwayosdWindow> {
+	fn choose_windows(&self) -> Vec<SwayosdWindow> {
 		let mut selected_windows = Vec::new();
 
 		match get_monitor_name() {
 			Some(monitor_name) => {
-				for window in osd_app.windows.borrow().to_owned() {
+				for window in self.windows.borrow().to_owned() {
 					if let Some(monitor_connector) = window.monitor.connector() {
 						if monitor_name == monitor_connector {
 							selected_windows.push(window);
@@ -336,19 +376,19 @@ impl SwayOSDApplication {
 					}
 				}
 			}
-			None => return osd_app.windows.borrow().to_owned(),
+			None => return self.windows.borrow().to_owned(),
 		}
 
 		if selected_windows.is_empty() {
 			eprintln!("Specified monitor name, but found no matching output");
-			return osd_app.windows.borrow().to_owned();
+			return self.windows.borrow().to_owned();
 		}
 
 		selected_windows
 	}
 
 	fn action_activated(
-		osd_app: &SwayOSDApplication,
+		&self,
 		server_config: Arc<ServerConfig>,
 		arg_type: ArgTypes,
 		value: Option<String>,
@@ -359,7 +399,7 @@ impl SwayOSDApplication {
 				if let Some(device) =
 					change_device_volume(&mut device_type, VolumeChangeType::Raise, step)
 				{
-					for window in Self::choose_windows(osd_app) {
+					for window in self.choose_windows() {
 						window.changed_volume(&device, &device_type);
 					}
 				}
@@ -372,7 +412,7 @@ impl SwayOSDApplication {
 				if let Some(device) =
 					change_device_volume(&mut device_type, VolumeChangeType::Lower, step)
 				{
-					for window in Self::choose_windows(osd_app) {
+					for window in self.choose_windows() {
 						window.changed_volume(&device, &device_type);
 					}
 				}
@@ -385,7 +425,7 @@ impl SwayOSDApplication {
 				if let Some(device) =
 					change_device_volume(&mut device_type, VolumeChangeType::MuteToggle, None)
 				{
-					for window in Self::choose_windows(osd_app) {
+					for window in self.choose_windows() {
 						window.changed_volume(&device, &device_type);
 					}
 				}
@@ -398,7 +438,7 @@ impl SwayOSDApplication {
 				if let Some(device) =
 					change_device_volume(&mut device_type, VolumeChangeType::Raise, step)
 				{
-					for window in Self::choose_windows(osd_app) {
+					for window in self.choose_windows() {
 						window.changed_volume(&device, &device_type);
 					}
 				}
@@ -411,7 +451,7 @@ impl SwayOSDApplication {
 				if let Some(device) =
 					change_device_volume(&mut device_type, VolumeChangeType::Lower, step)
 				{
-					for window in Self::choose_windows(osd_app) {
+					for window in self.choose_windows() {
 						window.changed_volume(&device, &device_type);
 					}
 				}
@@ -424,7 +464,7 @@ impl SwayOSDApplication {
 				if let Some(device) =
 					change_device_volume(&mut device_type, VolumeChangeType::MuteToggle, None)
 				{
-					for window in Self::choose_windows(osd_app) {
+					for window in self.choose_windows() {
 						window.changed_volume(&device, &device_type);
 					}
 				}
@@ -437,7 +477,7 @@ impl SwayOSDApplication {
 				if let Ok(mut brightness_backend) =
 					change_brightness(BrightnessChangeType::Raise, step)
 				{
-					for window in Self::choose_windows(osd_app) {
+					for window in self.choose_windows() {
 						window.changed_brightness(brightness_backend.as_mut());
 					}
 				}
@@ -448,7 +488,7 @@ impl SwayOSDApplication {
 				if let Ok(mut brightness_backend) =
 					change_brightness(BrightnessChangeType::Lower, step)
 				{
-					for window in Self::choose_windows(osd_app) {
+					for window in self.choose_windows() {
 						window.changed_brightness(brightness_backend.as_mut());
 					}
 				}
@@ -459,7 +499,7 @@ impl SwayOSDApplication {
 				if let Ok(mut brightness_backend) =
 					change_brightness(BrightnessChangeType::Set, value)
 				{
-					for window in Self::choose_windows(osd_app) {
+					for window in self.choose_windows() {
 						window.changed_brightness(brightness_backend.as_mut());
 					}
 				}
@@ -472,7 +512,7 @@ impl SwayOSDApplication {
 					Ok(value) if (0..=1).contains(&value) => value == 1,
 					_ => get_key_lock_state(KeysLocks::CapsLock, value),
 				};
-				for window in Self::choose_windows(osd_app) {
+				for window in self.choose_windows() {
 					window.changed_keylock(KeysLocks::CapsLock, state)
 				}
 				reset_monitor_name();
@@ -483,7 +523,7 @@ impl SwayOSDApplication {
 					Ok(value) if (0..=1).contains(&value) => value == 1,
 					_ => get_key_lock_state(KeysLocks::NumLock, value),
 				};
-				for window in Self::choose_windows(osd_app) {
+				for window in self.choose_windows() {
 					window.changed_keylock(KeysLocks::NumLock, state)
 				}
 				reset_monitor_name();
@@ -494,7 +534,7 @@ impl SwayOSDApplication {
 					Ok(value) if (0..=1).contains(&value) => value == 1,
 					_ => get_key_lock_state(KeysLocks::ScrollLock, value),
 				};
-				for window in Self::choose_windows(osd_app) {
+				for window in self.choose_windows() {
 					window.changed_keylock(KeysLocks::ScrollLock, state)
 				}
 				reset_monitor_name();
@@ -528,7 +568,7 @@ impl SwayOSDApplication {
 					match player.run() {
 						Ok(_) => {
 							let (icon, label) = (player.icon.unwrap_or_default(), &player.label);
-							for window in Self::choose_windows(osd_app) {
+							for window in self.choose_windows() {
 								window.changed_player(&icon, label.as_deref())
 							}
 							reset_monitor_name();
@@ -543,6 +583,16 @@ impl SwayOSDApplication {
 
 				reset_player();
 			}
+			(ArgTypes::KbdBacklight, values) => {
+				if let Some(values) = values {
+					if let Ok((value, n_segments)) = segmented_progress_parser(&values) {
+						for window in self.choose_windows() {
+							window.changed_kbd_backlight(value, n_segments);
+						}
+					}
+				}
+				reset_monitor_name();
+			}
 			(ArgTypes::DeviceName, name) => {
 				set_device_name(name.unwrap_or(DEVICE_NAME_DEFAULT.to_string()))
 			}
@@ -553,7 +603,7 @@ impl SwayOSDApplication {
 			}
 			(ArgTypes::CustomMessage, message) => {
 				if let Some(message) = message {
-					for window in Self::choose_windows(osd_app) {
+					for window in self.choose_windows() {
 						window.custom_message(message.as_str(), get_icon_name().as_deref());
 					}
 				}
@@ -563,7 +613,7 @@ impl SwayOSDApplication {
 			(ArgTypes::CustomProgress, fraction) => {
 				if let Some(fraction) = fraction {
 					let fraction: f64 = fraction.parse::<f64>().unwrap_or(1.0);
-					for window in Self::choose_windows(osd_app) {
+					for window in self.choose_windows() {
 						window.custom_progress(
 							fraction,
 							get_progress_text(),
@@ -578,7 +628,7 @@ impl SwayOSDApplication {
 			(ArgTypes::CustomSegmentedProgress, values) => {
 				if let Some(values) = values {
 					if let Ok((value, n_segments)) = segmented_progress_parser(&values) {
-						for window in Self::choose_windows(osd_app) {
+						for window in self.choose_windows() {
 							window.custom_segmented_progress(
 								value,
 								n_segments,

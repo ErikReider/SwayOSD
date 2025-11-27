@@ -30,6 +30,7 @@ pub enum ArgTypes {
 	Playerctl = 14,
 	CustomProgress = 15,
 	CustomSegmentedProgress = 16,
+	KbdBacklight = 17,
 }
 
 impl fmt::Display for ArgTypes {
@@ -60,6 +61,7 @@ impl fmt::Display for ArgTypes {
 			ArgTypes::CustomSegmentedProgress => "CUSTOM-SEGMENTED-PROGRESS",
 			ArgTypes::CustomProgressText => "CUSTOM-PROGRESS-TEXT",
 			ArgTypes::MinBrightness => "MIN-BRIGHTNESS",
+			ArgTypes::KbdBacklight => "KBD-BACKLIGHT",
 		};
 		write!(f, "{}", string)
 	}
@@ -94,6 +96,7 @@ impl str::FromStr for ArgTypes {
 			"CUSTOM-SEGMENTED-PROGRESS" => ArgTypes::CustomSegmentedProgress,
 			"CUSTOM-PROGRESS-TEXT" => ArgTypes::CustomProgressText,
 			"MIN-BRIGHTNESS" => ArgTypes::MinBrightness,
+			"KBD-BACKLIGHT" => ArgTypes::KbdBacklight,
 			other_type => return Err(other_type.to_owned()),
 		};
 		Ok(result)
