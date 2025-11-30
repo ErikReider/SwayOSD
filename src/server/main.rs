@@ -4,6 +4,8 @@ mod upower;
 mod utils;
 mod widgets;
 
+#[path = "../args.rs"]
+mod args;
 #[path = "../argtypes.rs"]
 mod argtypes;
 #[path = "../config.rs"]
@@ -26,6 +28,7 @@ extern crate cascade;
 use application::SwayOSDApplication;
 use argtypes::ArgTypes;
 use async_channel::Sender;
+use clap::Parser;
 use config::{DBUS_PATH, DBUS_SERVER_NAME};
 use gtk::{
 	gdk::Display,
@@ -33,7 +36,7 @@ use gtk::{
 	glib::Bytes,
 	CssProvider, IconTheme,
 };
-use std::{env::args_os, future::pending, path::PathBuf, str::FromStr, sync::Arc};
+use std::{future::pending, str::FromStr, sync::Arc};
 use utils::{get_system_css_path, user_style_path};
 use zbus::{connection, interface};
 
@@ -109,40 +112,17 @@ fn main() {
 		None => eprintln!("Could not find the system CSS file..."),
 	}
 
-	// Get config path and CSS theme path from command line
-	let mut config_path: Option<PathBuf> = None;
-	let mut custom_user_css: Option<PathBuf> = None;
-	let mut args = args_os();
-	while let Some(arg) = args.next() {
-		match arg.to_str() {
-			Some("--config") => {
-				if let Some(path) = args.next() {
-					config_path = Some(path.into());
-				}
-			}
-			Some("-s") | Some("--style") => {
-				if let Some(path) = args.next() {
-					custom_user_css = Some(path.into());
-				}
-			}
-			_ => (),
-		}
-	}
+	let args = Arc::new(args::ArgsServer::parse());
 
 	// Parse Config
 	let server_config = Arc::new(
-		config::user::read_user_config(config_path.as_deref())
+		config::user::read_user_config(args.config.as_deref())
 			.expect("Failed to parse config file")
 			.server,
 	);
 
-	// Load style path from config if none is given on CLI
-	if custom_user_css.is_none() {
-		custom_user_css = server_config.style.clone();
-	}
-
 	// Try loading the users CSS theme
-	if let Some(user_config_path) = user_style_path(custom_user_css) {
+	if let Some(user_config_path) = user_style_path(args.style.clone()) {
 		let user_provider = CssProvider::new();
 		user_provider.connect_parsing_error(|_provider, _section, error| {
 			eprintln!("Failed loading user defined style.css: {}", error);
@@ -160,5 +140,5 @@ fn main() {
 	// Start the DBus Server
 	async_std::task::spawn(DbusServer::init(sender));
 	// Start the GTK Application
-	std::process::exit(SwayOSDApplication::new(server_config, receiver).start());
+	std::process::exit(SwayOSDApplication::new(server_config, args, receiver).start());
 }
