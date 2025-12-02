@@ -1,6 +1,7 @@
+use crate::args::ArgsServer;
 use crate::argtypes::ArgTypes;
 use crate::config::{self, APPLICATION_NAME, DBUS_BACKEND_NAME};
-use crate::global_utils::{handle_application_args, segmented_progress_parser, HandleLocalStatus};
+use crate::global_utils::segmented_progress_parser;
 use crate::osd_window::SwayosdWindow;
 use crate::utils::{self, *};
 use crate::{playerctl::*, upower};
@@ -13,9 +14,7 @@ use gtk::{
 	gio::{
 		self, ApplicationFlags, BusNameWatcherFlags, BusType, DBusSignalFlags, SignalSubscriptionId,
 	},
-	glib::{
-		clone, variant::ToVariant, Char, ControlFlow::Break, MainContext, OptionArg, OptionFlags,
-	},
+	glib::{clone, Char, ControlFlow::Break, MainContext, OptionArg, OptionFlags},
 	prelude::*,
 	Application,
 };
@@ -37,28 +36,11 @@ pub struct SwayOSDApplication {
 impl SwayOSDApplication {
 	pub fn new(
 		server_config: Arc<ServerConfig>,
+		args: Arc<ArgsServer>,
 		action_receiver: Receiver<(ArgTypes, String)>,
 	) -> Self {
 		let app = Application::new(Some(APPLICATION_NAME), ApplicationFlags::FLAGS_NONE);
 		let hold = Rc::new(app.hold());
-
-		app.add_main_option(
-			"config",
-			Char::from(0),
-			OptionFlags::NONE,
-			OptionArg::String,
-			"Use a custom config file instead of looking for one.",
-			Some("<CONFIG FILE PATH>"),
-		);
-
-		app.add_main_option(
-			"style",
-			Char::from(b's'),
-			OptionFlags::NONE,
-			OptionArg::String,
-			"Use a custom Stylesheet file instead of looking for one",
-			Some("<CSS FILE PATH>"),
-		);
 
 		app.add_main_option(
 			"top-margin",
@@ -96,53 +78,7 @@ impl SwayOSDApplication {
 			set_show_percentage(show);
 		}
 
-		// Parse args
-		app.connect_handle_local_options(clone!(
-			#[strong]
-			osd_app,
-			#[strong]
-			server_config,
-			move |_app, args| {
-				let actions = match handle_application_args(args.to_variant()) {
-					(HandleLocalStatus::SUCCESS | HandleLocalStatus::CONTINUE, actions) => actions,
-					(status @ HandleLocalStatus::FAILURE, _) => return status.as_return_code(),
-				};
-				for (arg_type, data) in actions {
-					match (arg_type, data) {
-						(ArgTypes::TopMargin, margin) => {
-							let margin: Option<f32> = margin
-								.and_then(|margin| margin.parse().ok())
-								.and_then(|margin| {
-									(0_f32..1_f32).contains(&margin).then_some(margin)
-								});
-
-							if let Some(margin) = margin {
-								set_top_margin(margin)
-							}
-						}
-						(ArgTypes::MaxVolume, max) => {
-							let max: Option<u8> = max.and_then(|max| max.parse().ok());
-
-							if let Some(max) = max {
-								set_default_max_volume(max);
-							}
-						}
-						(ArgTypes::MinBrightness, min) => {
-							let min: Option<u32> = min.and_then(|min| min.parse().ok());
-
-							if let Some(min) = min {
-								set_default_min_brightness(min);
-							}
-						}
-						(arg_type, data) => {
-							osd_app.action_activated(server_config.clone(), arg_type, data)
-						}
-					}
-				}
-
-				HandleLocalStatus::CONTINUE.as_return_code()
-			}
-		));
+		Self::parse_args(&args);
 
 		// Listen for any actions sent from swayosd-client
 		MainContext::default().spawn_local(clone!(
@@ -224,6 +160,20 @@ impl SwayOSDApplication {
 		);
 
 		osd_app
+	}
+
+	fn parse_args(args: &ArgsServer) {
+		// Top Margin
+		if let Some(value) = args.top_margin.to_owned() {
+			match value.parse::<f32>() {
+				Ok(top_margin @ 0.0f32..=1.0f32) => {
+					set_top_margin(top_margin);
+				}
+				_ => {
+					eprintln!("{} is not a number between 0.0 and 1.0!", value);
+				}
+			}
+		}
 	}
 
 	async fn listen_to_upower_kbd_backlight(
@@ -327,7 +277,8 @@ impl SwayOSDApplication {
 			eprintln!("An instance of SwayOSD is already running!\n");
 			std::process::exit(1);
 		}
-		self.app.run().into()
+		let empty_args: Vec<String> = vec![];
+		self.app.run_with_args(&empty_args).into()
 	}
 
 	fn initialize(&self) {

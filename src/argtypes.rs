@@ -13,7 +13,6 @@ pub enum ArgTypes {
 	CustomProgressText = (i32::MIN + 6) as isize,
 	MinBrightness = (i32::MIN + 7) as isize,
 	// Other
-	None = 0,
 	CapsLock = 1,
 	SinkVolumeRaise = 2,
 	SinkVolumeLower = 3,
@@ -36,7 +35,6 @@ pub enum ArgTypes {
 impl fmt::Display for ArgTypes {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		let string = match self {
-			ArgTypes::None => "NONE",
 			ArgTypes::CapsLock => "CAPSLOCK",
 			ArgTypes::MaxVolume => "MAX-VOLUME",
 			ArgTypes::SinkVolumeRaise => "SINK-VOLUME-RAISE",
