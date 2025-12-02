@@ -14,9 +14,7 @@ use gtk::{
 	gio::{
 		self, ApplicationFlags, BusNameWatcherFlags, BusType, DBusSignalFlags, SignalSubscriptionId,
 	},
-	glib::{
-		clone, Char, ControlFlow::Break, MainContext, OptionArg, OptionFlags,
-	},
+	glib::{clone, Char, ControlFlow::Break, MainContext, OptionArg, OptionFlags},
 	prelude::*,
 	Application,
 };
@@ -165,7 +163,7 @@ impl SwayOSDApplication {
 	}
 
 	fn parse_args(args: &ArgsServer) {
-		// Pulse Device
+		// Top Margin
 		if let Some(value) = args.top_margin.to_owned() {
 			match value.parse::<f32>() {
 				Ok(top_margin @ 0.0f32..=1.0f32) => {

@@ -14,7 +14,7 @@ pub struct ArgsServer {
 	pub style: Option<PathBuf>,
 
 	/// OSD margin from top edge (0.5 would be screen center). Default is 0.85
-	#[arg(long, value_name = "<from 0.0 to 1.0>")]
+	#[arg(long, value_name = "from 0.0 to 1.0")]
 	pub top_margin: Option<String>,
 }
 
