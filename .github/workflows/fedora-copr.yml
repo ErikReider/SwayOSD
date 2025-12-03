@@ -1,0 +1,50 @@
+name: Package for Fedora Copr repo
+
+on:
+  release:
+    types: [published]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  fedora-copr:
+    container: registry.fedoraproject.org/fedora-minimal:latest
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install API token for copr-cli
+        env:
+          API_LOGIN: ${{ secrets.COPR_API_LOGIN }}
+          API_USERNAME: ${{ secrets.COPR_API_USERNAME }}
+          API_TOKEN_CONTENT: ${{ secrets.COPR_API_TOKEN }}
+        run: |
+          mkdir -p "$HOME/.config"
+          # To generate a new token: https://copr.fedorainfracloud.org/api/.
+          echo "[copr-cli]" >> "$HOME/.config/copr"
+          echo "login = $API_LOGIN" >> "$HOME/.config/copr"
+          echo "username = $API_USERNAME" >> "$HOME/.config/copr"
+          echo "token = $API_TOKEN_CONTENT" >> "$HOME/.config/copr"
+          echo "copr_url = https://copr.fedorainfracloud.org" >> "$HOME/.config/copr"
+
+      - name: Install tooling for source RPM build
+        run: |
+          microdnf -y install --nodocs --setopt=install_weak_deps=0 \
+            copr-cli rpkg git
+
+      # It is necessary to checkout into sub-directory, because of some weird ownership problems cause by using containers
+      - name: Check out sources
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          path: swayosd
+
+      - name: Copy spec into root dir
+        run: |
+          cd swayosd
+          cp ./build-scripts/swayosd.rpkg.spec ./
+
+      - name: Submit the build to copr
+        run: |
+          cd swayosd
+          rpkg -v copr-build -w ${{ secrets.COPR_REPO_NAME }}

@@ -1,0 +1,54 @@
+name: Check build for Fedora.
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  fedora-build:
+    container: registry.fedoraproject.org/fedora-minimal:latest
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install tooling for source RPM build
+        run: |
+          microdnf -y install --nodocs --setopt=install_weak_deps=0 \
+            @development-tools @rpm-development-tools rpkg git \
+            'dnf5-command(builddep)' 'dnf5-command(copr)'
+          # Enable the official COPR repo
+          # (in case there are dependencies missing in the upstream repos, like updated gtk4-layer-shell)
+          microdnf copr enable erikreider/swayosd -y
+
+      # It is necessary to checkout into sub-directory, because of some weird ownership problems cause by using containers
+      - name: Check out sources
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          path: swayosd
+
+      - name: Copy spec into root dir
+        run: |
+          cd swayosd
+          cp ./build-scripts/swayosd.rpkg.spec ./
+
+      - name: Generate spec
+        run: |
+          cd swayosd
+          mkdir specs
+          rpkg spec --source  --outdir specs
+
+      - name: Install build dependencies
+        run: |
+          cd swayosd
+          microdnf -y builddep ./specs/swayosd.rpkg.spec
+
+      - name: Local build
+        run: |
+          cd swayosd
+          mkdir -p out
+          rpkg local --out `pwd`/out
