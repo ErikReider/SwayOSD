@@ -39,6 +39,24 @@ ninja -C build
 meson install -C build
 ```
 
+### Fedora
+
+The package is available on COPR:
+
+```zsh
+dnf copr enable erikreider/swayosd
+dnf install swayosd
+```
+
+### Fedora Silverblue (and other rpm-ostree variants)
+
+The package can be layered over the base image after adding the Copr repo as an ostree repo:
+
+```zsh
+sudo curl -sL -o /etc/yum.repos.d/_copr:copr.fedorainfracloud.org:erikreider:swayosd.repo https://copr.fedorainfracloud.org/coprs/erikreider/swayosd/repo/fedora-$(rpm -E %fedora)/erikreider-swayosd-fedora-$(rpm -E %fedora).repo
+rpm-ostree install swayosd
+```
+
 ### Arch Linux
 
 - extra: [swayosd](https://archlinux.org/packages/extra/x86_64/swayosd/)
