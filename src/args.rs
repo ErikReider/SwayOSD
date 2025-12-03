@@ -69,11 +69,10 @@ pub struct ArgsClient {
 	#[arg(long, value_name = "(+)number")]
 	pub max_volume: Option<String>,
 
-	/// For which device to increase/decrease audio
-	#[arg(
-		long,
-		value_name = "Pulseaudio device name (pactl list short sinks|sources)"
-	)]
+	/// For which device to increase/decrease audio/brightness.
+	/// Can be wildcard for brightness.
+	/// Ex: (pactl list short sinks|sources)/(brightnessctl -l -c backlight).
+	#[arg(long, value_name = "Pulseaudio/BrightnessCtl device name")]
 	pub device: Option<String>,
 
 	/// Shows brightness osd and raises or loweres all available sources of brightness device
