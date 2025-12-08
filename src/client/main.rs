@@ -11,9 +11,6 @@ mod global_utils;
 mod brightness_backend;
 
 use clap::Parser;
-use config::APPLICATION_NAME;
-use gtk::{gio::ApplicationFlags, Application};
-use gtk::{glib, prelude::*};
 use zbus::{blocking::Connection, proxy};
 
 use crate::args::ArgsClient;
@@ -33,7 +30,7 @@ fn get_proxy() -> zbus::Result<ServerProxyBlocking<'static>> {
 	ServerProxyBlocking::new(&connection)
 }
 
-fn main() -> Result<(), glib::Error> {
+fn main() {
 	let args = args::ArgsClient::parse();
 
 	// Parse Config
@@ -56,12 +53,7 @@ fn main() -> Result<(), glib::Error> {
 		}
 	};
 
-	let app = Application::new(Some(APPLICATION_NAME), ApplicationFlags::FLAGS_NONE);
-
 	parse_args(&args, &proxy);
-
-	let empty_args: Vec<String> = vec![];
-	std::process::exit(app.run_with_args(&empty_args).into());
 }
 
 fn parse_args(args: &ArgsClient, proxy: &ServerProxyBlocking<'_>) {
@@ -84,7 +76,7 @@ fn parse_args(args: &ArgsClient, proxy: &ServerProxyBlocking<'_>) {
 	}
 	// Custom icon
 	if let Some(value) = args.custom_icon.to_owned() {
-		actions.push((ArgTypes::MaxVolume, Some(value)));
+		actions.push((ArgTypes::CustomIcon, Some(value)));
 	}
 	// Player name
 	if let Some(value) = args.player.to_owned() {
