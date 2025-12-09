@@ -61,7 +61,7 @@ pub struct ArgsClient {
 	#[arg(
 		long,
 		value_name = "raise|lower|mute-toggle|(±)number",
-		allow_hyphen_values = true
+		allow_negative_numbers = true
 	)]
 	pub output_volume: Option<String>,
 
@@ -69,7 +69,7 @@ pub struct ArgsClient {
 	#[arg(
 		long,
 		value_name = "raise|lower|mute-toggle|(±)number",
-		allow_hyphen_values = true
+		allow_negative_numbers = true
 	)]
 	pub input_volume: Option<String>,
 
@@ -84,7 +84,11 @@ pub struct ArgsClient {
 	pub device: Option<String>,
 
 	/// Shows brightness osd and raises or loweres all available sources of brightness device
-	#[arg(long, value_name = "raise|lower|(±)number", allow_hyphen_values = true)]
+	#[arg(
+		long,
+		value_name = "raise|lower|(±)number",
+		allow_negative_numbers = true
+	)]
 	pub brightness: Option<String>,
 
 	/// Sets the minimum Brightness
