@@ -13,7 +13,6 @@ pub enum ArgTypes {
 	CustomProgressText = (i32::MIN + 6) as isize,
 	MinBrightness = (i32::MIN + 7) as isize,
 	// Other
-	None = 0,
 	CapsLock = 1,
 	SinkVolumeRaise = 2,
 	SinkVolumeLower = 3,
@@ -29,12 +28,13 @@ pub enum ArgTypes {
 	CustomMessage = 13,
 	Playerctl = 14,
 	CustomProgress = 15,
+	CustomSegmentedProgress = 16,
+	KbdBacklight = 17,
 }
 
 impl fmt::Display for ArgTypes {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		let string = match self {
-			ArgTypes::None => "NONE",
 			ArgTypes::CapsLock => "CAPSLOCK",
 			ArgTypes::MaxVolume => "MAX-VOLUME",
 			ArgTypes::SinkVolumeRaise => "SINK-VOLUME-RAISE",
@@ -56,8 +56,10 @@ impl fmt::Display for ArgTypes {
 			ArgTypes::Player => "PLAYER",
 			ArgTypes::MonitorName => "MONITOR-NAME",
 			ArgTypes::CustomProgress => "CUSTOM-PROGRESS",
+			ArgTypes::CustomSegmentedProgress => "CUSTOM-SEGMENTED-PROGRESS",
 			ArgTypes::CustomProgressText => "CUSTOM-PROGRESS-TEXT",
 			ArgTypes::MinBrightness => "MIN-BRIGHTNESS",
+			ArgTypes::KbdBacklight => "KBD-BACKLIGHT",
 		};
 		write!(f, "{}", string)
 	}
@@ -89,8 +91,10 @@ impl str::FromStr for ArgTypes {
 			"PLAYER" => ArgTypes::Player,
 			"MONITOR-NAME" => ArgTypes::MonitorName,
 			"CUSTOM-PROGRESS" => ArgTypes::CustomProgress,
+			"CUSTOM-SEGMENTED-PROGRESS" => ArgTypes::CustomSegmentedProgress,
 			"CUSTOM-PROGRESS-TEXT" => ArgTypes::CustomProgressText,
 			"MIN-BRIGHTNESS" => ArgTypes::MinBrightness,
+			"KBD-BACKLIGHT" => ArgTypes::KbdBacklight,
 			other_type => return Err(other_type.to_owned()),
 		};
 		Ok(result)

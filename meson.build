@@ -1,7 +1,12 @@
-project('swayosd', 'rust',
-          version: '0.2.0',
-    meson_version: '>= 0.62.0',
-  default_options: [ 'warning_level=2', 'werror=false', ],
+project(
+  'swayosd',
+  'rust',
+  version: '0.2.1',
+  meson_version: '>= 0.62.0',
+  default_options: [
+    'warning_level=2',
+    'werror=false',
+  ],
 )
 
 config_path = join_paths(get_option('sysconfdir'), 'xdg', 'swayosd')

@@ -26,5 +26,9 @@
     <file>icons/scalable/status/playlist-consecutive-symbolic.svg</file>
     <file>icons/scalable/status/playlist-shuffle-symbolic.svg</file>
     <file>icons/scalable/status/stop-large-symbolic.svg</file>
+
+    <file>icons/scalable/status/keyboard-brightness-high-symbolic.svg</file>
+    <file>icons/scalable/status/keyboard-brightness-medium-symbolic.svg</file>
+    <file>icons/scalable/status/keyboard-brightness-off-symbolic.svg</file>
   </gresource>
 </gresources>

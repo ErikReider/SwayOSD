@@ -1,3 +1,5 @@
+#[path = "../args.rs"]
+mod args;
 #[path = "../argtypes.rs"]
 mod argtypes;
 #[path = "../config.rs"]
@@ -8,14 +10,11 @@ mod global_utils;
 #[path = "../brightness_backend/mod.rs"]
 mod brightness_backend;
 
-use config::APPLICATION_NAME;
-use global_utils::{handle_application_args, HandleLocalStatus};
-use gtk::glib::{OptionArg, OptionFlags};
-use gtk::{gio::ApplicationFlags, Application};
-use gtk::{glib, prelude::*};
-use std::env::args_os;
-use std::path::PathBuf;
+use clap::Parser;
 use zbus::{blocking::Connection, proxy};
+
+use crate::args::ArgsClient;
+use crate::argtypes::ArgTypes;
 
 #[proxy(
 	interface = "org.erikreider.swayosd",
@@ -31,20 +30,11 @@ fn get_proxy() -> zbus::Result<ServerProxyBlocking<'static>> {
 	ServerProxyBlocking::new(&connection)
 }
 
-fn main() -> Result<(), glib::Error> {
-	// Get config path from command line
-	let mut config_path: Option<PathBuf> = None;
-	let mut args = args_os();
-	while let Some(arg) = args.next() {
-		if let Some("--config") = arg.to_str() {
-			if let Some(path) = args.next() {
-				config_path = Some(path.into());
-			}
-		}
-	}
+fn main() {
+	let args = args::ArgsClient::parse();
 
 	// Parse Config
-	let _client_config = config::user::read_user_config(config_path.as_deref())
+	let _client_config = config::user::read_user_config(args.config.as_deref())
 		.expect("Failed to parse config file")
 		.client;
 
@@ -63,203 +53,179 @@ fn main() -> Result<(), glib::Error> {
 		}
 	};
 
-	let app = Application::new(Some(APPLICATION_NAME), ApplicationFlags::FLAGS_NONE);
+	parse_args(&args, &proxy);
+}
 
-	// Config cmdline arg for documentation
-	app.add_main_option(
-		"config",
-		glib::Char::from(0),
-		OptionFlags::NONE,
-		OptionArg::String,
-		"Use a custom config file instead of looking for one.",
-		Some("<CONFIG FILE PATH>"),
-	);
+fn parse_args(args: &ArgsClient, proxy: &ServerProxyBlocking<'_>) {
+	let mut actions: Vec<(ArgTypes, Option<String>)> = Vec::new();
 
-	// Capslock cmdline arg
-	app.add_main_option(
-		"caps-lock",
-		glib::Char::from(0),
-		OptionFlags::NONE,
-		OptionArg::None,
-		"Shows capslock osd. Note: Doesn't toggle CapsLock, just displays the status",
-		None,
-	);
-	app.add_main_option(
-		"num-lock",
-		glib::Char::from(0),
-		OptionFlags::NONE,
-		OptionArg::None,
-		"Shows numlock osd. Note: Doesn't toggle NumLock, just displays the status",
-		None,
-	);
-	app.add_main_option(
-		"scroll-lock",
-		glib::Char::from(0),
-		OptionFlags::NONE,
-		OptionArg::None,
-		"Shows scrolllock osd. Note: Doesn't toggle ScrollLock, just displays the status",
-		None,
-	);
-	// Capslock with specific LED cmdline arg
-	app.add_main_option(
-		"caps-lock-led",
-		glib::Char::from(0),
-		OptionFlags::NONE,
-		OptionArg::String,
-		"Shows capslock osd. Uses LED class name. Note: Doesn't toggle CapsLock, just displays the status",
-		Some("LED class name (/sys/class/leds/NAME)"),
-	);
-	app.add_main_option(
-		"num-lock-led",
-		glib::Char::from(0),
-		OptionFlags::NONE,
-		OptionArg::String,
-		"Shows numlock osd. Uses LED class name. Note: Doesn't toggle NumLock, just displays the status",
-		Some("LED class name (/sys/class/leds/NAME)"),
-	);
-	app.add_main_option(
-		"scroll-lock-led",
-		glib::Char::from(0),
-		OptionFlags::NONE,
-		OptionArg::String,
-		"Shows scrolllock osd. Uses LED class name. Note: Doesn't toggle ScrollLock, just displays the status",
-		Some("LED class name (/sys/class/leds/NAME)"),
-	);
-	// Sink volume cmdline arg
-	app.add_main_option(
-		"output-volume",
-		glib::Char::from(0),
-		OptionFlags::NONE,
-		OptionArg::String,
-		"Shows volume osd and raises, loweres or mutes default sink volume",
-		Some("raise|lower|mute-toggle|(±)number"),
-	);
-	// Source volume cmdline arg
-	app.add_main_option(
-		"input-volume",
-		glib::Char::from(0),
-		OptionFlags::NONE,
-		OptionArg::String,
-		"Shows volume osd and raises, loweres or mutes default source volume",
-		Some("raise|lower|mute-toggle|(±)number"),
-	);
+	//
+	// Parse flags. Should always be first to set a global variable before executing related functions
+	//
 
-	// Sink brightness cmdline arg
-	app.add_main_option(
-		"brightness",
-		glib::Char::from(0),
-		OptionFlags::NONE,
-		OptionArg::String,
-		"Shows brightness osd and raises or loweres all available sources of brightness device",
-		Some("raise|lower|(±)number"),
-	);
-
-	// Control players cmdline arg
-	app.add_main_option(
-		"playerctl",
-		glib::Char::from(0),
-		OptionFlags::NONE,
-		OptionArg::String,
-		"Shows Playerctl osd and runs the playerctl command",
-		Some("play-pause|play|pause|stop|next|prev|shuffle"),
-	);
-	app.add_main_option(
-		"max-volume",
-		glib::Char::from(0),
-		OptionFlags::NONE,
-		OptionArg::String,
-		"Sets the maximum Volume",
-		Some("(+)number"),
-	);
-	app.add_main_option(
-		"min-brightness",
-		glib::Char::from(0),
-		OptionFlags::NONE,
-		OptionArg::String,
-		"Sets the minimum Brightness",
-		Some("(+)number"),
-	);
-	app.add_main_option(
-		"device",
-		glib::Char::from(0),
-		OptionFlags::NONE,
-		OptionArg::String,
-		"For which device to increase/decrease audio",
-		Some("Pulseaudio device name (pactl list short sinks|sources)"),
-	);
-	app.add_main_option(
-		"player",
-		glib::Char::from(0),
-		OptionFlags::NONE,
-		OptionArg::String,
-		"For which player to run the playerctl commands",
-		Some("auto|all|(playerctl -l)"),
-	);
-
-	app.add_main_option(
-		"monitor",
-		glib::Char::from(0),
-		OptionFlags::NONE,
-		OptionArg::String,
-		"Which monitor to display osd on",
-		Some("Monitor identifier (e.g., HDMI-A-1, DP-1)"),
-	);
-
-	app.add_main_option(
-		"custom-message",
-		glib::Char::from(0),
-		OptionFlags::NONE,
-		OptionArg::String,
-		"Message to display",
-		Some("text"),
-	);
-
-	app.add_main_option(
-		"custom-icon",
-		glib::Char::from(0),
-		OptionFlags::NONE,
-		OptionArg::String,
-		"Icon to display when using custom-message/custom-progress. Icon name is from Freedesktop specification (https://specifications.freedesktop.org/icon-naming-spec/latest/)",
-		Some("Icon name"),
-	);
-
-	app.add_main_option(
-		"custom-progress",
-		glib::Char::from(0),
-		OptionFlags::NONE,
-		OptionArg::String,
-		"Progress to display (0.0 <-> 1.0)",
-		Some("Progress from 0.0 to 1.0"),
-	);
-
-	app.add_main_option(
-		"custom-progress-text",
-		glib::Char::from(0),
-		OptionFlags::NONE,
-		OptionArg::String,
-		"Text to display when using custom-progress",
-		Some("Progress text"),
-	);
-
-	// Parse args
-	app.connect_handle_local_options(move |_app, args| {
-		let variant = args.to_variant();
-		if variant.n_children() == 0 {
-			eprintln!("No args provided...");
-			return HandleLocalStatus::FAILURE.as_return_code();
+	// Pulse Device
+	if let Some(value) = args.device.to_owned() {
+		actions.push((ArgTypes::DeviceName, Some(value)));
+	}
+	// Max volume
+	if let Some(value) = args.max_volume.to_owned() {
+		match value.parse::<u8>() {
+			Ok(_) => actions.push((ArgTypes::MaxVolume, Some(value))),
+			Err(_) => eprintln!("{} is not a number between 0 and {}!", value, u8::MAX),
 		}
-		let actions = match handle_application_args(variant) {
-			(HandleLocalStatus::SUCCESS, actions) => actions,
-			(status @ HandleLocalStatus::FAILURE, _) => return status.as_return_code(),
-			(status @ HandleLocalStatus::CONTINUE, _) => return status.as_return_code(),
+	}
+	// Custom icon
+	if let Some(value) = args.custom_icon.to_owned() {
+		actions.push((ArgTypes::CustomIcon, Some(value)));
+	}
+	// Player name
+	if let Some(value) = args.player.to_owned() {
+		actions.push((ArgTypes::Player, Some(value)));
+	}
+	// Monitor name
+	if let Some(value) = args.monitor.to_owned() {
+		actions.push((ArgTypes::MonitorName, Some(value)));
+	}
+	// Custom progress text
+	if let Some(value) = args.custom_progress_text.to_owned() {
+		actions.push((ArgTypes::CustomProgressText, Some(value)));
+	}
+	// Min Brightness
+	if let Some(value) = args.min_brightness.to_owned() {
+		match value.parse::<u8>() {
+			Ok(value @ 0u8..=100u8) => {
+				actions.push((ArgTypes::MinBrightness, Some(value.to_string())))
+			}
+			_ => eprintln!("{} is not a number between 0 and {}!", value, 100),
+		}
+	}
+
+	//
+	// Main options
+	//
+
+	// Caps lock
+	if args.caps_lock {
+		actions.push((ArgTypes::CapsLock, None));
+	}
+	// Caps lock LED
+	if let Some(value) = args.caps_lock_led.to_owned() {
+		actions.push((ArgTypes::CapsLock, Some(value)));
+	}
+	// Num lock
+	if args.num_lock {
+		actions.push((ArgTypes::NumLock, None));
+	}
+	// Num lock LED
+	if let Some(value) = args.num_lock_led.to_owned() {
+		actions.push((ArgTypes::NumLock, Some(value)));
+	}
+	// Scroll lock
+	if args.scroll_lock {
+		actions.push((ArgTypes::ScrollLock, None));
+	}
+	// Scroll lock LED
+	if let Some(value) = args.scroll_lock_led.to_owned() {
+		actions.push((ArgTypes::ScrollLock, Some(value)));
+	}
+	// Output volume
+	if let Some(value) = args.output_volume.as_deref() {
+		if let Ok(parsed) = volume_parser(false, value) {
+			actions.push(parsed);
+		}
+	}
+	// Input volume
+	if let Some(value) = args.input_volume.as_deref() {
+		if let Ok(parsed) = volume_parser(true, value) {
+			actions.push(parsed);
+		}
+	}
+	// Brightness
+	if let Some(value) = args.brightness.as_deref() {
+		// let value: &str = value.as_str();
+		let value = match (value, value.parse::<i8>()) {
+			// Parse custom step values
+			(_, Ok(num)) => match value.get(..1) {
+				Some("+") => Some((ArgTypes::BrightnessRaise, Some(num.to_string()))),
+				Some("-") => Some((ArgTypes::BrightnessLower, Some(num.abs().to_string()))),
+				_ => Some((ArgTypes::BrightnessSet, Some(num.to_string()))),
+			},
+
+			("raise", _) => Some((ArgTypes::BrightnessRaise, None)),
+			("lower", _) => Some((ArgTypes::BrightnessLower, None)),
+			(e, _) => {
+				eprintln!("Unknown brightness mode: \"{}\"!...", e);
+				None
+			}
 		};
-		// execute the sorted actions
-		for (arg_type, data) in actions {
-			let _ = proxy.handle_action(arg_type.to_string(), data.unwrap_or(String::new()));
+		if let Some(value) = value {
+			actions.push(value);
 		}
+	}
+	// Playerctl
+	if let Some(value) = args.playerctl.as_deref() {
+		match value {
+			"play-pause" | "play" | "pause" | "next" | "prev" | "previous" | "shuffle" | "stop" => {
+				actions.push((ArgTypes::Playerctl, Some(value.to_string())));
+			}
+			x => eprintln!("Unknown Playerctl command: \"{}\"!...", x),
+		}
+	}
+	// Custom message
+	if let Some(value) = args.custom_message.to_owned() {
+		actions.push((ArgTypes::CustomMessage, Some(value)));
+	}
+	// Custom progress
+	if let Some(value) = args.custom_progress.as_deref() {
+		match value.parse::<f64>() {
+			Ok(_) => actions.push((ArgTypes::CustomProgress, Some(value.to_string()))),
+			Err(_) => eprintln!("{} is not a number between 0.0 and 1.0!", value),
+		}
+	}
+	// Custom segmented progress
+	if let Some(value) = args.custom_segmented_progress.as_deref() {
+		match global_utils::segmented_progress_parser(value) {
+			Ok((value, n_segments)) => actions.push((
+				ArgTypes::CustomSegmentedProgress,
+				Some(format!("{}:{}", value, n_segments)),
+			)),
+			Err(msg) => eprintln!("{}", msg),
+		}
+	}
 
-		HandleLocalStatus::SUCCESS.as_return_code()
-	});
+	// execute the sorted actions
+	for (arg_type, data) in actions {
+		let _ = proxy.handle_action(arg_type.to_string(), data.unwrap_or(String::new()));
+	}
+}
 
-	std::process::exit(app.run().into());
+fn volume_parser(is_sink: bool, value: &str) -> Result<(ArgTypes, Option<String>), i32> {
+	let mut v = match (value, value.parse::<i8>()) {
+		// Parse custom step values
+		(_, Ok(num)) => (
+			if num.is_positive() {
+				ArgTypes::SinkVolumeRaise
+			} else {
+				ArgTypes::SinkVolumeLower
+			},
+			Some(num.abs().to_string()),
+		),
+		("raise", _) => (ArgTypes::SinkVolumeRaise, None),
+		("lower", _) => (ArgTypes::SinkVolumeLower, None),
+		("mute-toggle", _) => (ArgTypes::SinkVolumeMuteToggle, None),
+		(e, _) => {
+			eprintln!("Unknown output volume mode: \"{}\"!...", e);
+			return Err(1);
+		}
+	};
+	if is_sink {
+		if v.0 == ArgTypes::SinkVolumeRaise {
+			v.0 = ArgTypes::SourceVolumeRaise;
+		} else if v.0 == ArgTypes::SinkVolumeLower {
+			v.0 = ArgTypes::SourceVolumeLower;
+		} else {
+			v.0 = ArgTypes::SourceVolumeMuteToggle;
+		}
+	}
+	Ok(v)
 }

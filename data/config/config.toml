@@ -19,4 +19,9 @@ min_brightness = 5
 ## Available values:
 ## artist, albumArtist, title, album, trackNumber, discNumber, autoRating
 
+# If SwayOSD should automatically display the OSD when the keyboard backlight changes or not.
+# Note: Only displays the OSD if the hardware changed the keyboard brightness itself
+# (automatically or through a firmware-handled hotkey being pressed)
+keyboard_backlight = true
+
 [client]

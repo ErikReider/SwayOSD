@@ -34,9 +34,27 @@ The supported keys are listed above in [Features](#features)
 
 ```zsh
 # Please note that the command below might require `--prefix /usr` on some systems
-meson setup build
+meson setup build --buildtype release
 ninja -C build
 meson install -C build
+```
+
+### Fedora
+
+The package is available on COPR:
+
+```zsh
+dnf copr enable erikreider/swayosd
+dnf install swayosd
+```
+
+### Fedora Silverblue (and other rpm-ostree variants)
+
+The package can be layered over the base image after adding the Copr repo as an ostree repo:
+
+```zsh
+sudo curl -sL -o /etc/yum.repos.d/_copr:copr.fedorainfracloud.org:erikreider:swayosd.repo https://copr.fedorainfracloud.org/coprs/erikreider/swayosd/repo/fedora-$(rpm -E %fedora)/erikreider-swayosd-fedora-$(rpm -E %fedora).repo
+rpm-ostree install swayosd
 ```
 
 ### Arch Linux
@@ -52,24 +70,29 @@ Starting with Debian trixie and Ubuntu Plucky swayosd is available via apt.
 
 ## Usage:
 
-### SwayOSD LibInput Backend
+### SwayOSD Frontend
+
+`swayosd-server` must be running in the background.
+Use `swayosd-client` to send commands and display the OSD.
+
+### SwayOSD LibInput Backend (Optional)
+
+Used for notifying when caps-lock, scroll-lock, and num-lock is changed.
 
 Using Systemd: `sudo systemctl enable --now swayosd-libinput-backend.service`
 
 Other users can run: `pkexec swayosd-libinput-backend`
 
-### SwayOSD Frontend
+### Sway examples
 
-#### Sway examples
-
-##### Start Server
+#### Start Server
 
 ```zsh
 # OSD server
 exec swayosd-server
 ```
 
-##### Add Client bindings
+#### Add Client bindings
 
 ```zsh
 # Sink volume raise optionally with --device
@@ -101,10 +124,10 @@ bindsym --release Caps_Lock exec swayosd-client --caps-lock
 # Capslock but specific LED name (/sys/class/leds/)
 bindsym --release Caps_Lock exec swayosd-client --caps-lock-led input19::capslock
 
-# Brightness raise
-bindsym XF86MonBrightnessUp exec swayosd-client --brightness raise
-# Brightness lower
-bindsym XF86MonBrightnessDown exec swayosd-client --brightness lower
+# Brightness raise (optionally with --device, can be device name or wildcard)
+bindsym XF86MonBrightnessUp exec swayosd-client --brightness raise --device intel_backlight
+# Brightness lower (optionally with --device, can be device name or wildcard)
+bindsym XF86MonBrightnessDown exec swayosd-client --brightness lower --device intel_backlight
 
 # Brightness raise with custom value('+' sign needed)
 bindsym XF86MonBrightnessUp  exec swayosd-client --brightness +10
@@ -114,15 +137,16 @@ bindsym XF86MonBrightnessDown exec swayosd-client --brightness -10
 # Play/Pause current player
 bindsym XF86AudioPlay exec swayosd-client --playerctl play-pause
 # Next song for current player
-bindsym XF86AudioPlay exec swayosd-client --playerctl play-pause
+bindsym XF86AudioNext exec swayosd-client --playerctl next
 ```
 
 ### Notes on using `--device`:
 
-- It is for audio devices only.
-- If it is omitted the default audio device is used.
-- It only changes the target device for the current action that changes the volume.
+- It is for audio and BrightnessCtl devices only.
+- If it is omitted, the default audio / first BrightnessCtl device is used.
+- It only changes the target device for the current action that changes the volume / brightness.
 - You can list your input audio devices using `pactl list short sources`, for outputs replace `sources` with `sinks`.
+- You can list your brightness devices using `brightnessctl -l`, for backlights, use `brightnessctl -l -c backlight`.
 
 ### Notes on using `--monitor`:
 
