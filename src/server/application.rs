@@ -4,7 +4,7 @@ use crate::config::{self, APPLICATION_NAME, DBUS_BACKEND_NAME};
 use crate::global_utils::segmented_progress_parser;
 use crate::osd_window::SwayosdWindow;
 use crate::utils::{self, *};
-use crate::{playerctl::*, upower};
+use crate::{login1, playerctl::*, upower};
 use async_channel::{Receiver, Sender};
 use async_std::stream::StreamExt;
 use gtk::gio::{DBusConnection, ListModel};
@@ -100,7 +100,6 @@ impl SwayOSDApplication {
 
 		// Listen for UPower keyboard backlight changes
 		if server_config.keyboard_backlight.unwrap_or(true) {
-			// let server_config_shared = server_config.clone();
 			MainContext::default().spawn_local(clone!(
 				#[strong]
 				osd_app,
@@ -264,6 +263,30 @@ impl SwayOSDApplication {
 		}
 	}
 
+	async fn listen_to_prepare_for_sleep(&self) -> zbus::Result<ControlFlow> {
+		let proxy = login1::Login1::init().await?;
+		let mut changed_stream = proxy.receive_prepare_for_sleep().await?;
+		while let Some(msg) = changed_stream.next().await {
+			if let Ok(args) = msg.args() {
+				if !args.value {
+					// Re-add all windows
+					let windows_len: u32 = {
+						let windows = self.windows.borrow();
+						windows.len() as u32
+					};
+					let display: gdk::Display =
+						gdk::Display::default().expect("Could not get GDK Display!");
+					let monitors = display.monitors();
+					self.monitors_changed(&monitors, 0, windows_len, monitors.n_items());
+				}
+			} else {
+				eprintln!("Login1 args aren't valid {:?}", msg.args());
+			}
+		}
+		eprintln!("Login1 stream ended unexpectedly");
+		zbus::Result::Ok(Break)
+	}
+
 	pub fn start(&self) -> i32 {
 		let osd_app = self.clone();
 		self.app.connect_activate(move |_| {
@@ -286,6 +309,18 @@ impl SwayOSDApplication {
 		let monitors = display.monitors();
 
 		let osd_app = self.clone();
+
+		// Refresh the created windows if a monitor got unplugged when suspended
+		MainContext::default().spawn_local(clone!(
+			#[strong]
+			osd_app,
+			async move {
+				let result = osd_app.listen_to_prepare_for_sleep().await;
+				eprintln!("Login1 signal ended unexpectedly: {:?}", result);
+				result
+			}
+		));
+
 		monitors.connect_items_changed(clone!(
 			#[strong]
 			osd_app,
@@ -298,8 +333,8 @@ impl SwayOSDApplication {
 	fn monitors_changed(&self, monitors: &ListModel, position: u32, removed: u32, added: u32) {
 		let mut windows = self.windows.borrow_mut();
 
-		for i in 0..removed {
-			let window = windows.remove((position + i) as usize);
+		for _ in 0..removed {
+			let window = windows.remove(position as usize);
 			window.close();
 		}
 
