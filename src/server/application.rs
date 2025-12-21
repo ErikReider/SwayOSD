@@ -30,6 +30,7 @@ pub struct SwayOSDApplication {
 	#[shrinkwrap(main_field)]
 	app: gtk::Application,
 	windows: Rc<RefCell<Vec<SwayosdWindow>>>,
+	activated: Rc<RefCell<bool>>,
 	_hold: Rc<gio::ApplicationHoldGuard>,
 }
 
@@ -57,6 +58,7 @@ impl SwayOSDApplication {
 		let osd_app = SwayOSDApplication {
 			app: app.clone(),
 			windows: Rc::new(RefCell::new(Vec::new())),
+			activated: Rc::new(RefCell::new(false)),
 			_hold: hold,
 		};
 
@@ -290,7 +292,13 @@ impl SwayOSDApplication {
 	pub fn start(&self) -> i32 {
 		let osd_app = self.clone();
 		self.app.connect_activate(move |_| {
-			osd_app.initialize();
+			if let Ok(mut is_activated) = osd_app.activated.try_borrow_mut() {
+				if *is_activated {
+					return;
+				}
+				*is_activated = true;
+				osd_app.initialize();
+			}
 		});
 
 		self.app
