@@ -32,10 +32,10 @@ The supported keys are listed above in [Features](#features)
 
 ### Through Meson
 
-```zsh
+```sh
 # Please note that the command below might require `--prefix /usr` on some systems
 meson setup build --buildtype release
-ninja -C build
+meson compile -C build
 meson install -C build
 ```
 
@@ -43,7 +43,7 @@ meson install -C build
 
 The package is available on COPR:
 
-```zsh
+```sh
 dnf copr enable erikreider/swayosd
 dnf install swayosd
 ```
@@ -52,7 +52,7 @@ dnf install swayosd
 
 The package can be layered over the base image after adding the Copr repo as an ostree repo:
 
-```zsh
+```sh
 sudo curl -sL -o /etc/yum.repos.d/_copr:copr.fedorainfracloud.org:erikreider:swayosd.repo https://copr.fedorainfracloud.org/coprs/erikreider/swayosd/repo/fedora-$(rpm -E %fedora)/erikreider-swayosd-fedora-$(rpm -E %fedora).repo
 rpm-ostree install swayosd
 ```
@@ -87,14 +87,14 @@ Other users can run: `pkexec swayosd-libinput-backend`
 
 #### Start Server
 
-```zsh
+```sh
 # OSD server
 exec swayosd-server
 ```
 
 #### Add Client bindings
 
-```zsh
+```ini
 # Sink volume raise optionally with --device
 bindsym XF86AudioRaiseVolume exec swayosd-client --output-volume raise
 # Sink volume lower optionally with --device
@@ -152,6 +152,7 @@ bindsym XF86AudioNext exec swayosd-client --playerctl next
 
 - By default, without using --monitor the osd will be shown on all monitors
 - On setups with multiple monitors, if you only want to show the osd on the focused monitor, you can do so with the help of window manager specific commands:
+
 ```sh
 # Sway
 swayosd-client --monitor "$(swaymsg -t get_outputs | jq -r '.[] | select(.focused == true).name')" --output-volume raise
@@ -162,7 +163,7 @@ swayosd-client --monitor "$(hyprctl monitors -j | jq -r '.[] | select(.focused =
 
 ## Theming
 
-Since SwayOSD uses GTK, its appearance can be changed. Initially scss is used, which GTK does not support, so we need to use plain css. 
+Since SwayOSD uses GTK, its appearance can be changed. Initially scss is used, which GTK does not support, so we need to use plain css.
 The style conifg file is in `~/.config/swayosd/style.css` (it is not automatically generated). For reference you can check [this](https://github.com/ErikReider/SwayOSD/blob/main/data/style/style.scss) and [this](https://github.com/ErikReider/SwayOSD/issues/36).
 
 ## Brightness Control
@@ -170,3 +171,20 @@ The style conifg file is in `~/.config/swayosd/style.css` (it is not automatical
 Some devices may not have permission to write `/sys/class/backlight/*/brightness`.
 So using the provided packaged `udev` rules + adding the user to `video` group
 by running `sudo usermod -a -G video $USER`, everything should work as expected.
+
+### Development
+
+#### Setup and build
+
+```sh
+meson setup build
+meson compile -C build
+```
+
+#### Set the environment
+
+```sh
+# Sets the correct environment variables
+meson devenv -C build -w .
+# Now you can start nvim, vscode, etc in the current shell to reduce duplicated builds
+```
