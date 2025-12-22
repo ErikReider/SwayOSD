@@ -293,13 +293,11 @@ pub fn change_device_volume(
 			let max_volume = volume_from_f64(get_max_volume() as f64);
 			if let Some(volume) = device.volume.clone().inc_clamp(delta, max_volume) {
 				controller.set_device_volume_by_index(device.index, volume);
-				controller.set_device_mute_by_index(device.index, false);
 			}
 		}
 		VolumeChangeType::Lower => {
 			if let Some(volume) = device.volume.clone().decrease(delta) {
 				controller.set_device_volume_by_index(device.index, volume);
-				controller.set_device_mute_by_index(device.index, false);
 			}
 		}
 		VolumeChangeType::MuteToggle => {
