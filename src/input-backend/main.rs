@@ -129,14 +129,14 @@ fn event(
 				continue;
 			}
 
-			if let Some(path) = device.devnode() {
-				if let Some(path) = path.to_str() {
-					let event_info = EventInfo {
-						device_path: path.to_owned(),
-						ev_key,
-					};
-					task::spawn(call(event_info, iface_ref.clone()));
-				}
+			if let Some(path) = device.devnode()
+				&& let Some(path) = path.to_str()
+			{
+				let event_info = EventInfo {
+					device_path: path.to_owned(),
+					ev_key,
+				};
+				task::spawn(call(event_info, iface_ref.clone()));
 			}
 		}
 	}

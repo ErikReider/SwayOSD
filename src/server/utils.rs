@@ -205,10 +205,10 @@ pub fn get_key_lock_state(key: KeysLocks, led: Option<String>) -> bool {
 				if !path.contains(key_name) {
 					continue;
 				}
-				if let Ok(content) = read_file(path + "/brightness") {
-					if content.trim().eq("1") {
-						return true;
-					}
+				if let Ok(content) = read_file(path + "/brightness")
+					&& content.trim() == "1"
+				{
+					return true;
 				}
 			}
 			false
@@ -362,10 +362,10 @@ pub fn get_system_css_path() -> Option<PathBuf> {
 
 pub fn user_style_path(custom_path: Option<PathBuf>) -> Option<String> {
 	let path = user_config_dir().join("swayosd").join("style.css");
-	if let Some(custom_path) = custom_path {
-		if custom_path.exists() {
-			return custom_path.to_str().map(|s| s.to_string());
-		}
+	if let Some(custom_path) = custom_path
+		&& custom_path.exists()
+	{
+		return custom_path.to_str().map(|s| s.to_string());
 	}
 	if path.exists() {
 		return path.to_str().map(|s| s.to_string());
