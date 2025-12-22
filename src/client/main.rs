@@ -129,16 +129,16 @@ fn parse_args(args: &ArgsClient, proxy: &ServerProxyBlocking<'_>) {
 		actions.push((ArgTypes::ScrollLock, Some(value)));
 	}
 	// Output volume
-	if let Some(value) = args.output_volume.as_deref() {
-		if let Ok(parsed) = volume_parser(false, value) {
-			actions.push(parsed);
-		}
+	if let Some(value) = args.output_volume.as_deref()
+		&& let Ok(parsed) = volume_parser(false, value)
+	{
+		actions.push(parsed);
 	}
 	// Input volume
-	if let Some(value) = args.input_volume.as_deref() {
-		if let Ok(parsed) = volume_parser(true, value) {
-			actions.push(parsed);
-		}
+	if let Some(value) = args.input_volume.as_deref()
+		&& let Ok(parsed) = volume_parser(true, value)
+	{
+		actions.push(parsed);
 	}
 	// Brightness
 	if let Some(value) = args.brightness.as_deref() {
