@@ -2,8 +2,18 @@ name: Check build for Fedora.
 
 on:
   push:
+    paths:
+      - ./**/meson.build
+      - build.rs
+      - Cargo.toml
+      - Cargo.lock
     branches: [ main ]
   pull_request:
+    paths:
+      - ./**/meson.build
+      - build.rs
+      - Cargo.toml
+      - Cargo.lock
     branches: [ main ]
 
   # Allows you to run this workflow manually from the Actions tab

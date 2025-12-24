@@ -77,10 +77,10 @@ impl Playerctl {
 			PlayerctlDevice::All(players) => {
 				for player in players {
 					let icon_new = self.run_single(player);
-					if let Ok(icon_new) = icon_new {
-						if icon.is_err() {
-							icon = Ok(icon_new);
-						}
+					if let Ok(icon_new) = icon_new
+						&& icon.is_err()
+					{
+						icon = Ok(icon_new);
 					};
 					if metadata.is_none() {
 						metadata = self.get_metadata(player);
@@ -141,10 +141,10 @@ impl Playerctl {
 	fn get_metadata(&self, player: &Player) -> Option<Metadata> {
 		match self.action {
 			Next | Prev => {
-				if let Ok(track_list) = player.get_track_list() {
-					if let Some(track) = track_list.get(0) {
-						return player.get_track_metadata(track).ok();
-					}
+				if let Ok(track_list) = player.get_track_list()
+					&& let Some(track) = track_list.get(0)
+				{
+					return player.get_track_metadata(track).ok();
 				}
 				let metadata = player.get_metadata().ok()?;
 				let name1 = metadata.url()?;

@@ -30,6 +30,7 @@ pub struct SwayOSDApplication {
 	#[shrinkwrap(main_field)]
 	app: gtk::Application,
 	windows: Rc<RefCell<Vec<SwayosdWindow>>>,
+	activated: Rc<RefCell<bool>>,
 	_hold: Rc<gio::ApplicationHoldGuard>,
 }
 
@@ -57,14 +58,15 @@ impl SwayOSDApplication {
 		let osd_app = SwayOSDApplication {
 			app: app.clone(),
 			windows: Rc::new(RefCell::new(Vec::new())),
+			activated: Rc::new(RefCell::new(false)),
 			_hold: hold,
 		};
 
 		// Apply Server Config
-		if let Some(margin) = server_config.top_margin {
-			if (0_f32..1_f32).contains(&margin) {
-				set_top_margin(margin);
-			}
+		if let Some(margin) = server_config.top_margin
+			&& (0_f32..1_f32).contains(&margin)
+		{
+			set_top_margin(margin);
 		}
 		if let Some(max_volume) = server_config.max_volume {
 			set_default_max_volume(max_volume);
@@ -290,7 +292,13 @@ impl SwayOSDApplication {
 	pub fn start(&self) -> i32 {
 		let osd_app = self.clone();
 		self.app.connect_activate(move |_| {
-			osd_app.initialize();
+			if let Ok(mut is_activated) = osd_app.activated.try_borrow_mut() {
+				if *is_activated {
+					return;
+				}
+				*is_activated = true;
+				osd_app.initialize();
+			}
 		});
 
 		self.app
@@ -355,10 +363,10 @@ impl SwayOSDApplication {
 		match get_monitor_name() {
 			Some(monitor_name) => {
 				for window in self.windows.borrow().to_owned() {
-					if let Some(monitor_connector) = window.monitor.connector() {
-						if monitor_name == monitor_connector {
-							selected_windows.push(window);
-						}
+					if let Some(monitor_connector) = window.monitor.connector()
+						&& monitor_name == monitor_connector
+					{
+						selected_windows.push(window);
 					}
 				}
 			}
@@ -570,11 +578,11 @@ impl SwayOSDApplication {
 				reset_player();
 			}
 			(ArgTypes::KbdBacklight, values) => {
-				if let Some(values) = values {
-					if let Ok((value, n_segments)) = segmented_progress_parser(&values) {
-						for window in self.choose_windows() {
-							window.changed_kbd_backlight(value, n_segments);
-						}
+				if let Some(values) = values
+					&& let Ok((value, n_segments)) = segmented_progress_parser(&values)
+				{
+					for window in self.choose_windows() {
+						window.changed_kbd_backlight(value, n_segments);
 					}
 				}
 				reset_monitor_name();
@@ -612,16 +620,16 @@ impl SwayOSDApplication {
 				reset_monitor_name();
 			}
 			(ArgTypes::CustomSegmentedProgress, values) => {
-				if let Some(values) = values {
-					if let Ok((value, n_segments)) = segmented_progress_parser(&values) {
-						for window in self.choose_windows() {
-							window.custom_segmented_progress(
-								value,
-								n_segments,
-								get_progress_text(),
-								get_icon_name().as_deref(),
-							);
-						}
+				if let Some(values) = values
+					&& let Ok((value, n_segments)) = segmented_progress_parser(&values)
+				{
+					for window in self.choose_windows() {
+						window.custom_segmented_progress(
+							value,
+							n_segments,
+							get_progress_text(),
+							get_icon_name().as_deref(),
+						);
 					}
 				}
 				reset_progress_text();

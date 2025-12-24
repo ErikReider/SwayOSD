@@ -1,6 +1,5 @@
 use gtk::glib::{system_config_dirs, user_config_dir};
 use lazy_static::lazy_static;
-use substring::Substring;
 
 use std::{
 	fs::{self, File},
@@ -206,10 +205,10 @@ pub fn get_key_lock_state(key: KeysLocks, led: Option<String>) -> bool {
 				if !path.contains(key_name) {
 					continue;
 				}
-				if let Ok(content) = read_file(path + "/brightness") {
-					if content.trim().eq("1") {
-						return true;
-					}
+				if let Ok(content) = read_file(path + "/brightness")
+					&& content.trim() == "1"
+				{
+					return true;
 				}
 			}
 			false
@@ -246,180 +245,72 @@ pub enum BrightnessChangeType {
 	Set,
 }
 
+pub fn volume_to_f64(volume: &Volume) -> f64 {
+	let tmp_vol = f64::from(volume.0 - Volume::MUTED.0);
+	(100.0 * tmp_vol / f64::from(Volume::NORMAL.0 - Volume::MUTED.0)).round()
+}
+
+fn volume_from_f64(volume: f64) -> Volume {
+	let tmp = f64::from(Volume::NORMAL.0 - Volume::MUTED.0) * volume / 100_f64;
+	Volume((tmp + f64::from(Volume::MUTED.0)) as u32)
+}
+
 pub fn change_device_volume(
 	device_type: &mut VolumeDeviceType,
 	change_type: VolumeChangeType,
 	step: Option<String>,
 ) -> Option<DeviceInfo> {
-	let (device, device_name): (DeviceInfo, String) = match device_type {
-		VolumeDeviceType::Sink(controller) => {
-			let server_info = controller.get_server_info();
-			let global_name = get_device_name();
-			let device_name: String = if let Some(name) = global_name {
-				name
-			} else {
-				match server_info {
-					Ok(info) => info.default_sink_name.unwrap_or("".to_string()),
-					Err(e) => {
-						eprintln!("Error getting default_sink: {}, using default", e);
-						DEVICE_NAME_DEFAULT.to_string()
-					}
-				}
-			};
-			match controller.get_device_by_name(&device_name) {
-				Ok(device) => (device, device_name.clone()),
-				Err(_) => {
-					eprintln!("No device with name: '{}' found!", device_name);
-					return None;
-				}
-			}
-		}
-		VolumeDeviceType::Source(controller) => {
-			let server_info = controller.get_server_info();
-			let global_name = get_device_name();
-			let device_name: String = if let Some(name) = global_name {
-				name
-			} else {
-				match server_info {
-					Ok(info) => info.default_source_name.unwrap_or("".to_string()),
-					Err(e) => {
-						eprintln!("Error getting default_sink: {}, using default", e);
-						DEVICE_NAME_DEFAULT.to_string()
-					}
-				}
-			};
-			match controller.get_device_by_name(&device_name) {
-				Ok(device) => (device, device_name.clone()),
-				Err(_) => {
-					eprintln!("No device with name: '{}' found!", device_name);
-					return None;
-				}
+	// Get the sink/source controller
+	let controller: &mut dyn DeviceControl<DeviceInfo> = match device_type {
+		VolumeDeviceType::Sink(controller) => controller,
+		VolumeDeviceType::Source(controller) => controller,
+	};
+
+	// Get the device
+	let device: DeviceInfo = if let Some(name) = get_device_name()
+		&& let Ok(device) = controller.get_device_by_name(&name)
+	{
+		device
+	} else {
+		match controller.get_default_device() {
+			Ok(device) => device,
+			Err(e) => {
+				eprintln!("Error getting the default device: {}", e);
+				return None;
 			}
 		}
 	};
 
-	const VOLUME_CHANGE_DELTA: u8 = 5;
-	let volume_delta = step
-		.clone()
-		.unwrap_or_default()
-		.parse::<u8>()
-		.unwrap_or(VOLUME_CHANGE_DELTA) as f64
-		* 0.01;
+	// Adjust the volume / mute state
+	const VOLUME_CHANGE_DELTA: f64 = 5_f64;
+	let delta = volume_from_f64(
+		step.unwrap_or_default()
+			.parse::<f64>()
+			.unwrap_or(VOLUME_CHANGE_DELTA),
+	);
 	match change_type {
 		VolumeChangeType::Raise => {
-			let max_volume = get_max_volume();
-			// if we are already exactly at or over the max volume
-			let mut at_max_volume = false;
-			// if we are under the next volume but increasing by the given amount would be over the max
-			let mut over_max_volume = false;
-
-			let mut volume_percent = max_volume;
-			// iterate through all devices in the volume group
-			for v in device.volume.get() {
-				// the string looks like this: ' NUMBER% '
-				let volume_string = v.to_string();
-				// trim it to remove the empty space 'NUMBER%'
-				let mut volume_string = volume_string.trim();
-				// remove the '%'
-				volume_string = volume_string.substring(0, volume_string.len() - 1);
-
-				// parse the string to a u8, we do it this convoluted to get the % and I haven't found another way
-				volume_percent = volume_string.parse::<u8>().unwrap();
-
-				if volume_percent >= max_volume {
-					at_max_volume = true;
-					break;
-				}
-
-				if volume_percent + VOLUME_CHANGE_DELTA > max_volume {
-					over_max_volume = true;
-					break;
-				}
-			}
-			// if we are exactle at max volume
-			if at_max_volume {
-				// only show the OSD
-				match device_type {
-					VolumeDeviceType::Sink(controller) => {
-						controller.increase_device_volume_by_percent(device.index, 0.0)
-					}
-					VolumeDeviceType::Source(controller) => {
-						controller.increase_device_volume_by_percent(device.index, 0.0)
-					}
-				}
-			}
-			// if we would increase over the max step exactly to the max
-			else if over_max_volume {
-				let delta_to_max = max_volume - volume_percent;
-				let volume_delta = step
-					.unwrap_or_default()
-					.parse::<u8>()
-					.unwrap_or(delta_to_max) as f64
-					* 0.01;
-				match device_type {
-					VolumeDeviceType::Sink(controller) => {
-						controller.increase_device_volume_by_percent(device.index, volume_delta)
-					}
-					VolumeDeviceType::Source(controller) => {
-						controller.increase_device_volume_by_percent(device.index, volume_delta)
-					}
-				}
-			}
-			// if neither of the above are true increase normally
-			else {
-				match device_type {
-					VolumeDeviceType::Sink(controller) => {
-						controller.increase_device_volume_by_percent(device.index, volume_delta)
-					}
-					VolumeDeviceType::Source(controller) => {
-						controller.increase_device_volume_by_percent(device.index, volume_delta)
-					}
-				}
+			let max_volume = volume_from_f64(get_max_volume() as f64);
+			if let Some(volume) = device.volume.clone().inc_clamp(delta, max_volume) {
+				controller.set_device_volume_by_index(device.index, volume);
 			}
 		}
-		VolumeChangeType::Lower => match device_type {
-			VolumeDeviceType::Sink(controller) => {
-				controller.decrease_device_volume_by_percent(device.index, volume_delta)
+		VolumeChangeType::Lower => {
+			if let Some(volume) = device.volume.clone().decrease(delta) {
+				controller.set_device_volume_by_index(device.index, volume);
 			}
-			VolumeDeviceType::Source(controller) => {
-				controller.decrease_device_volume_by_percent(device.index, volume_delta)
-			}
-		},
-		VolumeChangeType::MuteToggle => match device_type {
-			VolumeDeviceType::Sink(controller) => {
-				let op = controller.handler.introspect.set_sink_mute_by_index(
-					device.index,
-					!device.mute,
-					None,
-				);
-				controller.handler.wait_for_operation(op).ok();
-			}
-			VolumeDeviceType::Source(controller) => {
-				let op = controller.handler.introspect.set_source_mute_by_index(
-					device.index,
-					!device.mute,
-					None,
-				);
-				controller.handler.wait_for_operation(op).ok();
-			}
-		},
+		}
+		VolumeChangeType::MuteToggle => {
+			controller.set_device_mute_by_index(device.index, !device.mute);
+		}
 	}
 
-	match device_type {
-		VolumeDeviceType::Sink(controller) => match controller.get_device_by_name(&device_name) {
-			Ok(device) => Some(device),
-			Err(e) => {
-				eprintln!("Pulse Error: {}", e);
-				None
-			}
-		},
-		VolumeDeviceType::Source(controller) => match controller.get_device_by_name(&device_name) {
-			Ok(device) => Some(device),
-			Err(e) => {
-				eprintln!("Pulse Error: {}", e);
-				None
-			}
-		},
+	match controller.get_device_by_index(device.index) {
+		Ok(device) => Some(device),
+		Err(e) => {
+			eprintln!("Pulse Error: {}", e);
+			None
+		}
 	}
 }
 
@@ -448,11 +339,6 @@ pub fn change_brightness(
 	Ok(backend)
 }
 
-pub fn volume_to_f64(volume: &Volume) -> f64 {
-	let tmp_vol = f64::from(volume.0 - Volume::MUTED.0);
-	(100.0 * tmp_vol / f64::from(Volume::NORMAL.0 - Volume::MUTED.0)).round()
-}
-
 pub fn get_system_css_path() -> Option<PathBuf> {
 	let mut paths: Vec<PathBuf> = Vec::new();
 	for path in system_config_dirs() {
@@ -474,10 +360,10 @@ pub fn get_system_css_path() -> Option<PathBuf> {
 
 pub fn user_style_path(custom_path: Option<PathBuf>) -> Option<String> {
 	let path = user_config_dir().join("swayosd").join("style.css");
-	if let Some(custom_path) = custom_path {
-		if custom_path.exists() {
-			return custom_path.to_str().map(|s| s.to_string());
-		}
+	if let Some(custom_path) = custom_path
+		&& custom_path.exists()
+	{
+		return custom_path.to_str().map(|s| s.to_string());
 	}
 	if path.exists() {
 		return path.to_str().map(|s| s.to_string());
