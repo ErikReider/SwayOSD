@@ -60,10 +60,12 @@ fn main() -> Result<(), zbus::Error> {
 		.expect("Could not assign seat0");
 	let fd = input.as_raw_fd();
 	assert!(fd != -1);
-	let borrowed_fd = unsafe { BorrowedFd::borrow_raw(input.as_raw_fd()) };
+	let borrowed_fd = unsafe { BorrowedFd::borrow_raw(fd) };
 	let pollfd = PollFd::new(borrowed_fd, PollFlags::POLLIN);
 	while poll(&mut [pollfd.clone()], None::<u8>).is_ok() {
-		event(&input_config, &mut input, &iface_ref);
+		if let Err(error) = event(&input_config, &mut input, &iface_ref) {
+			eprintln!("Event error: {:?}", error);
+		}
 	}
 
 	Ok(())
@@ -73,19 +75,22 @@ fn event(
 	input_config: &config::backend::InputBackendConfig,
 	input: &mut Libinput,
 	iface_ref: &InterfaceRef<DbusServer>,
-) {
-	input.dispatch().unwrap();
-	for event in input.into_iter() {
-		if let Event::Keyboard(KeyboardEvent::Key(event)) = event {
-			if event.key_state() == KeyState::Pressed {
-				continue;
-			}
-			let device = match unsafe { event.device().udev_device() } {
-				Some(device) => device,
-				None => continue,
-			};
+) -> Result<(), Box<dyn std::error::Error>> {
+	input.dispatch()?;
+	for event in input {
+		let event = match event {
+			Event::Keyboard(KeyboardEvent::Key(event)) => event,
+			_ => continue,
+		};
+		if event.key_state() == KeyState::Pressed {
+			continue;
+		}
+		let device = match unsafe { event.device().udev_device() } {
+			Some(device) => device,
+			None => continue,
+		};
 
-			let ev_key = match int_to_ev_key(event.key()) {
+		let ev_key = match int_to_ev_key(event.key()) {
 				// Basic Lock keys
 				Some(key @ EV_KEY::KEY_CAPSLOCK) |
 				Some(key @ EV_KEY::KEY_NUMLOCK) |
@@ -122,24 +127,23 @@ fn event(
 				_ => continue,
 			};
 
-			// Special case because several people have the caps lock key
-			// bound to escape, so it doesn't affect the caps lock status
-			if ev_key == EV_KEY::KEY_CAPSLOCK && input_config.ignore_caps_lock_key.unwrap_or(false)
-			{
-				continue;
-			}
+		// Special case because several people have the caps lock key
+		// bound to escape, so it doesn't affect the caps lock status
+		if ev_key == EV_KEY::KEY_CAPSLOCK && input_config.ignore_caps_lock_key.unwrap_or(false) {
+			continue;
+		}
 
-			if let Some(path) = device.devnode()
-				&& let Some(path) = path.to_str()
-			{
-				let event_info = EventInfo {
-					device_path: path.to_owned(),
-					ev_key,
-				};
-				task::spawn(call(event_info, iface_ref.clone()));
-			}
+		if let Some(path) = device.devnode()
+			&& let Some(path) = path.to_str()
+		{
+			let event_info = EventInfo {
+				device_path: path.to_owned(),
+				ev_key,
+			};
+			task::spawn(call(event_info, iface_ref.clone()));
 		}
 	}
+	Ok(())
 }
 
 async fn call(event_info: EventInfo, iface_ref: InterfaceRef<DbusServer>) {

@@ -58,7 +58,7 @@ impl VirtualDevice {
 			Ok(s)
 		} else {
 			bail!(DeviceDoesntExistError {
-				device_name: device_name.unwrap()
+				device_name: device_name.unwrap_or("Device name unknown".to_string())
 			})
 		}
 	}

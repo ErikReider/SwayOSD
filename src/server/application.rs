@@ -90,11 +90,13 @@ impl SwayOSDApplication {
 			server_config,
 			async move {
 				while let Ok((arg_type, data)) = action_receiver.recv().await {
-					osd_app.action_activated(
+					if let Err(error) = osd_app.action_activated(
 						server_config.clone(),
 						arg_type,
 						(!data.is_empty()).then_some(data),
-					);
+					) {
+						eprintln!("Could not activate action: {:?}", error)
+					}
 				}
 				Break
 			}
@@ -133,7 +135,11 @@ impl SwayOSDApplication {
 							}
 							_ => continue,
 						};
-					osd_app.action_activated(server_config.clone(), arg_type, data);
+					if let Err(error) =
+						osd_app.action_activated(server_config.clone(), arg_type, data)
+					{
+						eprintln!("Could not activate action: {:?}", error)
+					}
 				}
 				Break
 			}
@@ -192,11 +198,13 @@ impl SwayOSDApplication {
 					// (automatically or through a firmware-handled hotkey being pressed)
 					continue;
 				}
-				self.action_activated(
+				if let Err(error) = self.action_activated(
 					server_config.clone(),
 					ArgTypes::KbdBacklight,
 					Some(format!("{}:{}", args.value, max_brightness)),
-				);
+				) {
+					eprintln!("Could not activate action: {:?}", error)
+				}
 			} else {
 				eprintln!("UPower args aren't valid {:?}", msg.args());
 			}
@@ -386,10 +394,10 @@ impl SwayOSDApplication {
 		server_config: Arc<ServerConfig>,
 		arg_type: ArgTypes,
 		value: Option<String>,
-	) {
+	) -> Result<(), Box<dyn std::error::Error>> {
 		match (arg_type, value) {
 			(ArgTypes::SinkVolumeRaise, step) => {
-				let mut device_type = VolumeDeviceType::Sink(SinkController::create().unwrap());
+				let mut device_type = VolumeDeviceType::Sink(SinkController::create()?);
 				if let Some(device) =
 					change_device_volume(&mut device_type, VolumeChangeType::Raise, step)
 				{
@@ -402,7 +410,7 @@ impl SwayOSDApplication {
 				reset_monitor_name();
 			}
 			(ArgTypes::SinkVolumeLower, step) => {
-				let mut device_type = VolumeDeviceType::Sink(SinkController::create().unwrap());
+				let mut device_type = VolumeDeviceType::Sink(SinkController::create()?);
 				if let Some(device) =
 					change_device_volume(&mut device_type, VolumeChangeType::Lower, step)
 				{
@@ -415,7 +423,7 @@ impl SwayOSDApplication {
 				reset_monitor_name();
 			}
 			(ArgTypes::SinkVolumeMuteToggle, _) => {
-				let mut device_type = VolumeDeviceType::Sink(SinkController::create().unwrap());
+				let mut device_type = VolumeDeviceType::Sink(SinkController::create()?);
 				if let Some(device) =
 					change_device_volume(&mut device_type, VolumeChangeType::MuteToggle, None)
 				{
@@ -428,7 +436,7 @@ impl SwayOSDApplication {
 				reset_monitor_name();
 			}
 			(ArgTypes::SourceVolumeRaise, step) => {
-				let mut device_type = VolumeDeviceType::Source(SourceController::create().unwrap());
+				let mut device_type = VolumeDeviceType::Source(SourceController::create()?);
 				if let Some(device) =
 					change_device_volume(&mut device_type, VolumeChangeType::Raise, step)
 				{
@@ -441,7 +449,7 @@ impl SwayOSDApplication {
 				reset_monitor_name();
 			}
 			(ArgTypes::SourceVolumeLower, step) => {
-				let mut device_type = VolumeDeviceType::Source(SourceController::create().unwrap());
+				let mut device_type = VolumeDeviceType::Source(SourceController::create()?);
 				if let Some(device) =
 					change_device_volume(&mut device_type, VolumeChangeType::Lower, step)
 				{
@@ -454,7 +462,7 @@ impl SwayOSDApplication {
 				reset_monitor_name();
 			}
 			(ArgTypes::SourceVolumeMuteToggle, _) => {
-				let mut device_type = VolumeDeviceType::Source(SourceController::create().unwrap());
+				let mut device_type = VolumeDeviceType::Source(SourceController::create()?);
 				if let Some(device) =
 					change_device_volume(&mut device_type, VolumeChangeType::MuteToggle, None)
 				{
@@ -468,12 +476,9 @@ impl SwayOSDApplication {
 			}
 			// TODO: Brightness
 			(ArgTypes::BrightnessRaise, step) => {
-				if let Ok(mut brightness_backend) =
-					change_brightness(BrightnessChangeType::Raise, step)
-				{
-					for window in self.choose_windows() {
-						window.changed_brightness(brightness_backend.as_mut());
-					}
+				let mut brightness_backend = change_brightness(BrightnessChangeType::Raise, step)?;
+				for window in self.choose_windows() {
+					window.changed_brightness(brightness_backend.as_mut());
 				}
 				reset_min_brightness();
 				reset_monitor_name();
@@ -490,12 +495,9 @@ impl SwayOSDApplication {
 				reset_monitor_name();
 			}
 			(ArgTypes::BrightnessSet, value) => {
-				if let Ok(mut brightness_backend) =
-					change_brightness(BrightnessChangeType::Set, value)
-				{
-					for window in self.choose_windows() {
-						window.changed_brightness(brightness_backend.as_mut());
-					}
+				let mut brightness_backend = change_brightness(BrightnessChangeType::Set, value)?;
+				for window in self.choose_windows() {
+					window.changed_brightness(brightness_backend.as_mut());
 				}
 				reset_min_brightness();
 				reset_monitor_name();
@@ -556,8 +558,7 @@ impl SwayOSDApplication {
 			(ArgTypes::Player, name) => set_player(name.unwrap_or("".to_string())),
 			(ArgTypes::Playerctl, value) => {
 				let value = &value.unwrap_or("".to_string());
-
-				let action = PlayerctlAction::from(value).unwrap();
+				let action = PlayerctlAction::from(value)?;
 				if let Ok(mut player) = Playerctl::new(action, server_config) {
 					match player.run() {
 						Ok(_) => {
@@ -647,5 +648,6 @@ impl SwayOSDApplication {
 				)
 			}
 		};
+		Ok(())
 	}
 }
