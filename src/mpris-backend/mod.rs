@@ -149,14 +149,15 @@ impl Playerctl {
 				let metadata = player.get_metadata().ok()?;
 				let name1 = metadata.url()?;
 				let mut counter = 0;
-				while counter < 20 {
-					sleep(Duration::from_millis(5));
-					counter += 1;
+				while counter < 1000 {
+					// 1000 * 5ms = 5s
 					let metadata = player.get_metadata().ok()?;
 					let name2 = metadata.url()?;
 					if name1 != name2 {
 						return Some(metadata);
 					}
+					sleep(Duration::from_millis(5));
+					counter += 1;
 				}
 				Some(metadata)
 			}
