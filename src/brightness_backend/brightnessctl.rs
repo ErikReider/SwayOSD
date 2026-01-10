@@ -111,6 +111,14 @@ impl VirtualDevice {
 		}
 	}
 
+	fn set_raw(&mut self, val: u32) -> anyhow::Result<()> {
+		let max = self.get_max();
+		let clamped_val = val.clamp(0, max);
+		self.current = Some(clamped_val);
+		let _: String = self.run(("set", &*format!("{clamped_val}")))?; // No % sign here
+		Ok(())
+	}
+
 	fn set_percent(&mut self, mut val: u32) -> anyhow::Result<()> {
 		val = val.clamp(0, 100);
 		self.current = self.max.map(|max| div_round_u32(val * max, 100));
@@ -143,19 +151,26 @@ impl BrightnessBackend for BrightnessCtl {
 	}
 
 	fn lower(&mut self, by: u32, min: u32) -> anyhow::Result<()> {
-		let curr = self.device.get_percent();
-		let val = curr.saturating_sub(by).max(min);
-		self.device.set_percent(val)
+		let max = self.device.get_max();
+		let curr = self.device.get_current();
+		let step = div_round_u32(by * max, 100);
+		let new_val = curr.saturating_sub(step);
+		let min_raw = div_round_u32(min * max, 100);
+		self.device.set_raw(new_val.max(min_raw))
 	}
 
 	fn raise(&mut self, by: u32, min: u32) -> anyhow::Result<()> {
-		let curr = self.device.get_percent();
-		let val = (curr + by).max(min);
-		self.device.set_percent(val)
+		let max = self.device.get_max();
+		let curr = self.device.get_current();
+		let step = div_round_u32(by * max, 100);
+		let new_val = (curr + step).min(max);
+		let min_raw = div_round_u32(min * max, 100);
+		self.device.set_raw(new_val.max(min_raw))
 	}
 
 	fn set(&mut self, val: u32, min: u32) -> anyhow::Result<()> {
-		let val = val.max(min);
-		self.device.set_percent(val)
+		let max = self.device.get_max();
+		let raw_val = div_round_u32(val.max(min) * max, 100);
+		self.device.set_raw(raw_val)
 	}
 }
