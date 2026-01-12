@@ -33,7 +33,7 @@ lazy_static! {
 	pub static ref TOP_MARGIN_DEFAULT: f32 = 0.85_f32;
 	static ref TOP_MARGIN: Mutex<f32> = Mutex::new(*TOP_MARGIN_DEFAULT);
 	pub static ref SHOW_PERCENTAGE: Mutex<bool> = Mutex::new(false);
-    static ref THEME: Mutex<Theme> = Mutex::new(Theme::Default);
+	static ref THEME: Mutex<Theme> = Mutex::new(Theme::Default);
 }
 
 #[allow(clippy::enum_variant_names)]

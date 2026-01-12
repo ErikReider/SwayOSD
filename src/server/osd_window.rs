@@ -13,8 +13,8 @@ use crate::widgets::segmented_progress_widget::SegmentedProgressWidget;
 use crate::{
 	brightness_backend::BrightnessBackend,
 	utils::{
-		get_max_volume, get_show_percentage, get_top_margin, volume_to_f64, KeysLocks,
-		VolumeDeviceType, get_theme,
+		get_max_volume, get_show_percentage, get_theme, get_top_margin, volume_to_f64, KeysLocks,
+		VolumeDeviceType,
 	},
 };
 
@@ -62,7 +62,9 @@ fn resolve_macos_brightness_icon(percent: f64) -> Option<gtk::Image> {
 	let base = icons_dir().join("brightness");
 	let v = round_to_step(percent, 5.0, 0.0, 100.0);
 	let p_svg = base.join(format!("brightness-{}.svg", v));
-	if p_svg.exists() { return Some(build_macos_icon_from_path(&p_svg)); }
+	if p_svg.exists() {
+		return Some(build_macos_icon_from_path(&p_svg));
+	}
 	let p_png = base.join(format!("br-{}.png", v));
 	Some(build_macos_icon_from_path(&p_png))
 }
