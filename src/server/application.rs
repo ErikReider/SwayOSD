@@ -24,6 +24,7 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 use super::config::user::ServerConfig;
+use crate::config::Theme;
 
 #[derive(Clone, Shrinkwrap)]
 pub struct SwayOSDApplication {
@@ -78,6 +79,13 @@ impl SwayOSDApplication {
 		}
 		if let Some(show) = server_config.show_percentage {
 			set_show_percentage(show);
+		}
+
+		// Theme selection (default when not provided)
+		if let Some(theme) = server_config.theme.clone() {
+			utils::set_theme(theme);
+		} else {
+			utils::set_theme(Theme::Default);
 		}
 
 		Self::parse_args(&args);

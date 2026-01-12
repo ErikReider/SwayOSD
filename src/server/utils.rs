@@ -12,6 +12,7 @@ use pulse::volume::Volume;
 use pulsectl::controllers::{types::DeviceInfo, DeviceControl, SinkController, SourceController};
 
 use crate::brightness_backend;
+use crate::config::Theme;
 use crate::playerctl::PlayerctlDeviceRaw;
 
 static PRIV_MAX_VOLUME_DEFAULT: u8 = 100_u8;
@@ -32,6 +33,7 @@ lazy_static! {
 	pub static ref TOP_MARGIN_DEFAULT: f32 = 0.85_f32;
 	static ref TOP_MARGIN: Mutex<f32> = Mutex::new(*TOP_MARGIN_DEFAULT);
 	pub static ref SHOW_PERCENTAGE: Mutex<bool> = Mutex::new(false);
+    static ref THEME: Mutex<Theme> = Mutex::new(Theme::Default);
 }
 
 #[allow(clippy::enum_variant_names)]
@@ -103,6 +105,15 @@ pub fn get_show_percentage() -> bool {
 pub fn set_show_percentage(show: bool) {
 	let mut show_mut = SHOW_PERCENTAGE.lock().unwrap();
 	*show_mut = show;
+}
+
+pub fn get_theme() -> Theme {
+	THEME.lock().unwrap().clone()
+}
+
+pub fn set_theme(theme: Theme) {
+	let mut t = THEME.lock().unwrap();
+	*t = theme;
 }
 
 pub fn get_device_name() -> Option<String> {

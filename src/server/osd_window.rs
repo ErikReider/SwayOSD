@@ -14,13 +14,58 @@ use crate::{
 	brightness_backend::BrightnessBackend,
 	utils::{
 		get_max_volume, get_show_percentage, get_top_margin, volume_to_f64, KeysLocks,
-		VolumeDeviceType,
+		VolumeDeviceType, get_theme,
 	},
 };
 
 use gtk_layer_shell::LayerShell;
 
 const ICON_SIZE: i32 = 32;
+const MACOS_WINDOW_SIZE: i32 = 150;
+const MACOS_ICON_SIZE: i32 = 100;
+fn icons_dir() -> std::path::PathBuf {
+	std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("icons")
+}
+fn round_to_step(value: f64, step: f64, min: f64, max: f64) -> u32 {
+	(((value / step).round() * step).clamp(min, max)) as u32
+}
+fn build_macos_icon_from_path(path: &std::path::Path) -> gtk::Image {
+	let img = gtk::Image::from_file(path);
+	img.set_pixel_size(MACOS_ICON_SIZE);
+	img
+}
+fn resolve_macos_volume_icon(device: &DeviceInfo) -> Option<gtk::Image> {
+	let base = icons_dir().join("volume");
+	// Muted or zero volume -> muted icon
+	let vol = volume_to_f64(&device.volume.avg());
+	if device.mute || vol == 0.0 {
+		let p = base.join("muted.png");
+		return Some(build_macos_icon_from_path(&p));
+	}
+
+	// Round to nearest 5 and cap to 150
+	let v = round_to_step(vol, 5.0, 0.0, 150.0);
+	// Above 100, only 125 and 150 icons exist; fallback to previous available step
+	let mapped = if v <= 100 {
+		v
+	} else if v < 125 {
+		100
+	} else if v < 150 {
+		125
+	} else {
+		150
+	};
+	let p = base.join(format!("vol-{}.png", mapped));
+	Some(build_macos_icon_from_path(&p))
+}
+fn resolve_macos_brightness_icon(percent: f64) -> Option<gtk::Image> {
+	let base = icons_dir().join("brightness");
+	let v = round_to_step(percent, 5.0, 0.0, 100.0);
+	let p_svg = base.join(format!("brightness-{}.svg", v));
+	if p_svg.exists() { return Some(build_macos_icon_from_path(&p_svg)); }
+	let p_png = base.join(format!("br-{}.png", v));
+	Some(build_macos_icon_from_path(&p_png))
+}
 
 /// A window that our application can open that contains the main project view.
 #[derive(Clone, Debug)]
@@ -50,12 +95,28 @@ impl SwayosdWindow {
 		// Anchor to bottom edge for better reliability with rotated/transformed displays
 		window.set_anchor(gtk_layer_shell::Edge::Bottom, true);
 
-		// Set up the widgets
-		window.set_width_request(250);
-
-		let container = cascade! {
-			gtk::Box::new(gtk::Orientation::Horizontal, 12);
-			..set_widget_name("container");
+		// Set up the widgets (branch by theme)
+		let container = match get_theme() {
+			crate::config::Theme::MacOS => {
+				window.set_width_request(MACOS_WINDOW_SIZE);
+				window.set_height_request(MACOS_WINDOW_SIZE);
+				let b = cascade! {
+					gtk::Box::new(gtk::Orientation::Vertical, 0);
+					..set_widget_name("container");
+					..set_halign(gtk::Align::Center);
+					..set_valign(gtk::Align::Center);
+					..set_hexpand(true);
+					..set_vexpand(true);
+				};
+				b
+			}
+			_ => {
+				window.set_width_request(250);
+				cascade! {
+					gtk::Box::new(gtk::Orientation::Horizontal, 12);
+					..set_widget_name("container");
+				}
+			}
 		};
 
 		window.set_child(Some(&container));
@@ -114,37 +175,46 @@ impl SwayosdWindow {
 	pub fn changed_volume(&self, device: &DeviceInfo, device_type: &VolumeDeviceType) {
 		self.clear_osd();
 
-		let volume = volume_to_f64(&device.volume.avg());
-		let icon_prefix = match device_type {
-			VolumeDeviceType::Sink(_) => "sink",
-			VolumeDeviceType::Source(_) => "source",
-		};
-		let icon_state = &match (device.mute, volume) {
-			(true, _) => "muted",
-			(_, 0.0) => "muted",
-			(false, x) if x > 0.0 && x <= 33.0 => "low",
-			(false, x) if x > 33.0 && x <= 66.0 => "medium",
-			(false, x) if x > 66.0 && x <= 100.0 => "high",
-			(false, x) if x > 100.0 => match device_type {
-				VolumeDeviceType::Sink(_) => "high",
-				VolumeDeviceType::Source(_) => "overamplified",
-			},
-			(_, _) => "high",
-		};
-		let icon_name = &format!("{}-volume-{}-symbolic", icon_prefix, icon_state);
+		match get_theme() {
+			crate::config::Theme::MacOS => {
+				if let Some(icon) = resolve_macos_volume_icon(device) {
+					self.container.append(&icon);
+				}
+			}
+			_ => {
+				let volume = volume_to_f64(&device.volume.avg());
+				let icon_prefix = match device_type {
+					VolumeDeviceType::Sink(_) => "sink",
+					VolumeDeviceType::Source(_) => "source",
+				};
+				let icon_state = &match (device.mute, volume) {
+					(true, _) => "muted",
+					(_, 0.0) => "muted",
+					(false, x) if x > 0.0 && x <= 33.0 => "low",
+					(false, x) if x > 33.0 && x <= 66.0 => "medium",
+					(false, x) if x > 66.0 && x <= 100.0 => "high",
+					(false, x) if x > 100.0 => match device_type {
+						VolumeDeviceType::Sink(_) => "high",
+						VolumeDeviceType::Source(_) => "overamplified",
+					},
+					(_, _) => "high",
+				};
+				let icon_name = &format!("{}-volume-{}-symbolic", icon_prefix, icon_state);
 
-		let max_volume: f64 = get_max_volume().into();
+				let max_volume: f64 = get_max_volume().into();
 
-		let icon = self.build_icon_widget(icon_name);
-		let progress = self.build_progress_widget(volume / max_volume);
-		let label = self.build_text_widget(Some(&format!("{}%", volume)), Some(4));
+				let icon = self.build_icon_widget(icon_name);
+				let progress = self.build_progress_widget(volume / max_volume);
+				let label = self.build_text_widget(Some(&format!("{}%", volume)), Some(4));
 
-		progress.set_sensitive(!device.mute);
+				progress.set_sensitive(!device.mute);
 
-		self.container.append(&icon);
-		self.container.append(&progress);
-		if get_show_percentage() {
-			self.container.append(&label);
+				self.container.append(&icon);
+				self.container.append(&progress);
+				if get_show_percentage() {
+					self.container.append(&label);
+				}
+			}
 		}
 
 		self.run_timeout();
@@ -153,21 +223,33 @@ impl SwayosdWindow {
 	pub fn changed_brightness(&self, brightness_backend: &mut dyn BrightnessBackend) {
 		self.clear_osd();
 
-		let icon_name = "display-brightness-symbolic";
-		let icon = self.build_icon_widget(icon_name);
+		match get_theme() {
+			crate::config::Theme::MacOS => {
+				let brightness = brightness_backend.get_current() as f64;
+				let max = brightness_backend.get_max() as f64;
+				let percent = (brightness / max * 100.).clamp(0.0, 100.0);
+				if let Some(icon) = resolve_macos_brightness_icon(percent) {
+					self.container.append(&icon);
+				}
+			}
+			_ => {
+				let icon_name = "display-brightness-symbolic";
+				let icon = self.build_icon_widget(icon_name);
 
-		let brightness = brightness_backend.get_current() as f64;
-		let max = brightness_backend.get_max() as f64;
-		let progress = self.build_progress_widget(brightness / max);
-		let label = self.build_text_widget(
-			Some(&format!("{}%", (brightness / max * 100.).round() as i32)),
-			Some(4),
-		);
+				let brightness = brightness_backend.get_current() as f64;
+				let max = brightness_backend.get_max() as f64;
+				let progress = self.build_progress_widget(brightness / max);
+				let label = self.build_text_widget(
+					Some(&format!("{}%", (brightness / max * 100.).round() as i32)),
+					Some(4),
+				);
 
-		self.container.append(&icon);
-		self.container.append(&progress);
-		if get_show_percentage() {
-			self.container.append(&label);
+				self.container.append(&icon);
+				self.container.append(&progress);
+				if get_show_percentage() {
+					self.container.append(&label);
+				}
+			}
 		}
 
 		self.run_timeout();
