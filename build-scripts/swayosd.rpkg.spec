@@ -2,7 +2,7 @@
 %global alt_pkg_name swayosd
 
 Name:       %{alt_pkg_name}
-Version:    0.2.1
+Version:    0.3.0
 Release:    1%{?dist}
 Summary:    A GTK based on screen display for keyboard shortcuts like caps-lock and volume
 Provides:   %{alt_pkg_name} = %{version}-%{release}
