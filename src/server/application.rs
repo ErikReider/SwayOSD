@@ -32,6 +32,7 @@ pub struct SwayOSDApplication {
 	windows: Rc<RefCell<Vec<SwayosdWindow>>>,
 	activated: Rc<RefCell<bool>>,
 	_hold: Rc<gio::ApplicationHoldGuard>,
+	duration: u64,
 }
 
 impl SwayOSDApplication {
@@ -60,6 +61,7 @@ impl SwayOSDApplication {
 			windows: Rc::new(RefCell::new(Vec::new())),
 			activated: Rc::new(RefCell::new(false)),
 			_hold: hold,
+			duration: args.duration,
 		};
 
 		// Apply Server Config
@@ -359,7 +361,7 @@ impl SwayOSDApplication {
 				.item(position + i)
 				.and_then(|obj| obj.downcast::<gdk::Monitor>().ok())
 			{
-				let window = SwayosdWindow::new(&self.app, &monitor);
+				let window = SwayosdWindow::new(&self.app, &monitor, self.duration);
 				windows.push(window);
 			}
 		}
