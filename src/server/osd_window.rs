@@ -29,6 +29,7 @@ pub struct SwayosdWindow {
 	pub monitor: gdk::Monitor,
 	container: gtk::Box,
 	timeout_id: Rc<RefCell<Option<glib::SourceId>>>,
+	duration: u64,
 }
 
 // TODO: Use custom widget
@@ -36,7 +37,7 @@ pub struct SwayosdWindow {
 //   - Always center the centered widget (both left and right sides are the same width)
 impl SwayosdWindow {
 	/// Create a new window and assign it to the given application.
-	pub fn new(app: &gtk::Application, monitor: &gdk::Monitor) -> Self {
+	pub fn new(app: &gtk::Application, monitor: &gdk::Monitor, duration: u64) -> Self {
 		let window = gtk::ApplicationWindow::new(app);
 		window.set_widget_name("osd");
 		window.add_css_class("osd");
@@ -104,6 +105,7 @@ impl SwayosdWindow {
 			container,
 			monitor: monitor.clone(),
 			timeout_id: Rc::new(RefCell::new(None)),
+			duration,
 		}
 	}
 
@@ -338,7 +340,7 @@ impl SwayosdWindow {
 		}
 		let s = self.clone();
 		self.timeout_id.replace(Some(glib::timeout_add_local_once(
-			Duration::from_millis(1000),
+			Duration::from_millis(s.duration),
 			move || {
 				s.window.hide();
 				s.timeout_id.replace(None);
