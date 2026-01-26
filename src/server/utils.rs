@@ -333,7 +333,7 @@ pub fn change_brightness(
 			value.unwrap_or(BRIGHTNESS_CHANGE_DELTA) as u32,
 			min_brightness,
 		)?,
-		BrightnessChangeType::Set => backend.set(value.unwrap() as u32, min_brightness)?,
+		BrightnessChangeType::Set => backend.set(value? as u32, min_brightness)?,
 	};
 
 	Ok(backend)
@@ -344,18 +344,15 @@ pub fn get_system_css_path() -> Option<PathBuf> {
 	for path in system_config_dirs() {
 		paths.push(path.join("swayosd").join("style.css"));
 	}
-
+	// Fallback for Debian/Ubuntu-based distros
 	paths.push(Path::new("/usr/local/etc/xdg/swaync/style.css").to_path_buf());
 
-	let mut path: Option<PathBuf> = None;
 	for try_path in paths {
 		if try_path.exists() {
-			path = Some(try_path);
-			break;
+			return Some(try_path.clone());
 		}
 	}
-
-	path
+	None
 }
 
 pub fn user_style_path(custom_path: Option<PathBuf>) -> Option<String> {

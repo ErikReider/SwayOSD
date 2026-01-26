@@ -103,7 +103,7 @@ fn main() {
 	});
 	match get_system_css_path() {
 		Some(path) => {
-			provider.load_from_path(path.to_str().unwrap());
+			provider.load_from_path(path);
 			gtk::style_context_add_provider_for_display(
 				&display,
 				&provider,
