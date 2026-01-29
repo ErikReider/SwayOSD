@@ -1,8 +1,10 @@
-use self::{blight::Blight, brightnessctl::BrightnessCtl};
+use self::{blight::Blight, brightnessctl::BrightnessCtl, ddcci::Ddcci};
 
 mod blight;
 
 mod brightnessctl;
+
+mod ddcci;
 
 pub type BrightnessBackendResult = anyhow::Result<Box<dyn BrightnessBackend>>;
 
@@ -31,8 +33,13 @@ pub trait BrightnessBackend {
 #[allow(dead_code)]
 pub fn get_preferred_backend(device_name: Option<String>) -> BrightnessBackendResult {
 	println!("Trying BrightnessCtl Backend...");
-	BrightnessCtl::try_new_boxed(device_name.clone()).or_else(|_| {
-		println!("...Command failed! Falling back to Blight");
-		Blight::try_new_boxed(device_name)
-	})
+	BrightnessCtl::try_new_boxed(device_name.clone())
+		.or_else(|_| {
+			println!("Trying Blight Backend...");
+			Blight::try_new_boxed(device_name.clone())
+		})
+		.or_else(|_| {
+			println!("Trying DDC/CI Backend...");
+			Ddcci::try_new_boxed(device_name)
+		})
 }

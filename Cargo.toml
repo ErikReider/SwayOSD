@@ -49,3 +49,5 @@ mpris = "2.0.1"
 runtime-format = "0.1.3"
 strfmt = "0.2.4"
 clap = { version = "4.5.53", features = ["derive"] }
+ddc = "0.3.0"
+ddc-hi = "0.4.1"
