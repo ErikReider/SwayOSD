@@ -100,7 +100,7 @@ pub struct ArgsClient {
 	pub playerctl: Option<String>,
 
 	/// For which player to run the playerctl commands
-	#[arg(long, value_name = "auto|all|(playerctl -l)")]
+	#[arg(long, value_name = "auto|(playerctl -l)|all|shift|unshift")]
 	pub player: Option<String>,
 
 	/// Message to display
