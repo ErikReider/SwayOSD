@@ -50,7 +50,6 @@ fn get_player(player: PlayerctlDeviceRaw) -> Result<PlayerctlDevice, Box<dyn Err
 	}
 
 	fn get_single_player(player: String) -> Result<PlayerctlDevice, Box<dyn Error>> {
-		println!("{}", &player);
 		let possible_player = PlayerFinder::new()?.find_all()?.into_iter().find(|p| {
 			let bus = p.bus_name();
 			bus.contains(&player)
