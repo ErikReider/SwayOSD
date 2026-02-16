@@ -99,6 +99,10 @@ pub struct ArgsClient {
 	#[arg(long, value_name = "(+)number")]
 	pub min_brightness: Option<String>,
 
+	/// OSD display duration in milliseconds (200-60000)
+	#[arg(long, short = 'd', value_name = "200-60000", value_parser = clap::value_parser!(u64).range(200..=60000))]
+	pub duration: Option<u64>,
+
 	/// Shows Playerctl osd and runs the playerctl command
 	#[arg(long, value_name = "play-pause|play|pause|stop|next|prev|shuffle")]
 	pub playerctl: Option<String>,

@@ -13,8 +13,8 @@ use crate::widgets::segmented_progress_widget::SegmentedProgressWidget;
 use crate::{
 	brightness_backend::BrightnessBackend,
 	utils::{
-		get_max_volume, get_show_percentage, get_top_margin, volume_to_f64, KeysLocks,
-		VolumeDeviceType,
+		get_duration_override, get_max_volume, get_show_percentage, get_top_margin,
+		reset_duration_override, volume_to_f64, KeysLocks, VolumeDeviceType,
 	},
 };
 
@@ -338,9 +338,11 @@ impl SwayosdWindow {
 		if let Some(timeout_id) = self.timeout_id.take() {
 			timeout_id.remove()
 		}
+		let duration = get_duration_override().unwrap_or(self.duration);
+		reset_duration_override();
 		let s = self.clone();
 		self.timeout_id.replace(Some(glib::timeout_add_local_once(
-			Duration::from_millis(s.duration),
+			Duration::from_millis(duration),
 			move || {
 				s.window.hide();
 				s.timeout_id.replace(None);

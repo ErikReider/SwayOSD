@@ -643,6 +643,11 @@ impl SwayOSDApplication {
 			(ArgTypes::CustomIcon, icon) => {
 				set_icon_name(icon.unwrap_or(ICON_NAME_DEFAULT.to_string()))
 			}
+			(ArgTypes::Duration, duration) => {
+				if let Some(duration) = duration.and_then(|d| d.parse().ok()) {
+					set_duration_override(duration);
+				}
+			}
 			(arg_type, data) => {
 				eprintln!(
 					"Failed to parse command... Type: {:?}, Data: {:?}",
