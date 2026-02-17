@@ -148,6 +148,13 @@ bindsym XF86AudioNext exec swayosd-client --playerctl next
 - You can list your input audio devices using `pactl list short sources`, for outputs replace `sources` with `sinks`.
 - You can list your brightness devices using `brightnessctl -l`, for backlights, use `brightnessctl -l -c backlight`.
 
+### Notes on using `--player`:
+
+- It is for playerctl only.
+- If it is omitted, the default playerctld device is used.
+- Use `playerctl -l` for available players.
+- Special operators are "all", "shift" and "unshift". The last two call `playerctld [un]shift`; use to cycle players.
+
 ### Notes on using `--monitor`:
 
 - By default, without using --monitor the osd will be shown on all monitors

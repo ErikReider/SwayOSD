@@ -1,7 +1,9 @@
 use mpris::{Metadata, PlaybackStatus, Player, PlayerFinder};
+use playerctld::PlayerctldProxyBlocking;
+use zbus::blocking::Connection;
 
 use super::config::user::ServerConfig;
-use crate::utils::get_player;
+use crate::utils::get_player as get_player_raw;
 use std::{error::Error, sync::Arc, thread::sleep, time::Duration};
 use PlaybackStatus::*;
 use PlayerctlAction::*;
@@ -21,6 +23,8 @@ pub enum PlayerctlDeviceRaw {
 	None,
 	All,
 	Some(String),
+	Shift,
+	Unshift,
 }
 
 pub enum PlayerctlDevice {
@@ -36,27 +40,54 @@ pub struct Playerctl {
 	fmt_str: Option<String>,
 }
 
+fn get_player(player: PlayerctlDeviceRaw) -> Result<PlayerctlDevice, Box<dyn Error>> {
+	fn get_playerctld<'a>() -> Result<PlayerctldProxyBlocking<'a>, Box<dyn Error>> {
+		Ok(PlayerctldProxyBlocking::new(&Connection::session()?)?)
+	}
+
+	fn get_playerctld_devices() -> Result<Vec<String>, Box<dyn Error>> {
+		Ok(get_playerctld()?.player_names()?)
+	}
+
+	fn get_single_player(player: String) -> Result<PlayerctlDevice, Box<dyn Error>> {
+		let possible_player = PlayerFinder::new()?.find_all()?.into_iter().find(|p| {
+			let bus = p.bus_name();
+			bus.contains(&player)
+		});
+		match possible_player {
+			Some(player) => Ok(PlayerctlDevice::Some(player)),
+			None => Err(From::from(mpris::FindingError::NoPlayerFound)),
+		}
+	}
+
+	match player {
+		PlayerctlDeviceRaw::None => {
+			let fallback = || -> Result<PlayerctlDevice, Box<dyn Error>> {
+				Ok(PlayerctlDevice::Some(PlayerFinder::new()?.find_active()?))
+			};
+			let Ok(players) = get_playerctld_devices() else {
+				return fallback();
+			};
+			let Some(player) = players.first() else {
+				return fallback();
+			};
+			get_single_player(player.to_string())
+		}
+		PlayerctlDeviceRaw::Some(name) => get_single_player(name),
+		PlayerctlDeviceRaw::All => Ok(PlayerctlDevice::All(PlayerFinder::new()?.find_all()?)),
+
+		PlayerctlDeviceRaw::Shift => get_single_player(get_playerctld()?.shift()?),
+		PlayerctlDeviceRaw::Unshift => get_single_player(get_playerctld()?.unshift()?),
+	}
+}
+
 impl Playerctl {
 	pub fn new(
 		action: PlayerctlAction,
 		config: Arc<ServerConfig>,
 	) -> Result<Playerctl, Box<dyn Error>> {
-		let playerfinder = PlayerFinder::new()?;
-		let player = get_player();
-		let player = match player {
-			PlayerctlDeviceRaw::None => PlayerctlDevice::Some(playerfinder.find_active()?),
-			PlayerctlDeviceRaw::Some(name) => {
-				let possible_player = playerfinder.find_all()?.into_iter().find(|p| {
-					let bus = p.bus_name();
-					bus.strip_prefix("org.mpris.MediaPlayer2.").unwrap_or(bus) == name
-				});
-				match possible_player {
-					Some(player) => PlayerctlDevice::Some(player),
-					None => return Err(From::from(mpris::FindingError::NoPlayerFound)),
-				}
-			}
-			PlayerctlDeviceRaw::All => PlayerctlDevice::All(playerfinder.find_all()?),
-		};
+		let player = get_player_raw();
+		let player = get_player(player)?;
 		let fmt_str = config.playerctl_format.clone();
 		Ok(Self {
 			player,
@@ -230,6 +261,8 @@ impl PlayerctlDeviceRaw {
 		match player.as_str() {
 			"auto" | "" => Ok(None),
 			"all" => Ok(All),
+			"shift" => Ok(Shift),
+			"unshift" => Ok(Unshift),
 			_ => Ok(Some(player)),
 		}
 	}
