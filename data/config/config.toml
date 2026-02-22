@@ -1,6 +1,6 @@
 [server]
 ## style file for the OSD
-# style = /etc/xdg/swayosd/style.css
+# style = "/etc/xdg/swayosd/style.css"
 
 ## on which height to show the OSD
 # top_margin = 0.85
