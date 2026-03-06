@@ -24,4 +24,10 @@ min_brightness = 5
 # (automatically or through a firmware-handled hotkey being pressed)
 keyboard_backlight = true
 
+# OSD display duration in milliseconds (200-60000)
+# Possible values: 200 - 60000
+# Default value: 1000
+# Note: This is the server wide default which can be overridden by every individual client call.
+duration = 1000
+
 [client]
