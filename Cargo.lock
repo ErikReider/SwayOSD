@@ -1436,15 +1436,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pulsectl-rs"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06a988bceed1981b2c5fc4a3da0e4e073fdaff8e6bd022b089f54bc573dc3cfc"
-dependencies = [
- "libpulse-binding",
-]
-
-[[package]]
 name = "quote"
 version = "0.3.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1639,17 +1630,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
-name = "substring"
-version = "1.4.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "42ee6433ecef213b2e72f587ef64a2f5943e7cd16fbd82dbe8bc07486c534c86"
-dependencies = [
- "autocfg",
-]
-
-[[package]]
 name = "swayosd"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "async-channel 2.5.0",
@@ -1667,13 +1649,11 @@ dependencies = [
  "mpris",
  "nix",
  "playerctld",
- "pulsectl-rs",
  "runtime-format",
  "serde",
  "serde_derive",
  "shrinkwraprs",
  "strfmt",
- "substring",
  "thiserror 2.0.17",
  "toml 0.8.23",
  "zbus",

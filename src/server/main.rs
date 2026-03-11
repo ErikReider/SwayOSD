@@ -1,6 +1,7 @@
 mod application;
 mod login1;
 mod osd_window;
+mod pulse;
 mod upower;
 mod utils;
 mod widgets;

@@ -9,7 +9,8 @@ use std::{
 };
 
 use pulse::volume::Volume;
-use pulsectl::controllers::{types::DeviceInfo, DeviceControl, SinkController, SourceController};
+
+use crate::pulse::{DeviceInfo, VolumeController};
 
 use crate::brightness_backend;
 use crate::playerctl::PlayerctlDeviceRaw;
@@ -234,11 +235,6 @@ pub enum VolumeChangeType {
 	MuteToggle,
 }
 
-pub enum VolumeDeviceType {
-	Sink(SinkController),
-	Source(SourceController),
-}
-
 pub enum BrightnessChangeType {
 	Raise,
 	Lower,
@@ -256,47 +252,22 @@ fn volume_from_f64(volume: f64) -> Volume {
 }
 
 pub fn change_device_volume(
-	device_type: &mut VolumeDeviceType,
+	ctrl: &mut VolumeController,
 	change_type: VolumeChangeType,
 	step: Option<String>,
 ) -> Option<DeviceInfo> {
-	// Get the sink/source controller + default device name
-	let (controller, default_name): (&mut dyn DeviceControl<DeviceInfo>, Option<String>) =
-		match device_type {
-			VolumeDeviceType::Sink(controller) => match controller.get_server_info() {
-				Ok(server_info) => (controller, server_info.default_sink_name),
-				Err(e) => {
-					eprintln!("Error getting the Sink server info: {}", e);
-					return None;
-				}
-			},
-			VolumeDeviceType::Source(controller) => match controller.get_server_info() {
-				Ok(server_info) => (controller, server_info.default_source_name),
-				Err(e) => {
-					eprintln!("Error getting the Source server info: {}", e);
-					return None;
-				}
-			},
-		};
-
-	// Get the device
-	let device: DeviceInfo = if let Some(name) = get_device_name()
-		&& let Ok(device) = controller.get_device_by_name(&name)
-	{
-		device
-	} else {
-		// Workaround the upstream issues in pulsectl-rs where getting the default source device
-		// doesn't work...
-		match controller.get_device_by_name(&default_name.unwrap_or("".to_string())) {
-			Ok(device) => device,
-			Err(e) => {
-				eprintln!("Error getting the default device: {}", e);
-				return None;
-			}
+	let device = match get_device_name() {
+		Some(name) => ctrl.get_device_by_name(&name),
+		None => ctrl.get_default_device(),
+	};
+	let device = match device {
+		Ok(d) => d,
+		Err(e) => {
+			eprintln!("Error getting device: {}", e);
+			return None;
 		}
 	};
 
-	// Adjust the volume / mute state
 	const VOLUME_CHANGE_DELTA: f64 = 5_f64;
 	let delta = volume_from_f64(
 		step.unwrap_or_default()
@@ -307,21 +278,21 @@ pub fn change_device_volume(
 		VolumeChangeType::Raise => {
 			let max_volume = volume_from_f64(get_max_volume() as f64);
 			if let Some(volume) = device.volume.clone().inc_clamp(delta, max_volume) {
-				controller.set_device_volume_by_index(device.index, volume);
+				ctrl.set_volume_by_index(device.index, &volume);
 			}
 		}
 		VolumeChangeType::Lower => {
 			if let Some(volume) = device.volume.clone().decrease(delta) {
-				controller.set_device_volume_by_index(device.index, volume);
+				ctrl.set_volume_by_index(device.index, &volume);
 			}
 		}
 		VolumeChangeType::MuteToggle => {
-			controller.set_device_mute_by_index(device.index, !device.mute);
+			ctrl.set_mute_by_index(device.index, !device.mute);
 		}
 	}
 
-	match controller.get_device_by_index(device.index) {
-		Ok(device) => Some(device),
+	match ctrl.get_device_by_index(device.index) {
+		Ok(d) => Some(d),
 		Err(e) => {
 			eprintln!("Pulse Error: {}", e);
 			None
