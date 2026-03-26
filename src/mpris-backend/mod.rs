@@ -1,11 +1,10 @@
-use mpris::{Metadata, PlaybackStatus, Player, PlayerFinder};
 use playerctld::PlayerctldProxyBlocking;
-use zbus::blocking::Connection;
+use zbus::blocking::{Connection, Proxy};
+use zbus::zvariant::Value;
 
 use super::config::user::ServerConfig;
 use crate::utils::get_player as get_player_raw;
 use std::{error::Error, sync::Arc, thread::sleep, time::Duration};
-use PlaybackStatus::*;
 use PlayerctlAction::*;
 
 pub enum PlayerctlAction {
@@ -27,9 +26,98 @@ pub enum PlayerctlDeviceRaw {
 	Unshift,
 }
 
+// A thin zbus-based wrapper around an MPRIS player bus name.
+pub struct MprisPlayer {
+	bus_name: String,
+	conn: Connection,
+}
+
+impl MprisPlayer {
+	fn new(bus_name: String) -> Result<Self, Box<dyn Error>> {
+		let conn = Connection::session()?;
+		Ok(Self { bus_name, conn })
+	}
+
+	fn player_proxy(&self) -> Result<Proxy<'_>, Box<dyn Error>> {
+		Ok(Proxy::new(
+			&self.conn,
+			self.bus_name.as_str(),
+			"/org/mpris/MediaPlayer2",
+			"org.mpris.MediaPlayer2.Player",
+		)?)
+	}
+
+	fn call(&self, method: &str) -> Result<(), Box<dyn Error>> {
+		self.player_proxy()?.call_method(method, &())?;
+		Ok(())
+	}
+
+	fn get_property_string(&self, prop: &str) -> Result<String, Box<dyn Error>> {
+		let proxy = self.player_proxy()?;
+		let val: Value = proxy.get_property(prop)?;
+		Ok(value_to_string(val))
+	}
+
+	fn get_property_bool(&self, prop: &str) -> Result<bool, Box<dyn Error>> {
+		let proxy = self.player_proxy()?;
+		let val: Value = proxy.get_property(prop)?;
+		match val {
+			Value::Bool(b) => Ok(b),
+			Value::Value(inner) => match *inner {
+				Value::Bool(b) => Ok(b),
+				_ => Err("not a bool".into()),
+			},
+			_ => Err("not a bool".into()),
+		}
+	}
+
+	fn set_property_bool(&self, prop: &str, val: bool) -> Result<(), Box<dyn Error>> {
+		self.player_proxy()?.set_property(prop, val)?;
+		Ok(())
+	}
+
+	fn get_playback_status(&self) -> String {
+		self.get_property_string("PlaybackStatus").unwrap_or_default()
+	}
+
+	fn get_metadata_map(&self) -> Option<std::collections::HashMap<String, String>> {
+		let proxy = self.player_proxy().ok()?;
+		let val: Value = proxy.get_property("Metadata").ok()?;
+		let mut map = std::collections::HashMap::new();
+		if let Value::Dict(dict) = unwrap_value(val) {
+			for (k, v) in dict.iter() {
+				let key = value_to_string(k.try_clone().ok()?);
+				let val_str = value_to_string(v.clone());
+				map.insert(key, val_str);
+			}
+		}
+		Some(map)
+	}
+}
+
+fn unwrap_value(val: Value) -> Value {
+	if let Value::Value(inner) = val {
+		unwrap_value(*inner)
+	} else {
+		val
+	}
+}
+
+fn value_to_string(val: Value) -> String {
+	match unwrap_value(val) {
+		Value::Str(s) => s.to_string(),
+		Value::Array(arr) => arr
+			.iter()
+			.map(|v| value_to_string(v.clone()))
+			.collect::<Vec<_>>()
+			.join(", "),
+		other => format!("{:?}", other),
+	}
+}
+
 pub enum PlayerctlDevice {
-	All(Vec<Player>),
-	Some(Player),
+	All(Vec<MprisPlayer>),
+	Some(MprisPlayer),
 }
 
 pub struct Playerctl {
@@ -49,33 +137,45 @@ fn get_player(player: PlayerctlDeviceRaw) -> Result<PlayerctlDevice, Box<dyn Err
 		Ok(get_playerctld()?.player_names()?)
 	}
 
-	fn get_single_player(player: String) -> Result<PlayerctlDevice, Box<dyn Error>> {
-		let possible_player = PlayerFinder::new()?.find_all()?.into_iter().find(|p| {
-			let bus = p.bus_name();
-			bus.contains(&player)
-		});
-		match possible_player {
-			Some(player) => Ok(PlayerctlDevice::Some(player)),
-			None => Err(From::from(mpris::FindingError::NoPlayerFound)),
+	fn get_single_player(bus_name: String) -> Result<PlayerctlDevice, Box<dyn Error>> {
+		Ok(PlayerctlDevice::Some(MprisPlayer::new(bus_name)?))
+	}
+
+	fn get_all_players() -> Result<PlayerctlDevice, Box<dyn Error>> {
+		let names = get_playerctld_devices()?;
+		let players: Vec<MprisPlayer> = names
+			.into_iter()
+			.filter_map(|n| MprisPlayer::new(n).ok())
+			.collect();
+		if players.is_empty() {
+			return Err("No players found".into());
 		}
+		Ok(PlayerctlDevice::All(players))
 	}
 
 	match player {
 		PlayerctlDeviceRaw::None => {
-			let fallback = || -> Result<PlayerctlDevice, Box<dyn Error>> {
-				Ok(PlayerctlDevice::Some(PlayerFinder::new()?.find_active()?))
-			};
 			let Ok(players) = get_playerctld_devices() else {
-				return fallback();
+				return Err("playerctld not available and no player specified".into());
 			};
-			let Some(player) = players.first() else {
-				return fallback();
+			let Some(first) = players.into_iter().next() else {
+				return Err("No players found".into());
 			};
-			get_single_player(player.to_string())
+			get_single_player(first)
 		}
-		PlayerctlDeviceRaw::Some(name) => get_single_player(name),
-		PlayerctlDeviceRaw::All => Ok(PlayerctlDevice::All(PlayerFinder::new()?.find_all()?)),
-
+		PlayerctlDeviceRaw::Some(name) => {
+			if name.starts_with("org.mpris.") {
+				get_single_player(name)
+			} else {
+				let names = get_playerctld_devices()?;
+				let matched = names.into_iter().find(|n| n.contains(&name));
+				match matched {
+					Some(bus) => get_single_player(bus),
+					None => get_single_player(format!("org.mpris.MediaPlayer2.{}", name)),
+				}
+			}
+		}
+		PlayerctlDeviceRaw::All => get_all_players(),
 		PlayerctlDeviceRaw::Shift => get_single_player(get_playerctld()?.shift()?),
 		PlayerctlDeviceRaw::Unshift => get_single_player(get_playerctld()?.unshift()?),
 	}
@@ -97,9 +197,11 @@ impl Playerctl {
 			fmt_str,
 		})
 	}
+
 	pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
 		let mut metadata = None;
-		let mut icon = Err("some errro");
+		let mut icon = Err::<&str, &str>("no icon");
+
 		match &self.player {
 			PlayerctlDevice::Some(player) => {
 				icon = Ok(self.run_single(player)?);
@@ -121,25 +223,25 @@ impl Playerctl {
 		};
 
 		self.icon = Some(icon.unwrap_or("").to_string());
-		let label = metadata.map(|metadata| self.fmt_string(metadata));
+		let label = metadata.map(|m| self.fmt_string(m));
 		self.label = label;
 		Ok(())
 	}
-	fn run_single(&self, player: &Player) -> Result<&str, Box<dyn Error>> {
+
+	fn run_single(&self, player: &MprisPlayer) -> Result<&str, Box<dyn Error>> {
 		let out = match self.action {
-			PlayPause => match player.get_playback_status()? {
-				Playing => {
-					player.pause()?;
+			PlayPause => {
+				if player.get_playback_status() == "Playing" {
+					player.call("Pause")?;
 					"pause-large-symbolic"
-				}
-				Paused | Stopped => {
-					player.play()?;
+				} else {
+					player.call("Play")?;
 					"play-large-symbolic"
 				}
-			},
+			}
 			Shuffle => {
-				let shuffle = player.get_shuffle()?;
-				player.set_shuffle(!shuffle)?;
+				let shuffle = player.get_property_bool("Shuffle").unwrap_or(false);
+				player.set_property_bool("Shuffle", !shuffle)?;
 				if shuffle {
 					"playlist-consecutive-symbolic"
 				} else {
@@ -147,77 +249,85 @@ impl Playerctl {
 				}
 			}
 			Play => {
-				player.play()?;
+				player.call("Play")?;
 				"play-large-symbolic"
 			}
 			Pause => {
-				player.pause()?;
+				player.call("Pause")?;
 				"pause-large-symbolic"
 			}
 			Stop => {
-				player.stop()?;
+				player.call("Stop")?;
 				"stop-large-symbolic"
 			}
 			Next => {
-				player.next()?;
+				player.call("Next")?;
 				"media-seek-forward-symbolic"
 			}
 			Prev => {
-				player.previous()?;
+				player.call("Previous")?;
 				"media-seek-backward-symbolic"
 			}
 		};
 		Ok(out)
 	}
-	fn get_metadata(&self, player: &Player) -> Option<Metadata> {
+
+	fn get_metadata(
+		&self,
+		player: &MprisPlayer,
+	) -> Option<std::collections::HashMap<String, String>> {
 		match self.action {
 			Next | Prev => {
-				if let Ok(track_list) = player.get_track_list()
-					&& let Some(track) = track_list.get(0)
-				{
-					return player.get_track_metadata(track).ok();
-				}
-				let metadata = player.get_metadata().ok()?;
-				let name1 = metadata.url()?;
+				let map1 = player.get_metadata_map()?;
+				let url1 = map1.get("xesam:url").cloned().unwrap_or_default();
 				let mut counter = 0;
 				while counter < 1000 {
-					// 1000 * 5ms = 5s
-					let metadata = player.get_metadata().ok()?;
-					let name2 = metadata.url()?;
-					if name1 != name2 {
-						return Some(metadata);
-					}
 					sleep(Duration::from_millis(5));
+					let map2 = player.get_metadata_map()?;
+					let url2 = map2.get("xesam:url").cloned().unwrap_or_default();
+					if url1 != url2 {
+						return Some(map2);
+					}
 					counter += 1;
 				}
-				Some(metadata)
+				Some(map1)
 			}
-			_ => player.get_metadata().ok(),
+			_ => player.get_metadata_map(),
 		}
 	}
-	fn fmt_string(&self, metadata: mpris::Metadata) -> String {
+
+	fn fmt_string(&self, metadata: std::collections::HashMap<String, String>) -> String {
 		use std::collections::HashMap;
 		use strfmt::Format;
 
 		let mut vars = HashMap::new();
-		let artists = metadata.artists().unwrap_or(vec![""]);
-		let artists_album = metadata.album_artists().unwrap_or(vec![""]);
-		let artist = artists.first().map_or("", |v| v);
-		let artist_album = artists_album.first().map_or("", |v| v);
-
-		let title = metadata.title().unwrap_or("");
-		let album = metadata.album_name().unwrap_or("");
+		let artist = metadata
+			.get("xesam:artist")
+			.map(|s| s.as_str())
+			.unwrap_or("");
+		let artist_album = metadata
+			.get("xesam:albumArtist")
+			.map(|s| s.as_str())
+			.unwrap_or("");
+		let title = metadata
+			.get("xesam:title")
+			.map(|s| s.as_str())
+			.unwrap_or("");
+		let album = metadata
+			.get("xesam:album")
+			.map(|s| s.as_str())
+			.unwrap_or("");
 		let track_num = metadata
-			.track_number()
-			.map(|x| x.to_string())
+			.get("xesam:trackNumber")
+			.cloned()
 			.unwrap_or_default();
 		let disc_num = metadata
-			.disc_number()
-			.map(|x| x.to_string())
+			.get("xesam:discNumber")
+			.cloned()
 			.unwrap_or_default();
 		let autorating = metadata
-			.auto_rating()
-			.map(|x| x.to_string())
+			.get("xesam:autoRating")
+			.cloned()
 			.unwrap_or_default();
 
 		vars.insert("artist".to_string(), artist);
