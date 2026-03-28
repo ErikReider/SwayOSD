@@ -77,7 +77,8 @@ impl MprisPlayer {
 	}
 
 	fn get_playback_status(&self) -> String {
-		self.get_property_string("PlaybackStatus").unwrap_or_default()
+		self.get_property_string("PlaybackStatus")
+			.unwrap_or_default()
 	}
 
 	fn get_metadata_map(&self) -> Option<std::collections::HashMap<String, String>> {
