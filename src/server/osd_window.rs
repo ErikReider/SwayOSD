@@ -204,7 +204,7 @@ impl SwayosdWindow {
 			let progress = self.build_segmented_progress_widget(value, max);
 			self.container.append(&progress);
 		} else {
-			let progress = self.build_progress_widget((value / max) as f64);
+			let progress = self.build_progress_widget(value as f64 / max as f64);
 			self.container.append(&progress);
 		}
 
