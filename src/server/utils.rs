@@ -260,24 +260,11 @@ pub fn change_device_volume(
 	change_type: VolumeChangeType,
 	step: Option<String>,
 ) -> Option<DeviceInfo> {
-	// Get the sink/source controller + default device name
-	let (controller, default_name): (&mut dyn DeviceControl<DeviceInfo>, Option<String>) =
-		match device_type {
-			VolumeDeviceType::Sink(controller) => match controller.get_server_info() {
-				Ok(server_info) => (controller, server_info.default_sink_name),
-				Err(e) => {
-					eprintln!("Error getting the Sink server info: {}", e);
-					return None;
-				}
-			},
-			VolumeDeviceType::Source(controller) => match controller.get_server_info() {
-				Ok(server_info) => (controller, server_info.default_source_name),
-				Err(e) => {
-					eprintln!("Error getting the Source server info: {}", e);
-					return None;
-				}
-			},
-		};
+	// Get the sink/source controller
+	let controller: &mut dyn DeviceControl<DeviceInfo> = match device_type {
+		VolumeDeviceType::Sink(controller) => controller,
+		VolumeDeviceType::Source(controller) => controller,
+	};
 
 	// Get the device
 	let device: DeviceInfo = if let Some(name) = get_device_name()
@@ -285,9 +272,7 @@ pub fn change_device_volume(
 	{
 		device
 	} else {
-		// Workaround the upstream issues in pulsectl-rs where getting the default source device
-		// doesn't work...
-		match controller.get_device_by_name(&default_name.unwrap_or("".to_string())) {
+		match controller.get_default_device() {
 			Ok(device) => device,
 			Err(e) => {
 				eprintln!("Error getting the default device: {}", e);
