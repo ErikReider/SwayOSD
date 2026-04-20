@@ -31,7 +31,7 @@ gtk-layer-shell = { package = "gtk4-layer-shell", version = "0.6.3" }
 shrinkwraprs = "0.3.0"
 cascade = "1.0.1"
 pulse = { version = "2.30.1", package = "libpulse-binding" }
-pulsectl-rs = "0.3.2"
+pulsectl2-rs = "0.3.3"
 substring = "1.4.5"
 lazy_static = "1.5.0"
 zbus = "5"

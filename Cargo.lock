@@ -1436,10 +1436,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "pulsectl-rs"
-version = "0.3.2"
+name = "pulsectl2-rs"
+version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06a988bceed1981b2c5fc4a3da0e4e073fdaff8e6bd022b089f54bc573dc3cfc"
+checksum = "822ad2dfde5f4dd41b23d058ae47be82c39dca05847fe46129a7d1fb59ccdd18"
 dependencies = [
  "libpulse-binding",
 ]
@@ -1649,7 +1649,7 @@ dependencies = [
 
 [[package]]
 name = "swayosd"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "async-channel 2.5.0",
@@ -1667,7 +1667,7 @@ dependencies = [
  "mpris",
  "nix",
  "playerctld",
- "pulsectl-rs",
+ "pulsectl2-rs",
  "runtime-format",
  "serde",
  "serde_derive",
