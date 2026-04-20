@@ -16,6 +16,10 @@ pub struct ArgsServer {
 	/// OSD margin from top edge (0.5 would be screen center). Default is 0.85
 	#[arg(long, value_name = "from 0.0 to 1.0")]
 	pub top_margin: Option<String>,
+
+	/// OSD duration in milliseconds. Default is 1000
+	#[arg(long, value_name = "in milliseconds")]
+	pub duration: Option<u32>,
 }
 
 #[derive(Parser)]

@@ -5,6 +5,9 @@
 ## on which height to show the OSD
 # top_margin = 0.85
 
+## how long to show the OSD
+# duration = 1000
+
 ## The maximum volume that can be reached in %
 # max_volume = 150
 

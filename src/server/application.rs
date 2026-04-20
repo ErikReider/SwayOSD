@@ -55,6 +55,18 @@ impl SwayOSDApplication {
 			Some("<from 0.0 to 1.0>"),
 		);
 
+		app.add_main_option(
+			"duration",
+			Char::from(0),
+			OptionFlags::NONE,
+			OptionArg::String,
+			&format!(
+				"Time to show OSD in milliseconds. Default is {}",
+				*utils::DURATION_DEFAULT
+			),
+			Some("in milliseconds"),
+		);
+
 		let osd_app = SwayOSDApplication {
 			app: app.clone(),
 			windows: Rc::new(RefCell::new(Vec::new())),
@@ -67,6 +79,9 @@ impl SwayOSDApplication {
 			&& (0_f32..1_f32).contains(&margin)
 		{
 			set_top_margin(margin);
+		}
+		if let Some(duration) = server_config.duration {
+			set_duration(duration);
 		}
 		if let Some(max_volume) = server_config.max_volume {
 			set_default_max_volume(max_volume);
@@ -180,6 +195,11 @@ impl SwayOSDApplication {
 					eprintln!("{} is not a number between 0.0 and 1.0!", value);
 				}
 			}
+		}
+
+		// Duration
+		if let Some(value) = args.duration.to_owned() {
+			set_duration(value);
 		}
 	}
 

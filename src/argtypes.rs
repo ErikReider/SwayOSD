@@ -12,6 +12,7 @@ pub enum ArgTypes {
 	MonitorName = (i32::MIN + 5) as isize,
 	CustomProgressText = (i32::MIN + 6) as isize,
 	MinBrightness = (i32::MIN + 7) as isize,
+	Duration = (i32::MIN + 8) as isize,
 	// Other
 	CapsLock = 1,
 	SinkVolumeRaise = 2,
@@ -59,6 +60,7 @@ impl fmt::Display for ArgTypes {
 			ArgTypes::CustomSegmentedProgress => "CUSTOM-SEGMENTED-PROGRESS",
 			ArgTypes::CustomProgressText => "CUSTOM-PROGRESS-TEXT",
 			ArgTypes::MinBrightness => "MIN-BRIGHTNESS",
+			ArgTypes::Duration => "DURATION",
 			ArgTypes::KbdBacklight => "KBD-BACKLIGHT",
 		};
 		write!(f, "{}", string)
@@ -94,6 +96,7 @@ impl str::FromStr for ArgTypes {
 			"CUSTOM-SEGMENTED-PROGRESS" => ArgTypes::CustomSegmentedProgress,
 			"CUSTOM-PROGRESS-TEXT" => ArgTypes::CustomProgressText,
 			"MIN-BRIGHTNESS" => ArgTypes::MinBrightness,
+			"DURATION" => ArgTypes::Duration,
 			"KBD-BACKLIGHT" => ArgTypes::KbdBacklight,
 			other_type => return Err(other_type.to_owned()),
 		};
