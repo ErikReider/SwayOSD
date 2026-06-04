@@ -33,6 +33,8 @@ pub struct SwayOSDApplication {
 	activated: Rc<RefCell<bool>>,
 	_hold: Rc<gio::ApplicationHoldGuard>,
 	duration: u64,
+
+	volume_ctrl: Rc<RefCell<Option<VolumeController>>>,
 }
 
 impl SwayOSDApplication {
@@ -56,12 +58,16 @@ impl SwayOSDApplication {
 			Some("<from 0.0 to 1.0>"),
 		);
 
+		let volume_ctrl = VolumeController::create().ok();
+
 		let osd_app = SwayOSDApplication {
 			app: app.clone(),
 			windows: Rc::new(RefCell::new(Vec::new())),
 			activated: Rc::new(RefCell::new(false)),
 			_hold: hold,
 			duration: args.duration,
+
+			volume_ctrl: Rc::new(RefCell::new(volume_ctrl)),
 		};
 
 		// Apply Server Config
@@ -406,11 +412,12 @@ impl SwayOSDApplication {
 		match (arg_type, value) {
 			(ArgTypes::SinkVolumeRaise, step) => {
 				let duration = self.get_duration();
-				let mut ctrl = VolumeController::create(DeviceKind::Sink)?;
-				if let Some(device) = change_device_volume(&mut ctrl, VolumeChangeType::Raise, step)
+				let ctrl = &self.volume_ctrl;
+				if let Some(device) =
+					change_device_volume(ctrl, DeviceKind::Sink, VolumeChangeType::Raise, step)
 				{
 					for window in self.choose_windows() {
-						window.changed_volume(&duration, &device, ctrl.kind());
+						window.changed_volume(&duration, &device);
 					}
 				}
 				reset_max_volume();
@@ -419,11 +426,12 @@ impl SwayOSDApplication {
 			}
 			(ArgTypes::SinkVolumeLower, step) => {
 				let duration = self.get_duration();
-				let mut ctrl = VolumeController::create(DeviceKind::Sink)?;
-				if let Some(device) = change_device_volume(&mut ctrl, VolumeChangeType::Lower, step)
+				let ctrl = &self.volume_ctrl;
+				if let Some(device) =
+					change_device_volume(ctrl, DeviceKind::Sink, VolumeChangeType::Lower, step)
 				{
 					for window in self.choose_windows() {
-						window.changed_volume(&duration, &device, ctrl.kind());
+						window.changed_volume(&duration, &device);
 					}
 				}
 				reset_max_volume();
@@ -432,12 +440,12 @@ impl SwayOSDApplication {
 			}
 			(ArgTypes::SinkVolumeMuteToggle, _) => {
 				let duration = self.get_duration();
-				let mut ctrl = VolumeController::create(DeviceKind::Sink)?;
+				let ctrl = &self.volume_ctrl;
 				if let Some(device) =
-					change_device_volume(&mut ctrl, VolumeChangeType::MuteToggle, None)
+					change_device_volume(ctrl, DeviceKind::Sink, VolumeChangeType::MuteToggle, None)
 				{
 					for window in self.choose_windows() {
-						window.changed_volume(&duration, &device, ctrl.kind());
+						window.changed_volume(&duration, &device);
 					}
 				}
 				reset_max_volume();
@@ -446,11 +454,12 @@ impl SwayOSDApplication {
 			}
 			(ArgTypes::SourceVolumeRaise, step) => {
 				let duration = self.get_duration();
-				let mut ctrl = VolumeController::create(DeviceKind::Source)?;
-				if let Some(device) = change_device_volume(&mut ctrl, VolumeChangeType::Raise, step)
+				let ctrl = &self.volume_ctrl;
+				if let Some(device) =
+					change_device_volume(ctrl, DeviceKind::Source, VolumeChangeType::Raise, step)
 				{
 					for window in self.choose_windows() {
-						window.changed_volume(&duration, &device, ctrl.kind());
+						window.changed_volume(&duration, &device);
 					}
 				}
 				reset_max_volume();
@@ -459,11 +468,12 @@ impl SwayOSDApplication {
 			}
 			(ArgTypes::SourceVolumeLower, step) => {
 				let duration = self.get_duration();
-				let mut ctrl = VolumeController::create(DeviceKind::Source)?;
-				if let Some(device) = change_device_volume(&mut ctrl, VolumeChangeType::Lower, step)
+				let ctrl = &self.volume_ctrl;
+				if let Some(device) =
+					change_device_volume(ctrl, DeviceKind::Source, VolumeChangeType::Lower, step)
 				{
 					for window in self.choose_windows() {
-						window.changed_volume(&duration, &device, ctrl.kind());
+						window.changed_volume(&duration, &device);
 					}
 				}
 				reset_max_volume();
@@ -472,12 +482,15 @@ impl SwayOSDApplication {
 			}
 			(ArgTypes::SourceVolumeMuteToggle, _) => {
 				let duration = self.get_duration();
-				let mut ctrl = VolumeController::create(DeviceKind::Source)?;
-				if let Some(device) =
-					change_device_volume(&mut ctrl, VolumeChangeType::MuteToggle, None)
-				{
+				let ctrl = &self.volume_ctrl;
+				if let Some(device) = change_device_volume(
+					ctrl,
+					DeviceKind::Source,
+					VolumeChangeType::MuteToggle,
+					None,
+				) {
 					for window in self.choose_windows() {
-						window.changed_volume(&duration, &device, ctrl.kind());
+						window.changed_volume(&duration, &device);
 					}
 				}
 				reset_max_volume();

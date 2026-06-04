@@ -2,15 +2,17 @@ use gtk::glib::{system_config_dirs, user_config_dir};
 use lazy_static::lazy_static;
 
 use std::{
+	cell::RefCell,
 	fs::{self, File},
 	io::{prelude::*, BufReader},
 	path::{Path, PathBuf},
+	rc::Rc,
 	sync::Mutex,
 };
 
 use pulse::volume::Volume;
 
-use crate::pulse::{DeviceInfo, VolumeController};
+use crate::pulse::{DeviceInfo, DeviceKind, VolumeController};
 
 use crate::brightness_backend;
 use crate::playerctl::PlayerctlDeviceRaw;
@@ -267,13 +269,17 @@ fn volume_from_f64(volume: f64) -> Volume {
 }
 
 pub fn change_device_volume(
-	ctrl: &mut VolumeController,
+	ctrl: &Rc<RefCell<Option<VolumeController>>>,
+	kind: DeviceKind,
 	change_type: VolumeChangeType,
 	step: Option<String>,
 ) -> Option<DeviceInfo> {
+	let mut guard = ctrl.borrow_mut();
+	let ctrl = guard.as_mut()?;
+
 	let device = match get_device_name() {
-		Some(name) => ctrl.get_device_by_name(&name),
-		None => ctrl.get_default_device(),
+		Some(name) => ctrl.get_device_by_name(kind, &name),
+		None => ctrl.get_default_device(kind),
 	};
 	let device = match device {
 		Ok(d) => d,
@@ -293,20 +299,20 @@ pub fn change_device_volume(
 		VolumeChangeType::Raise => {
 			let max_volume = volume_from_f64(get_max_volume() as f64);
 			if let Some(volume) = device.volume.clone().inc_clamp(delta, max_volume) {
-				ctrl.set_volume_by_index(device.index, &volume);
+				ctrl.set_volume_by_index(kind, device.index, volume);
 			}
 		}
 		VolumeChangeType::Lower => {
 			if let Some(volume) = device.volume.clone().decrease(delta) {
-				ctrl.set_volume_by_index(device.index, &volume);
+				ctrl.set_volume_by_index(kind, device.index, volume);
 			}
 		}
 		VolumeChangeType::MuteToggle => {
-			ctrl.set_mute_by_index(device.index, !device.mute);
+			ctrl.set_mute_by_index(kind, device.index, !device.mute);
 		}
 	}
 
-	match ctrl.get_device_by_index(device.index) {
+	match ctrl.get_device_by_index(kind, device.index) {
 		Ok(d) => Some(d),
 		Err(e) => {
 			eprintln!("Pulse Error: {}", e);

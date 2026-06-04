@@ -108,11 +108,11 @@ impl SwayosdWindow {
 		self.window.close();
 	}
 
-	pub fn changed_volume(&self, duration: &Option<u64>, device: &DeviceInfo, kind: DeviceKind) {
+	pub fn changed_volume(&self, duration: &Option<u64>, device: &DeviceInfo) {
 		self.clear_osd();
 
 		let volume = volume_to_f64(&device.volume.avg());
-		let icon_prefix = match kind {
+		let icon_prefix = match device.kind {
 			DeviceKind::Sink => "sink",
 			DeviceKind::Source => "source",
 		};
@@ -122,7 +122,7 @@ impl SwayosdWindow {
 			(false, x) if x > 0.0 && x <= 33.0 => "low",
 			(false, x) if x > 33.0 && x <= 66.0 => "medium",
 			(false, x) if x > 66.0 && x <= 100.0 => "high",
-			(false, x) if x > 100.0 => match kind {
+			(false, x) if x > 100.0 => match device.kind {
 				DeviceKind::Sink => "high",
 				DeviceKind::Source => "overamplified",
 			},
