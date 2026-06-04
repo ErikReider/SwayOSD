@@ -16,6 +16,10 @@ pub struct ArgsServer {
 	/// OSD margin from top edge (0.5 would be screen center). Default is 0.85
 	#[arg(long, value_name = "from 0.0 to 1.0")]
 	pub top_margin: Option<String>,
+
+	/// OSD display duration in milliseconds (200-60000)
+	#[arg(long, short = 'd', value_name = "200-60000", default_value = "1000", value_parser = clap::value_parser!(u64).range(200..=60000))]
+	pub duration: u64,
 }
 
 #[derive(Parser)]
@@ -94,6 +98,10 @@ pub struct ArgsClient {
 	/// Sets the minimum Brightness
 	#[arg(long, value_name = "(+)number")]
 	pub min_brightness: Option<String>,
+
+	/// OSD display duration in milliseconds (200-60000)
+	#[arg(long, short = 'd', value_name = "200-60000", value_parser = clap::value_parser!(u64).range(200..=60000))]
+	pub duration: Option<u64>,
 
 	/// Shows Playerctl osd and runs the playerctl command
 	#[arg(long, value_name = "play-pause|play|pause|stop|next|prev|shuffle")]

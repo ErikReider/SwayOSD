@@ -13,8 +13,8 @@ use crate::widgets::segmented_progress_widget::SegmentedProgressWidget;
 use crate::{
 	brightness_backend::BrightnessBackend,
 	utils::{
-		get_max_volume, get_show_percentage, get_top_margin, volume_to_f64, KeysLocks,
-		VolumeDeviceType,
+		get_duration_override, get_max_volume, get_show_percentage, get_top_margin,
+		reset_duration_override, volume_to_f64, KeysLocks, VolumeDeviceType,
 	},
 };
 
@@ -29,6 +29,7 @@ pub struct SwayosdWindow {
 	pub monitor: gdk::Monitor,
 	container: gtk::Box,
 	timeout_id: Rc<RefCell<Option<glib::SourceId>>>,
+	duration: u64,
 }
 
 // TODO: Use custom widget
@@ -36,7 +37,7 @@ pub struct SwayosdWindow {
 //   - Always center the centered widget (both left and right sides are the same width)
 impl SwayosdWindow {
 	/// Create a new window and assign it to the given application.
-	pub fn new(app: &gtk::Application, monitor: &gdk::Monitor) -> Self {
+	pub fn new(app: &gtk::Application, monitor: &gdk::Monitor, duration: u64) -> Self {
 		let window = gtk::ApplicationWindow::new(app);
 		window.set_widget_name("osd");
 		window.add_css_class("osd");
@@ -102,6 +103,7 @@ impl SwayosdWindow {
 			container,
 			monitor: monitor.clone(),
 			timeout_id: Rc::new(RefCell::new(None)),
+			duration,
 		}
 	}
 
@@ -334,9 +336,11 @@ impl SwayosdWindow {
 		if let Some(timeout_id) = self.timeout_id.take() {
 			timeout_id.remove()
 		}
+		let duration = get_duration_override().unwrap_or(self.duration);
+		reset_duration_override();
 		let s = self.clone();
 		self.timeout_id.replace(Some(glib::timeout_add_local_once(
-			Duration::from_millis(1000),
+			Duration::from_millis(duration),
 			move || {
 				s.window.hide();
 				s.timeout_id.replace(None);

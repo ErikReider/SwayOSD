@@ -31,6 +31,7 @@ lazy_static! {
 	static ref PLAYER_NAME: Mutex<PlayerctlDeviceRaw> = Mutex::new(PlayerctlDeviceRaw::None);
 	pub static ref TOP_MARGIN_DEFAULT: f32 = 0.85_f32;
 	static ref TOP_MARGIN: Mutex<f32> = Mutex::new(*TOP_MARGIN_DEFAULT);
+	static ref DURATION_OVERRIDE: Mutex<Option<u64>> = Mutex::new(None);
 	pub static ref SHOW_PERCENTAGE: Mutex<bool> = Mutex::new(false);
 }
 
@@ -94,6 +95,20 @@ pub fn get_top_margin() -> f32 {
 pub fn set_top_margin(margin: f32) {
 	let mut margin_mut = TOP_MARGIN.lock().unwrap();
 	*margin_mut = margin;
+}
+
+pub fn get_duration_override() -> Option<u64> {
+	*DURATION_OVERRIDE.lock().unwrap()
+}
+
+pub fn set_duration_override(duration: u64) {
+	let mut duration_mut = DURATION_OVERRIDE.lock().unwrap();
+	*duration_mut = Some(duration);
+}
+
+pub fn reset_duration_override() {
+	let mut duration_mut = DURATION_OVERRIDE.lock().unwrap();
+	*duration_mut = None;
 }
 
 pub fn get_show_percentage() -> bool {
