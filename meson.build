@@ -1,7 +1,7 @@
 project(
   'swayosd',
   'rust',
-  version: '0.3.0',
+  version: '0.3.1',
   meson_version: '>= 0.62.0',
   default_options: [
     'warning_level=2',

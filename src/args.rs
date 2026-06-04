@@ -57,7 +57,7 @@ pub struct ArgsClient {
 	#[arg(long, value_name = "LED class name (/sys/class/leds/NAME)")]
 	pub scroll_lock_led: Option<String>,
 
-	/// Shows volume osd and raises, loweres or mutes default sink volume
+	/// Shows volume osd and raises, lowers or mutes default sink volume
 	#[arg(
 		long,
 		value_name = "raise|lower|mute-toggle|(±)number",
@@ -65,7 +65,7 @@ pub struct ArgsClient {
 	)]
 	pub output_volume: Option<String>,
 
-	/// Shows volume osd and raises, loweres or mutes default source volume
+	/// Shows volume osd and raises, lowers or mutes default source volume
 	#[arg(
 		long,
 		value_name = "raise|lower|mute-toggle|(±)number",
@@ -83,7 +83,7 @@ pub struct ArgsClient {
 	#[arg(long, value_name = "Pulseaudio/BrightnessCtl device name")]
 	pub device: Option<String>,
 
-	/// Shows brightness osd and raises or loweres all available sources of brightness device
+	/// Shows brightness osd and raises or lowers all available sources of brightness device
 	#[arg(
 		long,
 		value_name = "raise|lower|(±)number",
