@@ -1,6 +1,7 @@
+use std::cell::RefCell;
 use std::rc::Rc;
-use std::time::Duration;
-use std::{cell::RefCell, ops::Deref};
+use std::sync::{Arc, Mutex};
+use std::time::Duration; // new imports
 
 use gtk::{
 	gdk,
@@ -17,10 +18,35 @@ use crate::{
 		VolumeDeviceType,
 	},
 };
-
 use gtk_layer_shell::LayerShell;
 
 const ICON_SIZE: i32 = 32;
+
+/// Type of progress bar to display
+#[derive(Clone, Debug)]
+enum ProgressType {
+	Normal(f64),
+	Segmented(u32, u32),
+}
+
+/// Holds all optional content and flags for the OSD window.
+#[derive(Clone, Debug, Default)]
+struct ContentSlots {
+	icon_name: Option<String>,
+	label_text: Option<String>,
+	progress_type: Option<ProgressType>,
+	percentage_text: Option<String>,
+
+	// Style flags
+	label_hexpand: bool,
+	icon_sensitive: bool,
+	progress_sensitive: bool,
+	apply_icon_margin_to_label: bool,
+
+	// Character width hints
+	label_min_chars: Option<u32>,
+	percentage_min_chars: Option<u32>,
+}
 
 /// A window that our application can open that contains the main project view.
 #[derive(Clone, Debug)]
@@ -29,11 +55,9 @@ pub struct SwayosdWindow {
 	pub monitor: gdk::Monitor,
 	container: gtk::Box,
 	timeout_id: Rc<RefCell<Option<glib::SourceId>>>,
+	slots: Arc<Mutex<ContentSlots>>, // changed to Arc<Mutex>
 }
 
-// TODO: Use custom widget
-// - Use start, center, and end children
-//   - Always center the centered widget (both left and right sides are the same width)
 impl SwayosdWindow {
 	/// Create a new window and assign it to the given application.
 	pub fn new(app: &gtk::Application, monitor: &gdk::Monitor) -> Self {
@@ -104,6 +128,7 @@ impl SwayosdWindow {
 			container,
 			monitor: monitor.clone(),
 			timeout_id: Rc::new(RefCell::new(None)),
+			slots: Arc::new(Mutex::new(ContentSlots::default())), // initialize with Mutex
 		}
 	}
 
@@ -112,14 +137,18 @@ impl SwayosdWindow {
 	}
 
 	pub fn changed_volume(&self, device: &DeviceInfo, device_type: &VolumeDeviceType) {
-		self.clear_osd();
+		// Reset slots by assigning a new default under lock
+		{
+			let mut slots = self.slots.lock().unwrap();
+			*slots = ContentSlots::default();
+		}
 
 		let volume = volume_to_f64(&device.volume.avg());
 		let icon_prefix = match device_type {
 			VolumeDeviceType::Sink(_) => "sink",
 			VolumeDeviceType::Source(_) => "source",
 		};
-		let icon_state = &match (device.mute, volume) {
+		let icon_state = match (device.mute, volume) {
 			(true, _) => "muted",
 			(_, 0.0) => "muted",
 			(false, x) if x > 0.0 && x <= 33.0 => "low",
@@ -131,140 +160,118 @@ impl SwayosdWindow {
 			},
 			(_, _) => "high",
 		};
-		let icon_name = &format!("{}-volume-{}-symbolic", icon_prefix, icon_state);
+		let icon_name = format!("{}-volume-{}-symbolic", icon_prefix, icon_state);
 
-		let max_volume: f64 = get_max_volume().into();
-
-		let icon = self.build_icon_widget(icon_name);
-		let progress = self.build_progress_widget(volume / max_volume);
-		let label = self.build_text_widget(Some(&format!("{}%", volume)), Some(4));
-
-		progress.set_sensitive(!device.mute);
-
-		self.container.append(&icon);
-		self.container.append(&progress);
-		if get_show_percentage() {
-			self.container.append(&label);
+		{
+			let mut slots = self.slots.lock().unwrap();
+			slots.icon_name = Some(icon_name);
+			let max_volume: f64 = get_max_volume().into();
+			slots.progress_type = Some(ProgressType::Normal(volume / max_volume));
+			if get_show_percentage() {
+				slots.percentage_text = Some(format!("{}%", volume));
+				slots.percentage_min_chars = Some(4);
+			}
+			slots.progress_sensitive = !device.mute;
 		}
 
 		self.run_timeout();
 	}
 
 	pub fn changed_brightness(&self, brightness_backend: &mut dyn BrightnessBackend) {
-		self.clear_osd();
-
-		let icon_name = "display-brightness-symbolic";
-		let icon = self.build_icon_widget(icon_name);
+		{
+			let mut slots = self.slots.lock().unwrap();
+			*slots = ContentSlots::default();
+		}
 
 		let brightness = brightness_backend.get_current() as f64;
 		let max = brightness_backend.get_max() as f64;
-		let progress = self.build_progress_widget(brightness / max);
-		let label = self.build_text_widget(
-			Some(&format!("{}%", (brightness / max * 100.).round() as i32)),
-			Some(4),
-		);
 
-		self.container.append(&icon);
-		self.container.append(&progress);
-		if get_show_percentage() {
-			self.container.append(&label);
+		{
+			let mut slots = self.slots.lock().unwrap();
+			slots.icon_name = Some("display-brightness-symbolic".to_string());
+			slots.progress_type = Some(ProgressType::Normal(brightness / max));
+			if get_show_percentage() {
+				slots.percentage_text =
+					Some(format!("{}%", (brightness / max * 100.).round() as i32));
+				slots.percentage_min_chars = Some(4);
+			}
 		}
 
 		self.run_timeout();
 	}
 
 	pub fn changed_player(&self, icon: &str, label: Option<&str>) {
-		self.clear_osd();
-
-		let icon = self.build_icon_widget(icon);
-		let label = self.build_text_widget(label, None);
-		label.set_hexpand(true);
-
-		self.container.append(&icon);
-		self.container.append(&label);
+		{
+			let mut slots = self.slots.lock().unwrap();
+			*slots = ContentSlots::default();
+			slots.icon_name = Some(icon.to_string());
+			slots.label_text = label.map(|s| s.to_string());
+			slots.label_hexpand = true;
+		}
 
 		self.run_timeout();
 	}
 
 	pub fn changed_kbd_backlight(&self, value: u32, max: u32) {
-		self.clear_osd();
+		{
+			let mut slots = self.slots.lock().unwrap();
+			*slots = ContentSlots::default();
+		}
 
 		let value = value.min(max);
-
 		let icon_name = match value {
 			0 => "keyboard-brightness-off-symbolic",
-			v if (v == max) => "keyboard-brightness-high-symbolic",
+			v if v == max => "keyboard-brightness-high-symbolic",
 			_ => "keyboard-brightness-medium-symbolic",
 		};
-		let icon = self.build_icon_widget(icon_name);
-		self.container.append(&icon);
 
-		// A segmented progress bar looks cramped when there are too many segments
-		if max < 5 {
-			let progress = self.build_segmented_progress_widget(value, max);
-			self.container.append(&progress);
-		} else {
-			let progress = self.build_progress_widget((value / max) as f64);
-			self.container.append(&progress);
+		{
+			let mut slots = self.slots.lock().unwrap();
+			slots.icon_name = Some(icon_name.to_string());
+			if max < 5 {
+				slots.progress_type = Some(ProgressType::Segmented(value, max));
+			} else {
+				slots.progress_type = Some(ProgressType::Normal(value as f64 / max as f64));
+			}
 		}
 
 		self.run_timeout();
 	}
 
 	pub fn changed_keylock(&self, key: KeysLocks, state: bool) {
-		self.clear_osd();
+		{
+			let mut slots = self.slots.lock().unwrap();
+			*slots = ContentSlots::default();
+		}
 
-		let label = self.build_text_widget(None, None);
-		label.set_hexpand(true);
-
-		let on_off_text = match state {
-			true => "On",
-			false => "Off",
-		};
-
+		let on_off_text = if state { "On" } else { "Off" };
 		let (label_text, symbol) = match key {
-			KeysLocks::CapsLock => {
-				let symbol = "caps-lock-symbolic";
-				let text = "Caps Lock ".to_string() + on_off_text;
-				(text, symbol)
-			}
-			KeysLocks::NumLock => {
-				let symbol = "num-lock-symbolic";
-				let text = "Num Lock ".to_string() + on_off_text;
-				(text, symbol)
-			}
-			KeysLocks::ScrollLock => {
-				let symbol = "scroll-lock-symbolic";
-				let text = "Scroll Lock ".to_string() + on_off_text;
-				(text, symbol)
-			}
+			KeysLocks::CapsLock => (format!("Caps Lock {}", on_off_text), "caps-lock-symbolic"),
+			KeysLocks::NumLock => (format!("Num Lock {}", on_off_text), "num-lock-symbolic"),
+			KeysLocks::ScrollLock => (
+				format!("Scroll Lock {}", on_off_text),
+				"scroll-lock-symbolic",
+			),
 		};
 
-		label.set_text(&label_text);
-		let icon = self.build_icon_widget(symbol);
-
-		icon.set_sensitive(state);
-
-		self.container.append(&icon);
-		self.container.append(&label);
+		{
+			let mut slots = self.slots.lock().unwrap();
+			slots.icon_name = Some(symbol.to_string());
+			slots.label_text = Some(label_text);
+			slots.label_hexpand = true;
+			slots.icon_sensitive = state;
+		}
 
 		self.run_timeout();
 	}
 
 	pub fn custom_progress(&self, fraction: f64, text: Option<String>, icon_name: Option<&str>) {
-		self.clear_osd();
-
-		if let Some(icon_name) = icon_name {
-			let icon = self.build_icon_widget(icon_name);
-			self.container.append(&icon);
-		}
-
-		let progress = self.build_progress_widget(fraction.clamp(0.0, 1.0));
-		self.container.append(&progress);
-
-		if let Some(text) = text {
-			let label = self.build_text_widget(Some(text.deref()), None);
-			self.container.append(&label);
+		{
+			let mut slots = self.slots.lock().unwrap();
+			*slots = ContentSlots::default();
+			slots.icon_name = icon_name.map(|s| s.to_string());
+			slots.progress_type = Some(ProgressType::Normal(fraction.clamp(0.0, 1.0)));
+			slots.label_text = text;
 		}
 
 		self.run_timeout();
@@ -277,52 +284,38 @@ impl SwayosdWindow {
 		text: Option<String>,
 		icon_name: Option<&str>,
 	) {
-		self.clear_osd();
-
-		if let Some(icon_name) = icon_name {
-			let icon = self.build_icon_widget(icon_name);
-			self.container.append(&icon);
+		{
+			let mut slots = self.slots.lock().unwrap();
+			*slots = ContentSlots::default();
 		}
 
 		let value = value.min(n_segments);
-		let progress = self.build_segmented_progress_widget(value, n_segments);
-		self.container.append(&progress);
-
-		if let Some(text) = text {
-			let label = self.build_text_widget(Some(text.deref()), None);
-			self.container.append(&label);
+		{
+			let mut slots = self.slots.lock().unwrap();
+			slots.icon_name = icon_name.map(|s| s.to_string());
+			slots.progress_type = Some(ProgressType::Segmented(value, n_segments));
+			slots.label_text = text;
 		}
 
 		self.run_timeout();
 	}
 
 	pub fn custom_message(&self, message: &str, icon_name: Option<&str>) {
-		self.clear_osd();
-
-		let label = self.build_text_widget(Some(message), None);
-		label.set_hexpand(true);
-
-		if let Some(icon_name) = icon_name {
-			let icon = self.build_icon_widget(icon_name);
-			self.container.append(&icon);
-			self.container.append(&label);
-			let box_spacing = self.container.spacing();
-			icon.connect_realize(move |icon| {
-				label.set_margin_end(
-					icon.allocation().width()
-						+ icon.margin_start()
-						+ icon.margin_end()
-						+ box_spacing,
-				);
-			});
-		} else {
-			self.container.append(&label);
+		{
+			let mut slots = self.slots.lock().unwrap();
+			*slots = ContentSlots::default();
+			slots.label_text = Some(message.to_string());
+			slots.label_hexpand = true;
+			if let Some(icon) = icon_name {
+				slots.icon_name = Some(icon.to_string());
+				slots.apply_icon_margin_to_label = true;
+			}
 		}
 
 		self.run_timeout();
 	}
 
-	/// Clear all container children
+	/// Remove all children from the container.
 	fn clear_osd(&self) {
 		let mut next = self.container.first_child();
 		while let Some(widget) = next {
@@ -331,11 +324,103 @@ impl SwayosdWindow {
 		}
 	}
 
+	/// Build the UI from current slots, show the window, and schedule hiding.
 	fn run_timeout(&self) {
-		// Hide window after timeout
+		// Cancel any existing timeout
 		if let Some(timeout_id) = self.timeout_id.take() {
 			timeout_id.remove()
 		}
+
+		// Clear previous content
+		self.clear_osd();
+
+		// Borrow slots – lock and read
+		let slots = self.slots.lock().unwrap();
+
+		// Build icon
+		let icon_widget = slots.icon_name.as_ref().map(|name| {
+			let icon = self.build_icon_widget(name);
+			icon.set_sensitive(slots.icon_sensitive);
+			icon
+		});
+
+		// Build label and progress into a vertical box if either exists
+		let mut vbox: Option<gtk::Box> = None;
+		let mut label_widget: Option<gtk::Label> = None; // Stored for margin callback
+
+		if slots.label_text.is_some() || slots.progress_type.is_some() {
+			let vbox_child = gtk::Box::new(gtk::Orientation::Vertical, 6);
+			vbox_child.set_hexpand(true);
+			vbox_child.set_valign(gtk::Align::Center);
+
+			if let Some(text) = &slots.label_text {
+				let label = self.build_text_widget(Some(text), slots.label_min_chars);
+				label.set_hexpand(slots.label_hexpand);
+				label_widget = Some(label.clone());
+				vbox_child.append(&label);
+			}
+
+			if let Some(progress_type) = &slots.progress_type {
+				let progress: gtk::Widget = match progress_type {
+					ProgressType::Normal(fraction) => {
+						self.build_progress_widget(*fraction).upcast()
+					}
+					ProgressType::Segmented(value, n_segments) => self
+						.build_segmented_progress_widget(*value, *n_segments)
+						.upcast(),
+				};
+				progress.set_sensitive(slots.progress_sensitive);
+				vbox_child.append(&progress);
+			}
+
+			vbox = Some(vbox_child);
+		}
+
+		// Build percentage label
+		let percentage_widget = slots
+			.percentage_text
+			.as_ref()
+			.map(|text| self.build_text_widget(Some(text), slots.percentage_min_chars));
+
+		// Add widgets to container in order: icon, vertical box, percentage
+		if let Some(icon) = &icon_widget {
+			self.container.append(icon);
+		}
+		if let Some(vbox) = &vbox {
+			self.container.append(vbox);
+		}
+		if let Some(percentage) = &percentage_widget {
+			self.container.append(percentage);
+		}
+
+		// Apply special margin for custom_message if needed
+		if slots.apply_icon_margin_to_label
+			&& let (Some(icon), Some(label)) = (icon_widget.as_ref(), label_widget.as_ref()) {
+				let box_spacing = self.container.spacing();
+				let _icon_clone = icon.clone();
+				let label_clone = label.clone();
+				// If icon is already realized, set margin immediately; otherwise wait for realize.
+				if icon.is_realized() {
+					let margin = icon.allocation().width()
+						+ icon.margin_start()
+						+ icon.margin_end()
+						+ box_spacing;
+					label.set_margin_end(margin);
+				} else {
+					icon.connect_realize(move |icon| {
+						let margin = icon.allocation().width()
+							+ icon.margin_start() + icon.margin_end()
+							+ box_spacing;
+						label_clone.set_margin_end(margin);
+					});
+				}
+			}
+
+		// Release the lock before scheduling the timeout
+		drop(slots);
+
+		// Show window and schedule hide
+		self.window.show();
 		let s = self.clone();
 		self.timeout_id.replace(Some(glib::timeout_add_local_once(
 			Duration::from_millis(1000),
@@ -344,13 +429,10 @@ impl SwayosdWindow {
 				s.timeout_id.replace(None);
 			},
 		)));
-
-		self.window.show();
 	}
 
 	fn build_icon_widget(&self, icon_name: &str) -> gtk::Image {
 		let icon = gtk::gio::ThemedIcon::from_names(&[icon_name, "missing-symbolic"]);
-
 		cascade! {
 			gtk::Image::from_gicon(&icon.upcast::<gtk::gio::Icon>());
 			..set_pixel_size(ICON_SIZE);
