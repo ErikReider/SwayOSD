@@ -2,20 +2,17 @@ use std::rc::Rc;
 use std::time::Duration;
 use std::{cell::RefCell, ops::Deref};
 
+use crate::pulse::{DeviceInfo, DeviceKind};
 use gtk::{
 	gdk,
 	glib::{self, clone},
 	prelude::*,
 };
-use pulsectl::controllers::types::DeviceInfo;
 
 use crate::widgets::segmented_progress_widget::SegmentedProgressWidget;
 use crate::{
 	brightness_backend::BrightnessBackend,
-	utils::{
-		get_max_volume, get_show_percentage, get_top_margin, volume_to_f64, KeysLocks,
-		VolumeDeviceType,
-	},
+	utils::{get_max_volume, get_show_percentage, get_top_margin, volume_to_f64, KeysLocks},
 };
 
 use gtk_layer_shell::LayerShell;
@@ -111,18 +108,13 @@ impl SwayosdWindow {
 		self.window.close();
 	}
 
-	pub fn changed_volume(
-		&self,
-		duration: &Option<u64>,
-		device: &DeviceInfo,
-		device_type: &VolumeDeviceType,
-	) {
+	pub fn changed_volume(&self, duration: &Option<u64>, device: &DeviceInfo) {
 		self.clear_osd();
 
 		let volume = volume_to_f64(&device.volume.avg());
-		let icon_prefix = match device_type {
-			VolumeDeviceType::Sink(_) => "sink",
-			VolumeDeviceType::Source(_) => "source",
+		let icon_prefix = match device.kind {
+			DeviceKind::Sink => "sink",
+			DeviceKind::Source => "source",
 		};
 		let icon_state = &match (device.mute, volume) {
 			(true, _) => "muted",
@@ -130,9 +122,9 @@ impl SwayosdWindow {
 			(false, x) if x > 0.0 && x <= 33.0 => "low",
 			(false, x) if x > 33.0 && x <= 66.0 => "medium",
 			(false, x) if x > 66.0 && x <= 100.0 => "high",
-			(false, x) if x > 100.0 => match device_type {
-				VolumeDeviceType::Sink(_) => "high",
-				VolumeDeviceType::Source(_) => "overamplified",
+			(false, x) if x > 100.0 => match device.kind {
+				DeviceKind::Sink => "high",
+				DeviceKind::Source => "overamplified",
 			},
 			(_, _) => "high",
 		};
