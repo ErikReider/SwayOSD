@@ -13,8 +13,8 @@ use crate::widgets::segmented_progress_widget::SegmentedProgressWidget;
 use crate::{
 	brightness_backend::BrightnessBackend,
 	utils::{
-		get_duration_override, get_max_volume, get_show_percentage, get_top_margin,
-		reset_duration_override, volume_to_f64, KeysLocks, VolumeDeviceType,
+		get_max_volume, get_show_percentage, get_top_margin, volume_to_f64, KeysLocks,
+		VolumeDeviceType,
 	},
 };
 
@@ -111,7 +111,12 @@ impl SwayosdWindow {
 		self.window.close();
 	}
 
-	pub fn changed_volume(&self, device: &DeviceInfo, device_type: &VolumeDeviceType) {
+	pub fn changed_volume(
+		&self,
+		duration: &Option<u64>,
+		device: &DeviceInfo,
+		device_type: &VolumeDeviceType,
+	) {
 		self.clear_osd();
 
 		let volume = volume_to_f64(&device.volume.avg());
@@ -147,10 +152,14 @@ impl SwayosdWindow {
 			self.container.append(&label);
 		}
 
-		self.run_timeout();
+		self.run_timeout(duration);
 	}
 
-	pub fn changed_brightness(&self, brightness_backend: &mut dyn BrightnessBackend) {
+	pub fn changed_brightness(
+		&self,
+		duration: &Option<u64>,
+		brightness_backend: &mut dyn BrightnessBackend,
+	) {
 		self.clear_osd();
 
 		let icon_name = "display-brightness-symbolic";
@@ -170,10 +179,10 @@ impl SwayosdWindow {
 			self.container.append(&label);
 		}
 
-		self.run_timeout();
+		self.run_timeout(duration);
 	}
 
-	pub fn changed_player(&self, icon: &str, label: Option<&str>) {
+	pub fn changed_player(&self, duration: &Option<u64>, icon: &str, label: Option<&str>) {
 		self.clear_osd();
 
 		let icon = self.build_icon_widget(icon);
@@ -183,10 +192,10 @@ impl SwayosdWindow {
 		self.container.append(&icon);
 		self.container.append(&label);
 
-		self.run_timeout();
+		self.run_timeout(duration);
 	}
 
-	pub fn changed_kbd_backlight(&self, value: u32, max: u32) {
+	pub fn changed_kbd_backlight(&self, duration: &Option<u64>, value: u32, max: u32) {
 		self.clear_osd();
 
 		let value = value.min(max);
@@ -208,10 +217,10 @@ impl SwayosdWindow {
 			self.container.append(&progress);
 		}
 
-		self.run_timeout();
+		self.run_timeout(duration);
 	}
 
-	pub fn changed_keylock(&self, key: KeysLocks, state: bool) {
+	pub fn changed_keylock(&self, duration: &Option<u64>, key: KeysLocks, state: bool) {
 		self.clear_osd();
 
 		let label = self.build_text_widget(None, None);
@@ -248,10 +257,16 @@ impl SwayosdWindow {
 		self.container.append(&icon);
 		self.container.append(&label);
 
-		self.run_timeout();
+		self.run_timeout(duration);
 	}
 
-	pub fn custom_progress(&self, fraction: f64, text: Option<String>, icon_name: Option<&str>) {
+	pub fn custom_progress(
+		&self,
+		duration: &Option<u64>,
+		fraction: f64,
+		text: Option<String>,
+		icon_name: Option<&str>,
+	) {
 		self.clear_osd();
 
 		if let Some(icon_name) = icon_name {
@@ -267,11 +282,12 @@ impl SwayosdWindow {
 			self.container.append(&label);
 		}
 
-		self.run_timeout();
+		self.run_timeout(duration);
 	}
 
 	pub fn custom_segmented_progress(
 		&self,
+		duration: &Option<u64>,
 		value: u32,
 		n_segments: u32,
 		text: Option<String>,
@@ -293,10 +309,10 @@ impl SwayosdWindow {
 			self.container.append(&label);
 		}
 
-		self.run_timeout();
+		self.run_timeout(duration);
 	}
 
-	pub fn custom_message(&self, message: &str, icon_name: Option<&str>) {
+	pub fn custom_message(&self, duration: &Option<u64>, message: &str, icon_name: Option<&str>) {
 		self.clear_osd();
 
 		let label = self.build_text_widget(Some(message), None);
@@ -319,7 +335,7 @@ impl SwayosdWindow {
 			self.container.append(&label);
 		}
 
-		self.run_timeout();
+		self.run_timeout(duration);
 	}
 
 	/// Clear all container children
@@ -331,20 +347,21 @@ impl SwayosdWindow {
 		}
 	}
 
-	fn run_timeout(&self) {
+	fn run_timeout(&self, duration: &Option<u64>) {
 		// Hide window after timeout
 		if let Some(timeout_id) = self.timeout_id.take() {
 			timeout_id.remove()
 		}
-		let duration = get_duration_override().unwrap_or(self.duration);
-		reset_duration_override();
-		let s = self.clone();
 		self.timeout_id.replace(Some(glib::timeout_add_local_once(
-			Duration::from_millis(duration),
-			move || {
-				s.window.hide();
-				s.timeout_id.replace(None);
-			},
+			Duration::from_millis(duration.unwrap_or(self.duration)),
+			clone!(
+				#[strong(rename_to = this)]
+				self,
+				move || {
+					this.window.hide();
+					this.timeout_id.replace(None);
+				}
+			),
 		)));
 
 		self.window.show();
