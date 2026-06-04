@@ -3,6 +3,7 @@ use crate::argtypes::ArgTypes;
 use crate::config::{self, APPLICATION_NAME, DBUS_BACKEND_NAME};
 use crate::global_utils::segmented_progress_parser;
 use crate::osd_window::SwayosdWindow;
+use crate::pulse::{DeviceKind, VolumeController};
 use crate::utils::{self, *};
 use crate::{login1, playerctl::*, upower};
 use async_channel::{Receiver, Sender};
@@ -18,7 +19,6 @@ use gtk::{
 	prelude::*,
 	Application,
 };
-use crate::pulse::{DeviceKind, VolumeController};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
@@ -32,6 +32,7 @@ pub struct SwayOSDApplication {
 	windows: Rc<RefCell<Vec<SwayosdWindow>>>,
 	activated: Rc<RefCell<bool>>,
 	_hold: Rc<gio::ApplicationHoldGuard>,
+	duration: u64,
 }
 
 impl SwayOSDApplication {
@@ -60,6 +61,7 @@ impl SwayOSDApplication {
 			windows: Rc::new(RefCell::new(Vec::new())),
 			activated: Rc::new(RefCell::new(false)),
 			_hold: hold,
+			duration: args.duration,
 		};
 
 		// Apply Server Config
@@ -359,7 +361,7 @@ impl SwayOSDApplication {
 				.item(position + i)
 				.and_then(|obj| obj.downcast::<gdk::Monitor>().ok())
 			{
-				let window = SwayosdWindow::new(&self.app, &monitor);
+				let window = SwayosdWindow::new(&self.app, &monitor, self.duration);
 				windows.push(window);
 			}
 		}
@@ -389,6 +391,12 @@ impl SwayOSDApplication {
 		selected_windows
 	}
 
+	fn get_duration(&self) -> Option<u64> {
+		let duration = get_duration_override();
+		reset_duration_override();
+		duration
+	}
+
 	fn action_activated(
 		&self,
 		server_config: Arc<ServerConfig>,
@@ -397,12 +405,12 @@ impl SwayOSDApplication {
 	) -> Result<(), Box<dyn std::error::Error>> {
 		match (arg_type, value) {
 			(ArgTypes::SinkVolumeRaise, step) => {
+				let duration = self.get_duration();
 				let mut ctrl = VolumeController::create(DeviceKind::Sink)?;
-				if let Some(device) =
-					change_device_volume(&mut ctrl, VolumeChangeType::Raise, step)
+				if let Some(device) = change_device_volume(&mut ctrl, VolumeChangeType::Raise, step)
 				{
 					for window in self.choose_windows() {
-						window.changed_volume(&device, ctrl.kind());
+						window.changed_volume(&duration, &device, ctrl.kind());
 					}
 				}
 				reset_max_volume();
@@ -410,12 +418,12 @@ impl SwayOSDApplication {
 				reset_monitor_name();
 			}
 			(ArgTypes::SinkVolumeLower, step) => {
+				let duration = self.get_duration();
 				let mut ctrl = VolumeController::create(DeviceKind::Sink)?;
-				if let Some(device) =
-					change_device_volume(&mut ctrl, VolumeChangeType::Lower, step)
+				if let Some(device) = change_device_volume(&mut ctrl, VolumeChangeType::Lower, step)
 				{
 					for window in self.choose_windows() {
-						window.changed_volume(&device, ctrl.kind());
+						window.changed_volume(&duration, &device, ctrl.kind());
 					}
 				}
 				reset_max_volume();
@@ -423,12 +431,13 @@ impl SwayOSDApplication {
 				reset_monitor_name();
 			}
 			(ArgTypes::SinkVolumeMuteToggle, _) => {
+				let duration = self.get_duration();
 				let mut ctrl = VolumeController::create(DeviceKind::Sink)?;
 				if let Some(device) =
 					change_device_volume(&mut ctrl, VolumeChangeType::MuteToggle, None)
 				{
 					for window in self.choose_windows() {
-						window.changed_volume(&device, ctrl.kind());
+						window.changed_volume(&duration, &device, ctrl.kind());
 					}
 				}
 				reset_max_volume();
@@ -436,12 +445,12 @@ impl SwayOSDApplication {
 				reset_monitor_name();
 			}
 			(ArgTypes::SourceVolumeRaise, step) => {
+				let duration = self.get_duration();
 				let mut ctrl = VolumeController::create(DeviceKind::Source)?;
-				if let Some(device) =
-					change_device_volume(&mut ctrl, VolumeChangeType::Raise, step)
+				if let Some(device) = change_device_volume(&mut ctrl, VolumeChangeType::Raise, step)
 				{
 					for window in self.choose_windows() {
-						window.changed_volume(&device, ctrl.kind());
+						window.changed_volume(&duration, &device, ctrl.kind());
 					}
 				}
 				reset_max_volume();
@@ -449,12 +458,12 @@ impl SwayOSDApplication {
 				reset_monitor_name();
 			}
 			(ArgTypes::SourceVolumeLower, step) => {
+				let duration = self.get_duration();
 				let mut ctrl = VolumeController::create(DeviceKind::Source)?;
-				if let Some(device) =
-					change_device_volume(&mut ctrl, VolumeChangeType::Lower, step)
+				if let Some(device) = change_device_volume(&mut ctrl, VolumeChangeType::Lower, step)
 				{
 					for window in self.choose_windows() {
-						window.changed_volume(&device, ctrl.kind());
+						window.changed_volume(&duration, &device, ctrl.kind());
 					}
 				}
 				reset_max_volume();
@@ -462,12 +471,13 @@ impl SwayOSDApplication {
 				reset_monitor_name();
 			}
 			(ArgTypes::SourceVolumeMuteToggle, _) => {
+				let duration = self.get_duration();
 				let mut ctrl = VolumeController::create(DeviceKind::Source)?;
 				if let Some(device) =
 					change_device_volume(&mut ctrl, VolumeChangeType::MuteToggle, None)
 				{
 					for window in self.choose_windows() {
-						window.changed_volume(&device, ctrl.kind());
+						window.changed_volume(&duration, &device, ctrl.kind());
 					}
 				}
 				reset_max_volume();
@@ -476,62 +486,68 @@ impl SwayOSDApplication {
 			}
 			// TODO: Brightness
 			(ArgTypes::BrightnessRaise, step) => {
+				let duration = self.get_duration();
 				let mut brightness_backend = change_brightness(BrightnessChangeType::Raise, step)?;
 				for window in self.choose_windows() {
-					window.changed_brightness(brightness_backend.as_mut());
+					window.changed_brightness(&duration, brightness_backend.as_mut());
 				}
 				reset_min_brightness();
 				reset_monitor_name();
 			}
 			(ArgTypes::BrightnessLower, step) => {
+				let duration = self.get_duration();
 				if let Ok(mut brightness_backend) =
 					change_brightness(BrightnessChangeType::Lower, step)
 				{
 					for window in self.choose_windows() {
-						window.changed_brightness(brightness_backend.as_mut());
+						window.changed_brightness(&duration, brightness_backend.as_mut());
 					}
 				}
 				reset_min_brightness();
 				reset_monitor_name();
 			}
 			(ArgTypes::BrightnessSet, value) => {
+				let duration = self.get_duration();
 				let mut brightness_backend = change_brightness(BrightnessChangeType::Set, value)?;
 				for window in self.choose_windows() {
-					window.changed_brightness(brightness_backend.as_mut());
+					window.changed_brightness(&duration, brightness_backend.as_mut());
 				}
 				reset_min_brightness();
 				reset_monitor_name();
 			}
 			(ArgTypes::CapsLock, value) => {
+				let duration = self.get_duration();
 				let i32_value = value.clone().unwrap_or("-1".to_owned());
 				let state = match i32_value.parse::<i32>() {
 					Ok(value) if (0..=1).contains(&value) => value == 1,
 					_ => get_key_lock_state(KeysLocks::CapsLock, value),
 				};
 				for window in self.choose_windows() {
-					window.changed_keylock(KeysLocks::CapsLock, state)
+					window.changed_keylock(&duration, KeysLocks::CapsLock, state)
 				}
 				reset_monitor_name();
 			}
 			(ArgTypes::NumLock, value) => {
+				let duration = self.get_duration();
 				let i32_value = value.clone().unwrap_or("-1".to_owned());
 				let state = match i32_value.parse::<i32>() {
 					Ok(value) if (0..=1).contains(&value) => value == 1,
 					_ => get_key_lock_state(KeysLocks::NumLock, value),
 				};
 				for window in self.choose_windows() {
-					window.changed_keylock(KeysLocks::NumLock, state)
+					window.changed_keylock(&duration, KeysLocks::NumLock, state)
 				}
 				reset_monitor_name();
 			}
 			(ArgTypes::ScrollLock, value) => {
+				let duration = self.get_duration();
 				let i32_value = value.clone().unwrap_or("-1".to_owned());
 				let state = match i32_value.parse::<i32>() {
 					Ok(value) if (0..=1).contains(&value) => value == 1,
 					_ => get_key_lock_state(KeysLocks::ScrollLock, value),
 				};
 				for window in self.choose_windows() {
-					window.changed_keylock(KeysLocks::ScrollLock, state)
+					window.changed_keylock(&duration, KeysLocks::ScrollLock, state)
 				}
 				reset_monitor_name();
 			}
@@ -557,6 +573,7 @@ impl SwayOSDApplication {
 			}
 			(ArgTypes::Player, name) => set_player(name.unwrap_or("".to_string())),
 			(ArgTypes::Playerctl, value) => {
+				let duration = self.get_duration();
 				let value = &value.unwrap_or("".to_string());
 				let action = PlayerctlAction::from(value)?;
 				if let Ok(mut player) = Playerctl::new(action, server_config) {
@@ -564,7 +581,7 @@ impl SwayOSDApplication {
 						Ok(_) => {
 							let (icon, label) = (player.icon.unwrap_or_default(), &player.label);
 							for window in self.choose_windows() {
-								window.changed_player(&icon, label.as_deref())
+								window.changed_player(&duration, &icon, label.as_deref())
 							}
 							reset_monitor_name();
 						}
@@ -579,11 +596,12 @@ impl SwayOSDApplication {
 				reset_player();
 			}
 			(ArgTypes::KbdBacklight, values) => {
+				let duration = self.get_duration();
 				if let Some(values) = values
 					&& let Ok((value, n_segments)) = segmented_progress_parser(&values)
 				{
 					for window in self.choose_windows() {
-						window.changed_kbd_backlight(value, n_segments);
+						window.changed_kbd_backlight(&duration, value, n_segments);
 					}
 				}
 				reset_monitor_name();
@@ -597,19 +615,26 @@ impl SwayOSDApplication {
 				}
 			}
 			(ArgTypes::CustomMessage, message) => {
+				let duration = self.get_duration();
 				if let Some(message) = message {
 					for window in self.choose_windows() {
-						window.custom_message(message.as_str(), get_icon_name().as_deref());
+						window.custom_message(
+							&duration,
+							message.as_str(),
+							get_icon_name().as_deref(),
+						);
 					}
 				}
 				reset_icon_name();
 				reset_monitor_name();
 			}
 			(ArgTypes::CustomProgress, fraction) => {
+				let duration = self.get_duration();
 				if let Some(fraction) = fraction {
 					let fraction: f64 = fraction.parse::<f64>().unwrap_or(1.0);
 					for window in self.choose_windows() {
 						window.custom_progress(
+							&duration,
 							fraction,
 							get_progress_text(),
 							get_icon_name().as_deref(),
@@ -621,11 +646,13 @@ impl SwayOSDApplication {
 				reset_monitor_name();
 			}
 			(ArgTypes::CustomSegmentedProgress, values) => {
+				let duration = self.get_duration();
 				if let Some(values) = values
 					&& let Ok((value, n_segments)) = segmented_progress_parser(&values)
 				{
 					for window in self.choose_windows() {
 						window.custom_segmented_progress(
+							&duration,
 							value,
 							n_segments,
 							get_progress_text(),
@@ -640,6 +667,11 @@ impl SwayOSDApplication {
 			(ArgTypes::CustomProgressText, text) => set_progress_text(text),
 			(ArgTypes::CustomIcon, icon) => {
 				set_icon_name(icon.unwrap_or(ICON_NAME_DEFAULT.to_string()))
+			}
+			(ArgTypes::Duration, duration) => {
+				if let Some(duration) = duration.and_then(|d| d.parse().ok()) {
+					set_duration_override(duration);
+				}
 			}
 			(arg_type, data) => {
 				eprintln!(

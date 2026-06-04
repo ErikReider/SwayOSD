@@ -99,6 +99,10 @@ fn parse_args(args: &ArgsClient, proxy: &ServerProxyBlocking<'_>) {
 			_ => eprintln!("{} is not a number between 0 and {}!", value, 100),
 		}
 	}
+	// Duration
+	if let Some(value) = args.duration.to_owned() {
+		actions.push((ArgTypes::Duration, Some(value.to_string())));
+	}
 
 	//
 	// Main options

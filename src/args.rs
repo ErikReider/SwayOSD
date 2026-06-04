@@ -16,6 +16,10 @@ pub struct ArgsServer {
 	/// OSD margin from top edge (0.5 would be screen center). Default is 0.85
 	#[arg(long, value_name = "from 0.0 to 1.0")]
 	pub top_margin: Option<String>,
+
+	/// OSD display duration in milliseconds (200-60000)
+	#[arg(long, short = 'd', value_name = "200-60000", default_value = "1000", value_parser = clap::value_parser!(u64).range(200..=60000))]
+	pub duration: u64,
 }
 
 #[derive(Parser)]
@@ -57,7 +61,7 @@ pub struct ArgsClient {
 	#[arg(long, value_name = "LED class name (/sys/class/leds/NAME)")]
 	pub scroll_lock_led: Option<String>,
 
-	/// Shows volume osd and raises, loweres or mutes default sink volume
+	/// Shows volume osd and raises, lowers or mutes default sink volume
 	#[arg(
 		long,
 		value_name = "raise|lower|mute-toggle|(±)number",
@@ -65,7 +69,7 @@ pub struct ArgsClient {
 	)]
 	pub output_volume: Option<String>,
 
-	/// Shows volume osd and raises, loweres or mutes default source volume
+	/// Shows volume osd and raises, lowers or mutes default source volume
 	#[arg(
 		long,
 		value_name = "raise|lower|mute-toggle|(±)number",
@@ -83,7 +87,7 @@ pub struct ArgsClient {
 	#[arg(long, value_name = "Pulseaudio/BrightnessCtl device name")]
 	pub device: Option<String>,
 
-	/// Shows brightness osd and raises or loweres all available sources of brightness device
+	/// Shows brightness osd and raises or lowers all available sources of brightness device
 	#[arg(
 		long,
 		value_name = "raise|lower|(±)number",
@@ -94,6 +98,10 @@ pub struct ArgsClient {
 	/// Sets the minimum Brightness
 	#[arg(long, value_name = "(+)number")]
 	pub min_brightness: Option<String>,
+
+	/// OSD display duration in milliseconds (200-60000)
+	#[arg(long, short = 'd', value_name = "200-60000", value_parser = clap::value_parser!(u64).range(200..=60000))]
+	pub duration: Option<u64>,
 
 	/// Shows Playerctl osd and runs the playerctl command
 	#[arg(long, value_name = "play-pause|play|pause|stop|next|prev|shuffle")]
