@@ -69,9 +69,7 @@ impl SwayosdWindow {
 		});
 
 		let update_margins = |window: &gtk::ApplicationWindow, monitor: &gdk::Monitor| {
-			// Monitor scale factor is not always correct
-			// Transform monitor height into coordinate system of window
-			let mon_height = monitor.geometry().height() / window.scale_factor();
+			let mon_height = monitor.geometry().height();
 			// Calculate margin from bottom while preserving top_margin semantics:
 			// top_margin=0.85 means window should be at 85% from top, which equals
 			// 15% from bottom. By anchoring to bottom, we avoid issues with
