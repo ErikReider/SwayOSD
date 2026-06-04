@@ -8,9 +8,7 @@ use std::{
 	sync::Mutex,
 };
 
-use pulse::volume::Volume;
-use pulsectl::controllers::{types::DeviceInfo, DeviceControl, SinkController, SourceController};
-
+use crate::audio_backend::{self, AudioDeviceType};
 use crate::brightness_backend;
 use crate::playerctl::PlayerctlDeviceRaw;
 
@@ -228,15 +226,17 @@ fn read_file(path: String) -> std::io::Result<String> {
 	Ok(contents)
 }
 
+#[derive(Clone, Copy)]
 pub enum VolumeChangeType {
 	Raise,
 	Lower,
 	MuteToggle,
 }
 
+#[derive(Clone, Copy)]
 pub enum VolumeDeviceType {
-	Sink(SinkController),
-	Source(SourceController),
+	Sink,
+	Source,
 }
 
 pub enum BrightnessChangeType {
@@ -245,85 +245,46 @@ pub enum BrightnessChangeType {
 	Set,
 }
 
-pub fn volume_to_f64(volume: &Volume) -> f64 {
-	let tmp_vol = f64::from(volume.0 - Volume::MUTED.0);
-	(100.0 * tmp_vol / f64::from(Volume::NORMAL.0 - Volume::MUTED.0)).round()
-}
-
-fn volume_from_f64(volume: f64) -> Volume {
-	let tmp = f64::from(Volume::NORMAL.0 - Volume::MUTED.0) * volume / 100_f64;
-	Volume((tmp + f64::from(Volume::MUTED.0)) as u32)
-}
-
 pub fn change_device_volume(
-	device_type: &mut VolumeDeviceType,
+	device_type: VolumeDeviceType,
 	change_type: VolumeChangeType,
 	step: Option<String>,
-) -> Option<DeviceInfo> {
-	// Get the sink/source controller + default device name
-	let (controller, default_name): (&mut dyn DeviceControl<DeviceInfo>, Option<String>) =
-		match device_type {
-			VolumeDeviceType::Sink(controller) => match controller.get_server_info() {
-				Ok(server_info) => (controller, server_info.default_sink_name),
-				Err(e) => {
-					eprintln!("Error getting the Sink server info: {}", e);
-					return None;
-				}
-			},
-			VolumeDeviceType::Source(controller) => match controller.get_server_info() {
-				Ok(server_info) => (controller, server_info.default_source_name),
-				Err(e) => {
-					eprintln!("Error getting the Source server info: {}", e);
-					return None;
-				}
-			},
-		};
+) -> Option<audio_backend::AudioDeviceInfo> {
+	// Get the appropriate audio device type
+	let audio_device_type = match device_type {
+		VolumeDeviceType::Sink => AudioDeviceType::Sink,
+		VolumeDeviceType::Source => AudioDeviceType::Source,
+	};
 
-	// Get the device
-	let device: DeviceInfo = if let Some(name) = get_device_name()
-		&& let Ok(device) = controller.get_device_by_name(&name)
+	// Get the preferred backend (WirePlumber or PulseAudio)
+	let mut backend = match audio_backend::get_preferred_backend(audio_device_type, get_device_name())
 	{
-		device
-	} else {
-		// Workaround the upstream issues in pulsectl-rs where getting the default source device
-		// doesn't work...
-		match controller.get_device_by_name(&default_name.unwrap_or("".to_string())) {
-			Ok(device) => device,
-			Err(e) => {
-				eprintln!("Error getting the default device: {}", e);
-				return None;
-			}
+		Ok(backend) => backend,
+		Err(e) => {
+			eprintln!("Failed to get audio backend: {}", e);
+			return None;
 		}
 	};
 
 	// Adjust the volume / mute state
 	const VOLUME_CHANGE_DELTA: f64 = 5_f64;
-	let delta = volume_from_f64(
-		step.unwrap_or_default()
-			.parse::<f64>()
-			.unwrap_or(VOLUME_CHANGE_DELTA),
-	);
-	match change_type {
-		VolumeChangeType::Raise => {
-			let max_volume = volume_from_f64(get_max_volume() as f64);
-			if let Some(volume) = device.volume.clone().inc_clamp(delta, max_volume) {
-				controller.set_device_volume_by_index(device.index, volume);
-			}
-		}
-		VolumeChangeType::Lower => {
-			if let Some(volume) = device.volume.clone().decrease(delta) {
-				controller.set_device_volume_by_index(device.index, volume);
-			}
-		}
-		VolumeChangeType::MuteToggle => {
-			controller.set_device_mute_by_index(device.index, !device.mute);
-		}
-	}
+	let delta = step
+		.unwrap_or_default()
+		.parse::<f64>()
+		.unwrap_or(VOLUME_CHANGE_DELTA);
 
-	match controller.get_device_by_index(device.index) {
-		Ok(device) => Some(device),
+	let max_volume = get_max_volume();
+
+	let result = match change_type {
+		VolumeChangeType::Raise => backend.set_volume(delta, max_volume),
+		VolumeChangeType::Lower => backend.set_volume(-delta, max_volume),
+		VolumeChangeType::MuteToggle => backend.toggle_mute(),
+	};
+
+	match result {
+		Ok(info) => Some(info),
 		Err(e) => {
-			eprintln!("Pulse Error: {}", e);
+			eprintln!("Audio Error: {}", e);
 			None
 		}
 	}

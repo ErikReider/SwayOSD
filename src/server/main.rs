@@ -17,6 +17,9 @@ mod global_utils;
 #[path = "../brightness_backend/mod.rs"]
 mod brightness_backend;
 
+#[path = "../audio_backend/mod.rs"]
+mod audio_backend;
+
 #[path = "../mpris-backend/mod.rs"]
 mod playerctl;
 

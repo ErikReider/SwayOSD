@@ -18,7 +18,6 @@ use gtk::{
 	prelude::*,
 	Application,
 };
-use pulsectl::controllers::{SinkController, SourceController};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
@@ -397,12 +396,12 @@ impl SwayOSDApplication {
 	) -> Result<(), Box<dyn std::error::Error>> {
 		match (arg_type, value) {
 			(ArgTypes::SinkVolumeRaise, step) => {
-				let mut device_type = VolumeDeviceType::Sink(SinkController::create()?);
+				let device_type = VolumeDeviceType::Sink;
 				if let Some(device) =
-					change_device_volume(&mut device_type, VolumeChangeType::Raise, step)
+					change_device_volume(device_type, VolumeChangeType::Raise, step)
 				{
 					for window in self.choose_windows() {
-						window.changed_volume(&device, &device_type);
+						window.changed_volume(&device, device_type);
 					}
 				}
 				reset_max_volume();
@@ -410,12 +409,12 @@ impl SwayOSDApplication {
 				reset_monitor_name();
 			}
 			(ArgTypes::SinkVolumeLower, step) => {
-				let mut device_type = VolumeDeviceType::Sink(SinkController::create()?);
+				let device_type = VolumeDeviceType::Sink;
 				if let Some(device) =
-					change_device_volume(&mut device_type, VolumeChangeType::Lower, step)
+					change_device_volume(device_type, VolumeChangeType::Lower, step)
 				{
 					for window in self.choose_windows() {
-						window.changed_volume(&device, &device_type);
+						window.changed_volume(&device, device_type);
 					}
 				}
 				reset_max_volume();
@@ -423,12 +422,12 @@ impl SwayOSDApplication {
 				reset_monitor_name();
 			}
 			(ArgTypes::SinkVolumeMuteToggle, _) => {
-				let mut device_type = VolumeDeviceType::Sink(SinkController::create()?);
+				let device_type = VolumeDeviceType::Sink;
 				if let Some(device) =
-					change_device_volume(&mut device_type, VolumeChangeType::MuteToggle, None)
+					change_device_volume(device_type, VolumeChangeType::MuteToggle, None)
 				{
 					for window in self.choose_windows() {
-						window.changed_volume(&device, &device_type);
+						window.changed_volume(&device, device_type);
 					}
 				}
 				reset_max_volume();
@@ -436,12 +435,12 @@ impl SwayOSDApplication {
 				reset_monitor_name();
 			}
 			(ArgTypes::SourceVolumeRaise, step) => {
-				let mut device_type = VolumeDeviceType::Source(SourceController::create()?);
+				let device_type = VolumeDeviceType::Source;
 				if let Some(device) =
-					change_device_volume(&mut device_type, VolumeChangeType::Raise, step)
+					change_device_volume(device_type, VolumeChangeType::Raise, step)
 				{
 					for window in self.choose_windows() {
-						window.changed_volume(&device, &device_type);
+						window.changed_volume(&device, device_type);
 					}
 				}
 				reset_max_volume();
@@ -449,12 +448,12 @@ impl SwayOSDApplication {
 				reset_monitor_name();
 			}
 			(ArgTypes::SourceVolumeLower, step) => {
-				let mut device_type = VolumeDeviceType::Source(SourceController::create()?);
+				let device_type = VolumeDeviceType::Source;
 				if let Some(device) =
-					change_device_volume(&mut device_type, VolumeChangeType::Lower, step)
+					change_device_volume(device_type, VolumeChangeType::Lower, step)
 				{
 					for window in self.choose_windows() {
-						window.changed_volume(&device, &device_type);
+						window.changed_volume(&device, device_type);
 					}
 				}
 				reset_max_volume();
@@ -462,12 +461,12 @@ impl SwayOSDApplication {
 				reset_monitor_name();
 			}
 			(ArgTypes::SourceVolumeMuteToggle, _) => {
-				let mut device_type = VolumeDeviceType::Source(SourceController::create()?);
+				let device_type = VolumeDeviceType::Source;
 				if let Some(device) =
-					change_device_volume(&mut device_type, VolumeChangeType::MuteToggle, None)
+					change_device_volume(device_type, VolumeChangeType::MuteToggle, None)
 				{
 					for window in self.choose_windows() {
-						window.changed_volume(&device, &device_type);
+						window.changed_volume(&device, device_type);
 					}
 				}
 				reset_max_volume();
