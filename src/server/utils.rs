@@ -270,14 +270,11 @@ fn volume_from_f64(volume: f64) -> Volume {
 }
 
 pub fn change_device_volume(
-	ctrl: &Rc<RefCell<Option<VolumeController>>>,
+	ctrl: &mut VolumeController,
 	kind: DeviceKind,
 	change_type: VolumeChangeType,
 	step: Option<String>,
 ) -> Option<DeviceInfo> {
-	let mut guard = ctrl.borrow_mut();
-	let ctrl = guard.as_mut()?;
-
 	let device = match get_device_name() {
 		Some(name) => ctrl.get_device_by_name(kind, &name),
 		None => ctrl.get_default_device(kind),

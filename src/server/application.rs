@@ -411,7 +411,9 @@ impl SwayOSDApplication {
 		step: Option<String>,
 	) -> Result<(), Box<dyn Error>> {
 		let duration = self.get_duration();
-		let ctrl = &self.volume_ctrl;
+		let mut ctrl = self.volume_ctrl.try_borrow_mut()?;
+		let ctrl = ctrl.get_or_insert(VolumeController::create()?);
+
 		if let Some(device) = change_device_volume(ctrl, kind, change_type, step) {
 			for window in self.choose_windows() {
 				window.changed_volume(&duration, &device);
