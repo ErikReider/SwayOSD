@@ -19,6 +19,7 @@ pub struct ServerConfig {
 	pub playerctl_format: Option<String>,
 	pub min_brightness: Option<u32>,
 	pub keyboard_backlight: Option<bool>,
+	pub duration: Option<u64>,
 }
 
 #[derive(Deserialize, Default, Debug)]

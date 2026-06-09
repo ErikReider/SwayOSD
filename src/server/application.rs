@@ -135,6 +135,9 @@ impl SwayOSDApplication {
 		if let Some(show_percentage) = server_config.show_percentage {
 			action_options.show_percentage.set_default(show_percentage);
 		}
+		if let Some(duration) = server_config.duration {
+			action_options.duration.set_default(duration);
+		}
 
 		Self::parse_args(&args, &mut action_options);
 
