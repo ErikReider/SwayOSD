@@ -1,3 +1,5 @@
+#[path = "../argflags.rs"]
+mod argflags;
 #[path = "../args.rs"]
 mod args;
 #[path = "../argtypes.rs"]
@@ -7,12 +9,10 @@ mod config;
 #[path = "../global_utils.rs"]
 mod global_utils;
 
-#[path = "../brightness_backend/mod.rs"]
-mod brightness_backend;
-
 use clap::Parser;
 use zbus::{blocking::Connection, proxy};
 
+use crate::argflags::ArgFlags;
 use crate::args::ArgsClient;
 use crate::argtypes::ArgTypes;
 
@@ -22,7 +22,12 @@ use crate::argtypes::ArgTypes;
 	default_path = "/org/erikreider/swayosd"
 )]
 trait Server {
-	async fn handle_action(&self, arg_type: String, data: String) -> zbus::Result<bool>;
+	async fn handle_action(
+		&self,
+		arg_type: String,
+		data: String,
+		flags: Vec<(String, String)>,
+	) -> zbus::Result<bool>;
 }
 
 fn get_proxy() -> zbus::Result<ServerProxyBlocking<'static>> {
@@ -57,51 +62,53 @@ fn main() {
 }
 
 fn parse_args(args: &ArgsClient, proxy: &ServerProxyBlocking<'_>) {
+	let mut flags: Vec<(ArgFlags, Option<String>)> = Vec::new();
 	let mut actions: Vec<(ArgTypes, Option<String>)> = Vec::new();
 
 	//
 	// Parse flags. Should always be first to set a global variable before executing related functions
 	//
 
-	// Pulse Device
+	// Pulse/Brightness Device
 	if let Some(value) = args.device.to_owned() {
-		actions.push((ArgTypes::DeviceName, Some(value)));
+		flags.push((ArgFlags::DeviceName, Some(value)));
 	}
 	// Max volume
 	if let Some(value) = args.max_volume.to_owned() {
 		match value.parse::<u8>() {
-			Ok(_) => actions.push((ArgTypes::MaxVolume, Some(value))),
+			Ok(_) => flags.push((ArgFlags::MaxVolume, Some(value))),
 			Err(_) => eprintln!("{} is not a number between 0 and {}!", value, u8::MAX),
 		}
 	}
 	// Custom icon
 	if let Some(value) = args.custom_icon.to_owned() {
-		actions.push((ArgTypes::CustomIcon, Some(value)));
+		flags.push((ArgFlags::CustomIcon, Some(value)));
 	}
 	// Player name
 	if let Some(value) = args.player.to_owned() {
-		actions.push((ArgTypes::Player, Some(value)));
+		flags.push((ArgFlags::Player, Some(value)));
 	}
 	// Monitor name
 	if let Some(value) = args.monitor.to_owned() {
-		actions.push((ArgTypes::MonitorName, Some(value)));
+		flags.push((ArgFlags::MonitorName, Some(value)));
 	}
 	// Custom progress text
 	if let Some(value) = args.custom_progress_text.to_owned() {
-		actions.push((ArgTypes::CustomProgressText, Some(value)));
+		flags.push((ArgFlags::CustomProgressText, Some(value)));
 	}
 	// Min Brightness
 	if let Some(value) = args.min_brightness.to_owned() {
 		match value.parse::<u8>() {
+			// TODO: Move range validation into args.rs like `duration`
 			Ok(value @ 0u8..=100u8) => {
-				actions.push((ArgTypes::MinBrightness, Some(value.to_string())))
+				flags.push((ArgFlags::MinBrightness, Some(value.to_string())))
 			}
 			_ => eprintln!("{} is not a number between 0 and {}!", value, 100),
 		}
 	}
 	// Duration
 	if let Some(value) = args.duration.to_owned() {
-		actions.push((ArgTypes::Duration, Some(value.to_string())));
+		flags.push((ArgFlags::Duration, Some(value.to_string())));
 	}
 
 	//
@@ -197,9 +204,19 @@ fn parse_args(args: &ArgsClient, proxy: &ServerProxyBlocking<'_>) {
 		}
 	}
 
-	// execute the sorted actions
+	// Assemble the flags
+	let flags: Vec<(String, String)> = flags
+		.iter()
+		.map(|(flag, data)| (flag.to_string(), data.clone().unwrap_or(String::new())))
+		.collect();
+
+	// Execute each action with all the provided flags
 	for (arg_type, data) in actions {
-		let _ = proxy.handle_action(arg_type.to_string(), data.unwrap_or(String::new()));
+		let _ = proxy.handle_action(
+			arg_type.to_string(),
+			data.unwrap_or(String::new()),
+			flags.clone(),
+		);
 	}
 }
 

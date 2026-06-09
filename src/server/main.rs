@@ -1,11 +1,14 @@
 mod application;
 mod login1;
 mod osd_window;
-mod pulse;
 mod upower;
 mod utils;
 mod widgets;
 
+#[path = "../actions/mod.rs"]
+mod actions;
+#[path = "../argflags.rs"]
+mod argflags;
 #[path = "../args.rs"]
 mod args;
 #[path = "../argtypes.rs"]
@@ -15,12 +18,6 @@ mod config;
 #[path = "../global_utils.rs"]
 mod global_utils;
 
-#[path = "../brightness_backend/mod.rs"]
-mod brightness_backend;
-
-#[path = "../mpris-backend/mod.rs"]
-mod playerctl;
-
 #[macro_use]
 extern crate shrinkwraprs;
 
@@ -28,6 +25,7 @@ extern crate shrinkwraprs;
 extern crate cascade;
 
 use application::SwayOSDApplication;
+use argflags::ArgFlags;
 use argtypes::ArgTypes;
 use async_channel::Sender;
 use clap::Parser;
@@ -42,13 +40,22 @@ use std::{future::pending, str::FromStr, sync::Arc};
 use utils::{get_system_css_path, user_style_path};
 use zbus::{connection, interface};
 
+pub type DbusSenderFlagsType = Vec<(ArgFlags, Option<String>)>;
+pub type DbusSenderType = (ArgTypes, Option<String>, DbusSenderFlagsType);
+
 struct DbusServer {
-	sender: Sender<(ArgTypes, String)>,
+	sender: Sender<DbusSenderType>,
 }
 
 #[interface(name = "org.erikreider.swayosd")]
 impl DbusServer {
-	pub async fn handle_action(&self, arg_type: String, data: String) -> bool {
+	pub async fn handle_action(
+		&self,
+		arg_type: String,
+		data: String,
+		flags: Vec<(String, String)>,
+	) -> bool {
+		// TODO: Move into application.rs instead of running on separate thread?
 		let arg_type = match ArgTypes::from_str(&arg_type) {
 			Ok(arg_type) => arg_type,
 			Err(other_type) => {
@@ -56,7 +63,16 @@ impl DbusServer {
 				return false;
 			}
 		};
-		if let Err(error) = self.sender.send((arg_type, data)).await {
+		let data = (!data.is_empty()).then_some(data.clone());
+		let flags: DbusSenderFlagsType = flags
+			.iter()
+			.map_while(|(flag, flag_data)| {
+				let flag_data = (!flag_data.is_empty()).then_some(flag_data.clone());
+				ArgFlags::from_str(flag).ok().map(|flag| (flag, flag_data))
+			})
+			.collect();
+
+		if let Err(error) = self.sender.send((arg_type, data, flags)).await {
 			eprintln!("Channel Send error: {}", error);
 			return false;
 		}
@@ -65,7 +81,7 @@ impl DbusServer {
 }
 
 impl DbusServer {
-	async fn init(sender: Sender<(ArgTypes, String)>) -> zbus::Result<()> {
+	async fn init(sender: Sender<DbusSenderType>) -> zbus::Result<()> {
 		let _connection = connection::Builder::session()?
 			.name(DBUS_SERVER_NAME)?
 			.serve_at(DBUS_PATH, DbusServer { sender })?
@@ -138,8 +154,10 @@ fn main() {
 		println!("Loaded user defined CSS file");
 	}
 
-	let (sender, receiver) = async_channel::bounded::<(ArgTypes, String)>(1);
+	let (sender, receiver) = async_channel::bounded::<DbusSenderType>(1);
 	// Start the DBus Server
+
+	// TODO: Switch to Tokio for async
 	async_std::task::spawn(DbusServer::init(sender));
 	// Start the GTK Application
 	std::process::exit(SwayOSDApplication::new(server_config, args, receiver).start());

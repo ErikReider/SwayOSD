@@ -1,21 +1,22 @@
-use std::rc::Rc;
-use std::time::Duration;
-use std::{cell::RefCell, ops::Deref};
-
-use crate::pulse::{DeviceInfo, DeviceKind};
 use gtk::{
 	gdk,
 	glib::{self, clone},
 	prelude::*,
 };
+use gtk_layer_shell::LayerShell;
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::time::Duration;
 
+use crate::utils::{volume_to_f64, KeysLocks};
 use crate::widgets::segmented_progress_widget::SegmentedProgressWidget;
 use crate::{
-	brightness_backend::BrightnessBackend,
-	utils::{get_max_volume, get_show_percentage, get_top_margin, volume_to_f64, KeysLocks},
+	actions::{
+		brightness_backend::BrightnessBackend,
+		pulse::{DeviceInfo, DeviceKind},
+	},
+	application::ActionOptions,
 };
-
-use gtk_layer_shell::LayerShell;
 
 const ICON_SIZE: i32 = 32;
 
@@ -26,7 +27,8 @@ pub struct SwayosdWindow {
 	pub monitor: gdk::Monitor,
 	container: gtk::Box,
 	timeout_id: Rc<RefCell<Option<glib::SourceId>>>,
-	duration: u64,
+
+	top_margin: f32,
 }
 
 // TODO: Use custom widget
@@ -34,7 +36,7 @@ pub struct SwayosdWindow {
 //   - Always center the centered widget (both left and right sides are the same width)
 impl SwayosdWindow {
 	/// Create a new window and assign it to the given application.
-	pub fn new(app: &gtk::Application, monitor: &gdk::Monitor, duration: u64) -> Self {
+	pub fn new(app: &gtk::Application, monitor: &gdk::Monitor, top_margin: &f32) -> Self {
 		let window = gtk::ApplicationWindow::new(app);
 		window.set_widget_name("osd");
 		window.add_css_class("osd");
@@ -66,49 +68,66 @@ impl SwayosdWindow {
 			}
 		});
 
-		let update_margins = |window: &gtk::ApplicationWindow, monitor: &gdk::Monitor| {
-			let mon_height = monitor.geometry().height();
-			// Calculate margin from bottom while preserving top_margin semantics:
-			// top_margin=0.85 means window should be at 85% from top, which equals
-			// 15% from bottom. By anchoring to bottom, we avoid issues with
-			// window.allocated_height() being 0 or incorrect during initialization.
-			let margin = (mon_height as f32 * (1.0 - get_top_margin())).round() as i32;
-			window.set_margin(gtk_layer_shell::Edge::Bottom, margin);
-		};
-
-		// Set the window margin
-		update_margins(&window, monitor);
-		// Ensure window margin is updated when necessary
-		window.connect_scale_factor_notify(clone!(
-			#[weak]
-			monitor,
-			move |window| update_margins(window, &monitor)
-		));
-		monitor.connect_scale_factor_notify(clone!(
-			#[weak]
-			window,
-			move |monitor| update_margins(&window, monitor)
-		));
-		monitor.connect_geometry_notify(clone!(
-			#[weak]
-			window,
-			move |monitor| update_margins(&window, monitor)
-		));
-
-		Self {
-			window,
+		let osd_window = Self {
+			window: window.clone(),
 			container,
 			monitor: monitor.clone(),
 			timeout_id: Rc::new(RefCell::new(None)),
-			duration,
-		}
+
+			top_margin: *top_margin,
+		};
+
+		// Set the window margin
+		osd_window.update_margins(&window, monitor);
+		// Ensure window margin is updated when necessary
+		window.connect_scale_factor_notify(clone!(
+			#[strong]
+			osd_window,
+			#[weak]
+			monitor,
+			move |window| osd_window.update_margins(window, &monitor)
+		));
+		monitor.connect_scale_factor_notify(clone!(
+			#[strong]
+			osd_window,
+			#[weak]
+			window,
+			move |monitor| osd_window.update_margins(&window, monitor)
+		));
+		monitor.connect_geometry_notify(clone!(
+			#[strong]
+			osd_window,
+			#[weak]
+			window,
+			move |monitor| osd_window.update_margins(&window, monitor)
+		));
+
+		osd_window
+	}
+
+	fn update_margins(&self, window: &gtk::ApplicationWindow, monitor: &gdk::Monitor) {
+		let mon_height = monitor.geometry().height();
+		// Calculate margin from bottom while preserving top_margin semantics:
+		// top_margin=0.85 means window should be at 85% from top, which equals
+		// 15% from bottom. By anchoring to bottom, we avoid issues with
+		// window.allocated_height() being 0 or incorrect during initialization.
+		let margin = (mon_height as f32 * (1.0 - self.top_margin)).round() as i32;
+		window.set_margin(gtk_layer_shell::Edge::Bottom, margin);
 	}
 
 	pub fn close(&self) {
 		self.window.close();
 	}
 
-	pub fn changed_volume(&self, duration: &Option<u64>, device: &DeviceInfo) {
+	pub fn changed_volume(
+		&self,
+		action_options: &ActionOptions,
+		device: &DeviceInfo,
+	) {
+		let max_volume: f64 = (*action_options.max_volume.get()).into();
+		let show_percentage = action_options.show_percentage.get();
+		let duration = action_options.duration.get();
+
 		self.clear_osd();
 
 		let volume = volume_to_f64(&device.volume.avg());
@@ -128,19 +147,17 @@ impl SwayosdWindow {
 			},
 			(_, _) => "high",
 		};
-		let icon_name = &format!("{}-volume-{}-symbolic", icon_prefix, icon_state);
+		let icon_name = format!("{}-volume-{}-symbolic", icon_prefix, icon_state);
 
-		let max_volume: f64 = get_max_volume().into();
-
-		let icon = self.build_icon_widget(icon_name);
+		let icon = self.build_icon_widget(&icon_name);
 		let progress = self.build_progress_widget(volume / max_volume);
-		let label = self.build_text_widget(Some(&format!("{}%", volume)), Some(4));
+		let label = self.build_text_widget(&Some(format!("{}%", volume)), Some(4));
 
 		progress.set_sensitive(!device.mute);
 
 		self.container.append(&icon);
 		self.container.append(&progress);
-		if get_show_percentage() {
+		if *show_percentage {
 			self.container.append(&label);
 		}
 
@@ -149,9 +166,12 @@ impl SwayosdWindow {
 
 	pub fn changed_brightness(
 		&self,
-		duration: &Option<u64>,
+		action_options: &ActionOptions,
 		brightness_backend: &mut dyn BrightnessBackend,
 	) {
+		let show_percentage = action_options.show_percentage.get();
+		let duration = action_options.duration.get();
+
 		self.clear_osd();
 
 		let icon_name = "display-brightness-symbolic";
@@ -161,20 +181,27 @@ impl SwayosdWindow {
 		let max = brightness_backend.get_max() as f64;
 		let progress = self.build_progress_widget(brightness / max);
 		let label = self.build_text_widget(
-			Some(&format!("{}%", (brightness / max * 100.).round() as i32)),
+			&Some(format!("{}%", (brightness / max * 100.).round() as i32)),
 			Some(4),
 		);
 
 		self.container.append(&icon);
 		self.container.append(&progress);
-		if get_show_percentage() {
+		if *show_percentage {
 			self.container.append(&label);
 		}
 
 		self.run_timeout(duration);
 	}
 
-	pub fn changed_player(&self, duration: &Option<u64>, icon: &str, label: Option<&str>) {
+	pub fn changed_player(
+		&self,
+		action_options: &ActionOptions,
+		icon: &str,
+		label: &Option<String>,
+	) {
+		let duration = action_options.duration.get();
+
 		self.clear_osd();
 
 		let icon = self.build_icon_widget(icon);
@@ -187,7 +214,9 @@ impl SwayosdWindow {
 		self.run_timeout(duration);
 	}
 
-	pub fn changed_kbd_backlight(&self, duration: &Option<u64>, value: u32, max: u32) {
+	pub fn changed_kbd_backlight(&self, action_options: &ActionOptions, value: u32, max: u32) {
+		let duration = action_options.duration.get();
+
 		self.clear_osd();
 
 		let value = value.min(max);
@@ -212,10 +241,12 @@ impl SwayosdWindow {
 		self.run_timeout(duration);
 	}
 
-	pub fn changed_keylock(&self, duration: &Option<u64>, key: KeysLocks, state: bool) {
+	pub fn changed_keylock(&self, action_options: &ActionOptions, key: KeysLocks, state: bool) {
+		let duration = action_options.duration.get();
+
 		self.clear_osd();
 
-		let label = self.build_text_widget(None, None);
+		let label = self.build_text_widget(&None, None);
 		label.set_hexpand(true);
 
 		let on_off_text = match state {
@@ -225,18 +256,18 @@ impl SwayosdWindow {
 
 		let (label_text, symbol) = match key {
 			KeysLocks::CapsLock => {
+				let text = format!("Caps Lock {on_off_text}");
 				let symbol = "caps-lock-symbolic";
-				let text = "Caps Lock ".to_string() + on_off_text;
 				(text, symbol)
 			}
 			KeysLocks::NumLock => {
+				let text = format!("Num Lock {on_off_text}");
 				let symbol = "num-lock-symbolic";
-				let text = "Num Lock ".to_string() + on_off_text;
 				(text, symbol)
 			}
 			KeysLocks::ScrollLock => {
+				let text = format!("Scroll Lock  {on_off_text}");
 				let symbol = "scroll-lock-symbolic";
-				let text = "Scroll Lock ".to_string() + on_off_text;
 				(text, symbol)
 			}
 		};
@@ -252,13 +283,11 @@ impl SwayosdWindow {
 		self.run_timeout(duration);
 	}
 
-	pub fn custom_progress(
-		&self,
-		duration: &Option<u64>,
-		fraction: f64,
-		text: Option<String>,
-		icon_name: Option<&str>,
-	) {
+	pub fn custom_progress(&self, action_options: &ActionOptions, fraction: f64) {
+		let duration = action_options.duration.get();
+		let icon_name = action_options.icon_name.get();
+		let progress_text = action_options.progress_text.get();
+
 		self.clear_osd();
 
 		if let Some(icon_name) = icon_name {
@@ -269,8 +298,8 @@ impl SwayosdWindow {
 		let progress = self.build_progress_widget(fraction.clamp(0.0, 1.0));
 		self.container.append(&progress);
 
-		if let Some(text) = text {
-			let label = self.build_text_widget(Some(text.deref()), None);
+		if progress_text.is_some() {
+			let label = self.build_text_widget(progress_text, None);
 			self.container.append(&label);
 		}
 
@@ -279,12 +308,14 @@ impl SwayosdWindow {
 
 	pub fn custom_segmented_progress(
 		&self,
-		duration: &Option<u64>,
+		action_options: &ActionOptions,
 		value: u32,
 		n_segments: u32,
-		text: Option<String>,
-		icon_name: Option<&str>,
 	) {
+		let duration = action_options.duration.get();
+		let icon_name = action_options.icon_name.get();
+		let progress_text = action_options.progress_text.get();
+
 		self.clear_osd();
 
 		if let Some(icon_name) = icon_name {
@@ -296,18 +327,21 @@ impl SwayosdWindow {
 		let progress = self.build_segmented_progress_widget(value, n_segments);
 		self.container.append(&progress);
 
-		if let Some(text) = text {
-			let label = self.build_text_widget(Some(text.deref()), None);
+		if progress_text.is_some() {
+			let label = self.build_text_widget(progress_text, None);
 			self.container.append(&label);
 		}
 
 		self.run_timeout(duration);
 	}
 
-	pub fn custom_message(&self, duration: &Option<u64>, message: &str, icon_name: Option<&str>) {
+	pub fn custom_message(&self, action_options: &ActionOptions, message: &String) {
+		let icon_name = action_options.icon_name.get();
+		let duration = action_options.duration.get();
+
 		self.clear_osd();
 
-		let label = self.build_text_widget(Some(message), None);
+		let label = self.build_text_widget(&Some(message.into()), None);
 		label.set_hexpand(true);
 
 		if let Some(icon_name) = icon_name {
@@ -339,13 +373,13 @@ impl SwayosdWindow {
 		}
 	}
 
-	fn run_timeout(&self, duration: &Option<u64>) {
+	fn run_timeout(&self, duration: &u64) {
 		// Hide window after timeout
 		if let Some(timeout_id) = self.timeout_id.take() {
 			timeout_id.remove()
 		}
 		self.timeout_id.replace(Some(glib::timeout_add_local_once(
-			Duration::from_millis(duration.unwrap_or(self.duration)),
+			Duration::from_millis(*duration),
 			clone!(
 				#[strong(rename_to = this)]
 				self,
@@ -368,9 +402,9 @@ impl SwayosdWindow {
 		}
 	}
 
-	fn build_text_widget(&self, text: Option<&str>, min_chars: Option<u32>) -> gtk::Label {
+	fn build_text_widget(&self, text: &Option<String>, min_chars: Option<u32>) -> gtk::Label {
 		cascade! {
-			gtk::Label::new(text);
+			gtk::Label::new(text.as_deref());
 			// width-chars is based off of the average font width, so we add 1
 			// to make sure that it's wide enough.
 			..set_width_chars(min_chars.map_or(-1, |v| (v + 1) as i32));

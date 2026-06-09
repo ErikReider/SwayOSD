@@ -1,21 +1,12 @@
-use crate::args::ArgsServer;
-use crate::argtypes::ArgTypes;
-use crate::config::{self, APPLICATION_NAME, DBUS_BACKEND_NAME};
-use crate::global_utils::segmented_progress_parser;
-use crate::osd_window::SwayosdWindow;
-use crate::pulse::{DeviceKind, VolumeController};
-use crate::utils::{self, *};
-use crate::{login1, playerctl::*, upower};
 use async_channel::{Receiver, Sender};
 use async_std::stream::StreamExt;
-use gtk::gio::{DBusConnection, ListModel};
-use gtk::glib::ControlFlow;
 use gtk::{
 	gdk,
 	gio::{
-		self, ApplicationFlags, BusNameWatcherFlags, BusType, DBusSignalFlags, SignalSubscriptionId,
+		self, ApplicationFlags, BusNameWatcherFlags, BusType, DBusConnection, DBusSignalFlags,
+		ListModel, SignalSubscriptionId,
 	},
-	glib::{clone, Char, ControlFlow::Break, MainContext, OptionArg, OptionFlags},
+	glib::{clone, Char, ControlFlow, ControlFlow::Break, MainContext, OptionArg, OptionFlags},
 	prelude::*,
 	Application,
 };
@@ -24,7 +15,47 @@ use std::error::Error;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
-use super::config::user::ServerConfig;
+use crate::actions::mpris::{Playerctl, PlayerctlAction, PlayerctlDeviceRaw};
+use crate::actions::pulse::{DeviceKind, VolumeController};
+use crate::argflags::ArgFlags;
+use crate::args::ArgsServer;
+use crate::argtypes::ArgTypes;
+use crate::config::{self, user::ServerConfig, APPLICATION_NAME, DBUS_BACKEND_NAME};
+use crate::global_utils;
+use crate::osd_window::SwayosdWindow;
+use crate::utils::*;
+use crate::{login1, upower, DbusSenderFlagsType, DbusSenderType};
+
+#[derive(Clone)]
+pub struct ActionOptions {
+	pub max_volume: ActionField<u8>,
+	pub min_brightness: ActionField<u32>,
+	pub device_name: ActionOptionalField<String>,
+	pub monitor_name: ActionOptionalField<String>,
+	pub icon_name: ActionOptionalField<String>,
+	pub progress_text: ActionOptionalField<String>,
+	pub player_name: ActionOptionalField<PlayerctlDeviceRaw>,
+	pub top_margin: ActionField<f32>,
+	pub duration: ActionField<u64>,
+	pub show_percentage: ActionField<bool>,
+}
+
+impl ActionOptions {
+	pub fn new() -> Self {
+		Self {
+			max_volume: ActionField::new(100_u8),
+			min_brightness: ActionField::new(5_u32),
+			device_name: ActionOptionalField::new(None),
+			monitor_name: ActionOptionalField::new(None),
+			icon_name: ActionOptionalField::new(None),
+			progress_text: ActionOptionalField::new(None),
+			player_name: ActionOptionalField::new(None),
+			top_margin: ActionField::new(0.85_f32),
+			duration: ActionField::new(1000),
+			show_percentage: ActionField::new(false),
+		}
+	}
+}
 
 #[derive(Clone, Shrinkwrap)]
 pub struct SwayOSDApplication {
@@ -33,19 +64,49 @@ pub struct SwayOSDApplication {
 	windows: Rc<RefCell<Vec<SwayosdWindow>>>,
 	activated: Rc<RefCell<bool>>,
 	_hold: Rc<gio::ApplicationHoldGuard>,
-	duration: u64,
+	action_options: Rc<ActionOptions>,
 
 	volume_ctrl: Rc<RefCell<Option<VolumeController>>>,
+}
+
+/// Iterate the "correct" monitors
+macro_rules! iter_windows {
+	($self:expr, $action_options:expr, ($window:ident), $do:block) => {{
+		let monitor_name = $action_options.monitor_name.get();
+
+		if let Some(monitor_name) = monitor_name {
+			let mut found = false;
+			for $window in $self.windows.borrow().to_owned() {
+				if $window
+					.monitor
+					.connector()
+					.is_some_and(|c| c == *monitor_name)
+				{
+					found = true;
+					$do
+				}
+			}
+			if !found {
+				eprintln!("Specified monitor name, but found no matching output");
+			}
+		} else {
+			for $window in $self.windows.borrow().to_owned() {
+				$do
+			}
+		}
+	}};
 }
 
 impl SwayOSDApplication {
 	pub fn new(
 		server_config: Arc<ServerConfig>,
 		args: Arc<ArgsServer>,
-		action_receiver: Receiver<(ArgTypes, String)>,
+		action_receiver: Receiver<DbusSenderType>,
 	) -> Self {
 		let app = Application::new(Some(APPLICATION_NAME), ApplicationFlags::FLAGS_NONE);
 		let hold = Rc::new(app.hold());
+
+		let mut action_options = ActionOptions::new();
 
 		app.add_main_option(
 			"top-margin",
@@ -54,42 +115,38 @@ impl SwayOSDApplication {
 			OptionArg::String,
 			&format!(
 				"OSD margin from top edge (0.5 would be screen center). Default is {}",
-				*utils::TOP_MARGIN_DEFAULT
+				action_options.top_margin.get_default()
 			),
 			Some("<from 0.0 to 1.0>"),
 		);
 
-		let volume_ctrl = VolumeController::create().ok();
+		// Apply Server Config
+		if let Some(margin) = server_config.top_margin
+			&& (0_f32..1_f32).contains(&margin)
+		{
+			action_options.top_margin.set_default(margin);
+		}
+		if let Some(max_volume) = server_config.max_volume {
+			action_options.max_volume.set_default(max_volume);
+		}
+		if let Some(min_brightness) = server_config.min_brightness {
+			action_options.min_brightness.set_default(min_brightness)
+		}
+		if let Some(show_percentage) = server_config.show_percentage {
+			action_options.show_percentage.set_default(show_percentage);
+		}
+
+		Self::parse_args(&args, &mut action_options);
 
 		let osd_app = SwayOSDApplication {
 			app: app.clone(),
 			windows: Rc::new(RefCell::new(Vec::new())),
 			activated: Rc::new(RefCell::new(false)),
 			_hold: hold,
-			duration: args.duration,
+			action_options: Rc::new(action_options),
 
-			volume_ctrl: Rc::new(RefCell::new(volume_ctrl)),
+			volume_ctrl: Rc::new(RefCell::new(None)),
 		};
-
-		// Apply Server Config
-		if let Some(margin) = server_config.top_margin
-			&& (0_f32..1_f32).contains(&margin)
-		{
-			set_top_margin(margin);
-		}
-		if let Some(max_volume) = server_config.max_volume {
-			set_default_max_volume(max_volume);
-			reset_max_volume();
-		}
-		if let Some(min_brightness) = server_config.min_brightness {
-			set_default_min_brightness(min_brightness);
-			reset_min_brightness();
-		}
-		if let Some(show) = server_config.show_percentage {
-			set_show_percentage(show);
-		}
-
-		Self::parse_args(&args);
 
 		// Listen for any actions sent from swayosd-client
 		MainContext::default().spawn_local(clone!(
@@ -98,12 +155,10 @@ impl SwayOSDApplication {
 			#[strong]
 			server_config,
 			async move {
-				while let Ok((arg_type, data)) = action_receiver.recv().await {
-					if let Err(error) = osd_app.action_activated(
-						server_config.clone(),
-						arg_type,
-						(!data.is_empty()).then_some(data),
-					) {
+				while let Ok((arg_type, data, flags)) = action_receiver.recv().await {
+					if let Err(error) =
+						osd_app.action_activated(server_config.clone(), arg_type, data, Some(flags))
+					{
 						eprintln!("Could not activate action: {:?}", error)
 					}
 				}
@@ -145,7 +200,7 @@ impl SwayOSDApplication {
 							_ => continue,
 						};
 					if let Err(error) =
-						osd_app.action_activated(server_config.clone(), arg_type, data)
+						osd_app.action_activated(server_config.clone(), arg_type, data, None)
 					{
 						eprintln!("Could not activate action: {:?}", error)
 					}
@@ -178,17 +233,15 @@ impl SwayOSDApplication {
 		osd_app
 	}
 
-	fn parse_args(args: &ArgsServer) {
+	fn parse_args(args: &ArgsServer, action_options: &mut ActionOptions) {
 		// Top Margin
-		if let Some(value) = args.top_margin.to_owned() {
-			match value.parse::<f32>() {
-				Ok(top_margin @ 0.0f32..=1.0f32) => {
-					set_top_margin(top_margin);
-				}
-				_ => {
-					eprintln!("{} is not a number between 0.0 and 1.0!", value);
-				}
-			}
+		if let Some(top_margin) = args.top_margin {
+			action_options.top_margin.set_default(top_margin);
+		}
+
+		// Duration
+		if let Some(duration) = args.duration {
+			action_options.duration.set_default(duration);
 		}
 	}
 
@@ -211,6 +264,7 @@ impl SwayOSDApplication {
 					server_config.clone(),
 					ArgTypes::KbdBacklight,
 					Some(format!("{}:{}", args.value, max_brightness)),
+					None,
 				) {
 					eprintln!("Could not activate action: {:?}", error)
 				}
@@ -363,98 +417,73 @@ impl SwayOSDApplication {
 			window.close();
 		}
 
+		let top_margin = self.action_options.top_margin.get();
+
 		for i in 0..added {
 			if let Some(monitor) = monitors
 				.item(position + i)
 				.and_then(|obj| obj.downcast::<gdk::Monitor>().ok())
 			{
-				let window = SwayosdWindow::new(&self.app, &monitor, self.duration);
+				let window = SwayosdWindow::new(&self.app, &monitor, top_margin);
 				windows.push(window);
 			}
 		}
 	}
 
-	fn choose_windows(&self) -> Vec<SwayosdWindow> {
-		let mut selected_windows = Vec::new();
-
-		match get_monitor_name() {
-			Some(monitor_name) => {
-				for window in self.windows.borrow().to_owned() {
-					if let Some(monitor_connector) = window.monitor.connector()
-						&& monitor_name == monitor_connector
-					{
-						selected_windows.push(window);
-					}
-				}
-			}
-			None => return self.windows.borrow().to_owned(),
-		}
-
-		if selected_windows.is_empty() {
-			eprintln!("Specified monitor name, but found no matching output");
-			return self.windows.borrow().to_owned();
-		}
-
-		selected_windows
-	}
-
-	fn get_duration(&self) -> Option<u64> {
-		let duration = get_duration_override();
-		reset_duration_override();
-		duration
-	}
-
 	fn adjust_volume(
 		&self,
+		action_options: &ActionOptions,
 		kind: DeviceKind,
 		change_type: VolumeChangeType,
 		step: Option<String>,
 	) -> Result<(), Box<dyn Error>> {
-		let duration = self.get_duration();
+		let max_volume: f64 = (*action_options.max_volume.get()).into();
+		let device_name = action_options.device_name.get();
+
 		let mut ctrl = self.volume_ctrl.try_borrow_mut()?;
 		let ctrl = ctrl.get_or_insert(VolumeController::create()?);
 
-		if let Some(device) = change_device_volume(ctrl, kind, change_type, step) {
-			for window in self.choose_windows() {
-				window.changed_volume(&duration, &device);
-			}
+		if let Some(device) =
+			change_device_volume(ctrl, kind, change_type, device_name, max_volume, step)
+		{
+			iter_windows!(self, action_options, (window), {
+				window.changed_volume(action_options, &device);
+			});
 		}
-		reset_max_volume();
-		reset_device_name();
-		reset_monitor_name();
 		Ok(())
 	}
 
 	fn adjust_brightness(
 		&self,
+		action_options: &ActionOptions,
 		change_type: BrightnessChangeType,
 		step: Option<String>,
 	) -> Result<(), Box<dyn Error>> {
-		let duration = self.get_duration();
-		let mut brightness_backend = change_brightness(change_type, step)?;
-		for window in self.choose_windows() {
-			window.changed_brightness(&duration, brightness_backend.as_mut());
-		}
-		reset_min_brightness();
-		reset_monitor_name();
+		let min_brightness = action_options.min_brightness.get();
+		let device_name = action_options.device_name.get();
+
+		let mut brightness_backend =
+			change_brightness(change_type, device_name, *min_brightness, step)?;
+		iter_windows!(self, action_options, (window), {
+			window.changed_brightness(action_options, brightness_backend.as_mut());
+		});
 		Ok(())
 	}
 
 	fn adjust_keylock(
 		&self,
+		action_options: &ActionOptions,
 		keylock_type: KeysLocks,
 		value: Option<String>,
 	) -> Result<(), Box<dyn Error>> {
-		let duration = self.get_duration();
 		let i32_value = value.clone().unwrap_or("-1".to_owned());
 		let state = match i32_value.parse::<i32>() {
 			Ok(value) if (0..=1).contains(&value) => value == 1,
 			_ => get_key_lock_state(keylock_type, value),
 		};
-		for window in self.choose_windows() {
-			window.changed_keylock(&duration, keylock_type, state)
-		}
-		reset_monitor_name();
+		iter_windows!(self, action_options, (window), {
+			window.changed_keylock(action_options, keylock_type, state)
+		});
 		Ok(())
 	}
 
@@ -463,105 +492,122 @@ impl SwayOSDApplication {
 		server_config: Arc<ServerConfig>,
 		arg_type: ArgTypes,
 		value: Option<String>,
+		flags: Option<DbusSenderFlagsType>,
 	) -> Result<(), Box<dyn Error>> {
+		let mut action_options: ActionOptions = (*self.action_options).clone();
+
+		// Parse flags
+		for (flag, value) in flags.unwrap_or_default() {
+			match (flag, value) {
+				(ArgFlags::MaxVolume, max) => {
+					let volume: Option<u8> = max.and_then(|max| max.parse().ok());
+					action_options.max_volume.set(volume);
+				}
+				(ArgFlags::MinBrightness, min) => {
+					let brightness: Option<u32> = min.and_then(|min| min.parse().ok());
+					action_options.min_brightness.set(brightness);
+				}
+				(ArgFlags::Player, name) => {
+					action_options
+						.player_name
+						.set(PlayerctlDeviceRaw::from(name));
+				}
+				(ArgFlags::DeviceName, name) => {
+					action_options.device_name.set(name);
+				}
+				(ArgFlags::MonitorName, name) => {
+					action_options.monitor_name.set(name);
+				}
+				(ArgFlags::CustomProgressText, text) => {
+					action_options.progress_text.set(text);
+				}
+				(ArgFlags::CustomIcon, icon) => {
+					action_options.icon_name.set(icon);
+				}
+				(ArgFlags::Duration, duration) => {
+					let duration: Option<u64> = duration.and_then(|d| d.parse().ok());
+					action_options.duration.set(duration);
+				}
+			};
+		}
+
+		// Execute the action
 		match (arg_type, value) {
-			//
-			// Options
-			//
-			(ArgTypes::MaxVolume, max) => {
-				let volume: u8 = match max {
-					Some(max) => match max.parse() {
-						Ok(max) => max,
-						_ => get_default_max_volume(),
-					},
-					_ => get_default_max_volume(),
-				};
-				set_max_volume(volume)
-			}
-			(ArgTypes::MinBrightness, min) => {
-				let brightness: u32 = match min {
-					Some(min) => match min.parse() {
-						Ok(min) => min,
-						_ => get_default_min_brightness(),
-					},
-					_ => get_default_min_brightness(),
-				};
-				set_min_brightness(brightness)
-			}
-			(ArgTypes::Player, name) => set_player(name.unwrap_or("".to_string())),
-			(ArgTypes::DeviceName, name) => {
-				set_device_name(name.unwrap_or(DEVICE_NAME_DEFAULT.to_string()))
-			}
-			(ArgTypes::MonitorName, name) => {
-				if let Some(name) = name {
-					set_monitor_name(name)
-				}
-			}
-			(ArgTypes::CustomProgressText, text) => set_progress_text(text),
-			(ArgTypes::CustomIcon, icon) => {
-				set_icon_name(icon.unwrap_or(ICON_NAME_DEFAULT.to_string()))
-			}
-			(ArgTypes::Duration, duration) => {
-				if let Some(duration) = duration.and_then(|d| d.parse().ok()) {
-					set_duration_override(duration);
-				}
-			}
-
-			//
-			// Actions
-			//
-
 			// Pulse Sink
-			(ArgTypes::SinkVolumeRaise, step) => {
-				self.adjust_volume(DeviceKind::Sink, VolumeChangeType::Raise, step)?;
-			}
-			(ArgTypes::SinkVolumeLower, step) => {
-				self.adjust_volume(DeviceKind::Sink, VolumeChangeType::Lower, step)?;
-			}
-			(ArgTypes::SinkVolumeMuteToggle, _) => {
-				self.adjust_volume(DeviceKind::Sink, VolumeChangeType::MuteToggle, None)?;
-			}
+			(ArgTypes::SinkVolumeRaise, step) => self.adjust_volume(
+				&action_options,
+				DeviceKind::Sink,
+				VolumeChangeType::Raise,
+				step,
+			)?,
+			(ArgTypes::SinkVolumeLower, step) => self.adjust_volume(
+				&action_options,
+				DeviceKind::Sink,
+				VolumeChangeType::Lower,
+				step,
+			)?,
+			(ArgTypes::SinkVolumeMuteToggle, _) => self.adjust_volume(
+				&action_options,
+				DeviceKind::Sink,
+				VolumeChangeType::MuteToggle,
+				None,
+			)?,
+
 			// Pulse Source
-			(ArgTypes::SourceVolumeRaise, step) => {
-				self.adjust_volume(DeviceKind::Source, VolumeChangeType::Raise, step)?;
-			}
-			(ArgTypes::SourceVolumeLower, step) => {
-				self.adjust_volume(DeviceKind::Source, VolumeChangeType::Lower, step)?;
-			}
-			(ArgTypes::SourceVolumeMuteToggle, _) => {
-				self.adjust_volume(DeviceKind::Source, VolumeChangeType::MuteToggle, None)?
-			}
+			(ArgTypes::SourceVolumeRaise, step) => self.adjust_volume(
+				&action_options,
+				DeviceKind::Source,
+				VolumeChangeType::Raise,
+				step,
+			)?,
+			(ArgTypes::SourceVolumeLower, step) => self.adjust_volume(
+				&action_options,
+				DeviceKind::Source,
+				VolumeChangeType::Lower,
+				step,
+			)?,
+			(ArgTypes::SourceVolumeMuteToggle, _) => self.adjust_volume(
+				&action_options,
+				DeviceKind::Source,
+				VolumeChangeType::MuteToggle,
+				None,
+			)?,
+
 			// Brightness
 			(ArgTypes::BrightnessRaise, step) => {
-				self.adjust_brightness(BrightnessChangeType::Raise, step)?;
+				self.adjust_brightness(&action_options, BrightnessChangeType::Raise, step)?
 			}
 			(ArgTypes::BrightnessLower, step) => {
-				self.adjust_brightness(BrightnessChangeType::Lower, step)?;
+				self.adjust_brightness(&action_options, BrightnessChangeType::Lower, step)?
 			}
 			(ArgTypes::BrightnessSet, value) => {
-				self.adjust_brightness(BrightnessChangeType::Set, value)?;
+				self.adjust_brightness(&action_options, BrightnessChangeType::Set, value)?
 			}
+
+			// Keystates
 			(ArgTypes::CapsLock, value) => {
-				self.adjust_keylock(KeysLocks::CapsLock, value)?;
+				self.adjust_keylock(&action_options, KeysLocks::CapsLock, value)?
 			}
 			(ArgTypes::NumLock, value) => {
-				self.adjust_keylock(KeysLocks::NumLock, value)?;
+				self.adjust_keylock(&action_options, KeysLocks::NumLock, value)?
 			}
 			(ArgTypes::ScrollLock, value) => {
-				self.adjust_keylock(KeysLocks::ScrollLock, value)?;
+				self.adjust_keylock(&action_options, KeysLocks::ScrollLock, value)?
 			}
+
+			// Playerctrl
 			(ArgTypes::Playerctl, value) => {
-				let duration = self.get_duration();
+				let player_name = action_options.player_name.get();
+
 				let value = &value.unwrap_or("".to_string());
 				let action = PlayerctlAction::from(value)?;
-				if let Ok(mut player) = Playerctl::new(action, server_config) {
+				if let Ok(mut player) = Playerctl::new(action, player_name.clone(), server_config) {
 					match player.run() {
 						Ok(_) => {
 							let (icon, label) = (player.icon.unwrap_or_default(), &player.label);
-							for window in self.choose_windows() {
-								window.changed_player(&duration, &icon, label.as_deref())
-							}
-							reset_monitor_name();
+							iter_windows!(self, action_options, (window), {
+								window.changed_player(&action_options, &icon, label)
+							});
 						}
 						Err(x) => {
 							eprintln!("couldn't run player change: \"{:?}\"!", x)
@@ -570,75 +616,45 @@ impl SwayOSDApplication {
 				} else {
 					eprintln!("Unable to get players! are any opened?")
 				}
+			}
 
-				reset_player();
-			}
+			// Keyboard backlight
 			(ArgTypes::KbdBacklight, values) => {
-				let duration = self.get_duration();
 				if let Some(values) = values
-					&& let Ok((value, n_segments)) = segmented_progress_parser(&values)
+					&& let Ok((value, n_segments)) =
+						global_utils::segmented_progress_parser(&values)
 				{
-					for window in self.choose_windows() {
-						window.changed_kbd_backlight(&duration, value, n_segments);
-					}
+					iter_windows!(self, action_options, (window), {
+						window.changed_kbd_backlight(&action_options, value, n_segments);
+					});
 				}
-				reset_monitor_name();
 			}
+
+			// Custom actions
 			(ArgTypes::CustomMessage, message) => {
-				let duration = self.get_duration();
 				if let Some(message) = message {
-					for window in self.choose_windows() {
-						window.custom_message(
-							&duration,
-							message.as_str(),
-							get_icon_name().as_deref(),
-						);
-					}
+					iter_windows!(self, action_options, (window), {
+						window.custom_message(&action_options, &message);
+					});
 				}
-				reset_icon_name();
-				reset_monitor_name();
 			}
 			(ArgTypes::CustomProgress, fraction) => {
-				let duration = self.get_duration();
 				if let Some(fraction) = fraction {
 					let fraction: f64 = fraction.parse::<f64>().unwrap_or(1.0);
-					for window in self.choose_windows() {
-						window.custom_progress(
-							&duration,
-							fraction,
-							get_progress_text(),
-							get_icon_name().as_deref(),
-						);
-					}
+					iter_windows!(self, action_options, (window), {
+						window.custom_progress(&action_options, fraction);
+					});
 				}
-				reset_progress_text();
-				reset_icon_name();
-				reset_monitor_name();
 			}
 			(ArgTypes::CustomSegmentedProgress, values) => {
-				let duration = self.get_duration();
 				if let Some(values) = values
-					&& let Ok((value, n_segments)) = segmented_progress_parser(&values)
+					&& let Ok((value, n_segments)) =
+						global_utils::segmented_progress_parser(&values)
 				{
-					for window in self.choose_windows() {
-						window.custom_segmented_progress(
-							&duration,
-							value,
-							n_segments,
-							get_progress_text(),
-							get_icon_name().as_deref(),
-						);
-					}
+					iter_windows!(self, action_options, (window), {
+						window.custom_segmented_progress(&action_options, value, n_segments);
+					});
 				}
-				reset_progress_text();
-				reset_icon_name();
-				reset_monitor_name();
-			}
-			(arg_type, data) => {
-				eprintln!(
-					"Failed to parse command... Type: {:?}, Data: {:?}",
-					arg_type, data
-				)
 			}
 		};
 		Ok(())

@@ -1643,7 +1643,6 @@ dependencies = [
  "gtk4",
  "gtk4-layer-shell",
  "input",
- "lazy_static",
  "libc",
  "libpulse-binding",
  "mpris",

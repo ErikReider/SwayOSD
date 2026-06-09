@@ -16,7 +16,3 @@ pub fn segmented_progress_parser(ref_value: &str) -> Result<(u32, u32), String> 
 		)),
 	}
 }
-
-pub fn div_round_u32(a: u32, b: u32) -> u32 {
-	(a + b / 2) / b
-}

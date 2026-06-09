@@ -1,5 +1,3 @@
-use crate::global_utils::div_round_u32;
-
 use super::{BrightnessBackend, BrightnessBackendConstructor};
 
 const EXPECT_STR: &str = "VirtualDevice didn't test the command during initialization";
@@ -173,4 +171,8 @@ impl BrightnessBackend for BrightnessCtl {
 		let raw_val = div_round_u32(val.max(min) * max, 100);
 		self.device.set_raw(raw_val)
 	}
+}
+
+fn div_round_u32(a: u32, b: u32) -> u32 {
+	(a + b / 2) / b
 }

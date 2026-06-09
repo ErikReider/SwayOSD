@@ -1,41 +1,91 @@
 use gtk::glib::{system_config_dirs, user_config_dir};
-use lazy_static::lazy_static;
-
+use pulse::volume::Volume;
 use std::{
-	cell::RefCell,
+	fmt::Debug,
 	fs::{self, File},
 	io::{prelude::*, BufReader},
 	path::{Path, PathBuf},
-	rc::Rc,
-	sync::Mutex,
 };
 
-use pulse::volume::Volume;
+use crate::actions::{
+	brightness_backend::{self, BrightnessBackendResult},
+	pulse::{DeviceInfo, DeviceKind, VolumeController},
+};
 
-use crate::pulse::{DeviceInfo, DeviceKind, VolumeController};
+#[derive(Clone, Debug)]
+pub struct ActionField<T: Clone + Debug> {
+	value: Option<T>,
+	default: T,
+}
 
-use crate::brightness_backend;
-use crate::playerctl::PlayerctlDeviceRaw;
+#[allow(unused)]
+impl<T: Clone + Debug> ActionField<T> {
+	pub fn new(default: T) -> Self {
+		Self {
+			value: None,
+			default,
+		}
+	}
 
-static PRIV_MAX_VOLUME_DEFAULT: u8 = 100_u8;
-static PRIV_MIN_BRIGHTNESS_DEFAULT: u32 = 5_u32;
+	pub fn get(&self) -> &T {
+		match self.value {
+			Some(ref value) => value,
+			None => &self.default,
+		}
+	}
 
-lazy_static! {
-	static ref MAX_VOLUME_DEFAULT: Mutex<u8> = Mutex::new(PRIV_MAX_VOLUME_DEFAULT);
-	static ref MAX_VOLUME: Mutex<u8> = Mutex::new(PRIV_MAX_VOLUME_DEFAULT);
-	static ref MIN_BRIGHTNESS_DEFAULT: Mutex<u32> = Mutex::new(PRIV_MIN_BRIGHTNESS_DEFAULT);
-	static ref MIN_BRIGHTNESS: Mutex<u32> = Mutex::new(PRIV_MIN_BRIGHTNESS_DEFAULT);
-	pub static ref DEVICE_NAME_DEFAULT: &'static str = "default";
-	static ref DEVICE_NAME: Mutex<Option<String>> = Mutex::new(None);
-	static ref MONITOR_NAME: Mutex<Option<String>> = Mutex::new(None);
-	pub static ref ICON_NAME_DEFAULT: &'static str = "text-x-generic";
-	static ref ICON_NAME: Mutex<Option<String>> = Mutex::new(None);
-	static ref PROGRESS_TEXT: Mutex<Option<String>> = Mutex::new(None);
-	static ref PLAYER_NAME: Mutex<PlayerctlDeviceRaw> = Mutex::new(PlayerctlDeviceRaw::None);
-	pub static ref TOP_MARGIN_DEFAULT: f32 = 0.85_f32;
-	static ref TOP_MARGIN: Mutex<f32> = Mutex::new(*TOP_MARGIN_DEFAULT);
-	static ref DURATION_OVERRIDE: Mutex<Option<u64>> = Mutex::new(None);
-	pub static ref SHOW_PERCENTAGE: Mutex<bool> = Mutex::new(false);
+	pub fn set(&mut self, value: Option<T>) {
+		self.value = value;
+	}
+
+	pub fn reset(&mut self) {
+		self.set(None)
+	}
+
+	pub fn set_default(&mut self, value: T) {
+		self.default = value;
+	}
+	pub fn get_default(&self) -> T {
+		self.default.clone()
+	}
+}
+
+#[derive(Clone, Debug)]
+pub struct ActionOptionalField<T: Clone + Debug> {
+	value: Option<T>,
+	default: Option<T>,
+}
+
+#[allow(unused)]
+impl<T: Clone + Debug> ActionOptionalField<T> {
+	pub fn new(default: Option<T>) -> Self {
+		Self {
+			value: None,
+			default,
+		}
+	}
+
+	pub fn get(&self) -> &Option<T> {
+		match self.value {
+			Some(_) => &self.value,
+			None => &self.default,
+		}
+	}
+
+	pub fn set(&mut self, value: Option<T>) {
+		self.value = value;
+	}
+
+	pub fn reset(&mut self) {
+		self.set(None)
+	}
+
+	pub fn set_default(&mut self, value: Option<T>) {
+		self.default = value;
+	}
+	pub fn get_default(&self) -> Option<T> {
+		self.default.clone()
+	}
 }
 
 #[allow(clippy::enum_variant_names)]
@@ -44,155 +94,6 @@ pub enum KeysLocks {
 	CapsLock,
 	NumLock,
 	ScrollLock,
-}
-
-pub fn get_default_max_volume() -> u8 {
-	*MAX_VOLUME_DEFAULT.lock().unwrap()
-}
-
-pub fn set_default_max_volume(volume: u8) {
-	let mut vol = MAX_VOLUME_DEFAULT.lock().unwrap();
-	*vol = volume;
-}
-
-pub fn get_max_volume() -> u8 {
-	*MAX_VOLUME.lock().unwrap()
-}
-
-pub fn set_max_volume(volume: u8) {
-	let mut vol = MAX_VOLUME.lock().unwrap();
-	*vol = volume;
-}
-
-pub fn reset_max_volume() {
-	let mut vol = MAX_VOLUME.lock().unwrap();
-	*vol = *MAX_VOLUME_DEFAULT.lock().unwrap();
-}
-
-pub fn get_default_min_brightness() -> u32 {
-	*MIN_BRIGHTNESS_DEFAULT.lock().unwrap()
-}
-
-pub fn set_default_min_brightness(brightness: u32) {
-	let mut min = MIN_BRIGHTNESS_DEFAULT.lock().unwrap();
-	*min = brightness;
-}
-
-pub fn get_min_brightness() -> u32 {
-	*MIN_BRIGHTNESS.lock().unwrap()
-}
-
-pub fn set_min_brightness(brightness: u32) {
-	let mut min = MIN_BRIGHTNESS.lock().unwrap();
-	*min = brightness;
-}
-
-pub fn reset_min_brightness() {
-	let mut min = MIN_BRIGHTNESS.lock().unwrap();
-	*min = *MIN_BRIGHTNESS_DEFAULT.lock().unwrap();
-}
-
-pub fn get_top_margin() -> f32 {
-	*TOP_MARGIN.lock().unwrap()
-}
-
-pub fn set_top_margin(margin: f32) {
-	let mut margin_mut = TOP_MARGIN.lock().unwrap();
-	*margin_mut = margin;
-}
-
-pub fn get_duration_override() -> Option<u64> {
-	*DURATION_OVERRIDE.lock().unwrap()
-}
-
-pub fn set_duration_override(duration: u64) {
-	let mut duration_mut = DURATION_OVERRIDE.lock().unwrap();
-	*duration_mut = Some(duration);
-}
-
-pub fn reset_duration_override() {
-	let mut duration_mut = DURATION_OVERRIDE.lock().unwrap();
-	*duration_mut = None;
-}
-
-pub fn get_show_percentage() -> bool {
-	*SHOW_PERCENTAGE.lock().unwrap()
-}
-
-pub fn set_show_percentage(show: bool) {
-	let mut show_mut = SHOW_PERCENTAGE.lock().unwrap();
-	*show_mut = show;
-}
-
-pub fn get_device_name() -> Option<String> {
-	(*DEVICE_NAME.lock().unwrap()).clone()
-}
-
-pub fn set_device_name(name: String) {
-	let mut global_name = DEVICE_NAME.lock().unwrap();
-	*global_name = Some(name);
-}
-
-pub fn reset_device_name() {
-	let mut global_name = DEVICE_NAME.lock().unwrap();
-	*global_name = None;
-}
-
-pub fn get_monitor_name() -> Option<String> {
-	(*MONITOR_NAME.lock().unwrap()).clone()
-}
-
-pub fn set_monitor_name(name: String) {
-	let mut monitor_name = MONITOR_NAME.lock().unwrap();
-	*monitor_name = Some(name);
-}
-
-pub fn reset_monitor_name() {
-	let mut monitor_name = MONITOR_NAME.lock().unwrap();
-	*monitor_name = None;
-}
-
-pub fn get_progress_text() -> Option<String> {
-	(*PROGRESS_TEXT.lock().unwrap()).clone()
-}
-
-pub fn set_progress_text(name: Option<String>) {
-	let mut progress_text = PROGRESS_TEXT.lock().unwrap();
-	*progress_text = name;
-}
-
-pub fn reset_progress_text() {
-	let mut progress_text = PROGRESS_TEXT.lock().unwrap();
-	*progress_text = None;
-}
-
-pub fn get_icon_name() -> Option<String> {
-	(*ICON_NAME.lock().unwrap()).clone()
-}
-
-pub fn set_icon_name(name: String) {
-	let mut icon_name = ICON_NAME.lock().unwrap();
-	*icon_name = Some(name);
-}
-
-pub fn reset_icon_name() {
-	let mut icon_name = ICON_NAME.lock().unwrap();
-	*icon_name = None;
-}
-
-pub fn set_player(name: String) {
-	let mut global_player = PLAYER_NAME.lock().unwrap();
-	*global_player = PlayerctlDeviceRaw::from(name).unwrap_or(PlayerctlDeviceRaw::None);
-}
-
-pub fn reset_player() {
-	let mut global_name = PLAYER_NAME.lock().unwrap();
-	*global_name = PlayerctlDeviceRaw::None;
-}
-
-pub fn get_player() -> PlayerctlDeviceRaw {
-	let player = PLAYER_NAME.lock().unwrap();
-	player.clone()
 }
 
 pub fn get_key_lock_state(key: KeysLocks, led: Option<String>) -> bool {
@@ -273,10 +174,12 @@ pub fn change_device_volume(
 	ctrl: &mut VolumeController,
 	kind: DeviceKind,
 	change_type: VolumeChangeType,
+	device_name: &Option<String>,
+	max_volume: f64,
 	step: Option<String>,
 ) -> Option<DeviceInfo> {
-	let device = match get_device_name() {
-		Some(name) => ctrl.get_device_by_name(kind, &name),
+	let device = match device_name {
+		Some(name) => ctrl.get_device_by_name(kind, name),
 		None => ctrl.get_default_device(kind),
 	};
 	let device = match device {
@@ -295,7 +198,7 @@ pub fn change_device_volume(
 	);
 	match change_type {
 		VolumeChangeType::Raise => {
-			let max_volume = volume_from_f64(get_max_volume() as f64);
+			let max_volume = volume_from_f64(max_volume);
 			if let Some(volume) = device.volume.clone().inc_clamp(delta, max_volume) {
 				ctrl.set_volume_by_index(kind, device.index, volume);
 			}
@@ -321,13 +224,14 @@ pub fn change_device_volume(
 
 pub fn change_brightness(
 	change_type: BrightnessChangeType,
+	device_name: &Option<String>,
+	min_brightness: u32,
 	step: Option<String>,
-) -> brightness_backend::BrightnessBackendResult {
-	let min_brightness = get_min_brightness();
+) -> BrightnessBackendResult {
 	const BRIGHTNESS_CHANGE_DELTA: u8 = 5;
 	let value = step.unwrap_or_default().parse::<u8>();
 
-	let mut backend = brightness_backend::get_preferred_backend(get_device_name())?;
+	let mut backend = brightness_backend::get_preferred_backend(device_name.clone())?;
 
 	match change_type {
 		BrightnessChangeType::Raise => backend.raise(

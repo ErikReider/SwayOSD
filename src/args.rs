@@ -1,6 +1,16 @@
 use clap::Parser;
 use std::path::PathBuf;
 
+fn value_parser_f32(min: f32, max: f32) -> impl Fn(&str) -> Result<f32, String> + Clone {
+	move |s| {
+		let v: f32 = s.parse().map_err(|_| format!("`{s}` not a number"))?;
+		(min..=max)
+			.contains(&v)
+			.then_some(v)
+			.ok_or_else(|| format!("must be in {min}..={max}, got {v}"))
+	}
+}
+
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 #[command(arg_required_else_help(false))]
@@ -14,12 +24,12 @@ pub struct ArgsServer {
 	pub style: Option<PathBuf>,
 
 	/// OSD margin from top edge (0.5 would be screen center). Default is 0.85
-	#[arg(long, value_name = "from 0.0 to 1.0")]
-	pub top_margin: Option<String>,
+	#[arg(long, value_name = "from 0.0 to 1.0", value_parser = value_parser_f32(0.0, 1.0))]
+	pub top_margin: Option<f32>,
 
 	/// OSD display duration in milliseconds (200-60000)
-	#[arg(long, short = 'd', value_name = "200-60000", default_value = "1000", value_parser = clap::value_parser!(u64).range(200..=60000))]
-	pub duration: u64,
+	#[arg(long, short = 'd', value_name = "200-60000", value_parser = clap::value_parser!(u64).range(200..=60000))]
+	pub duration: Option<u64>,
 }
 
 #[derive(Parser)]

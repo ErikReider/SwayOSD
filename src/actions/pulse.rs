@@ -129,6 +129,8 @@ impl VolumeController {
 			.ok_or_else(|| PulseError::Connect("Failed to create context".into()))?;
 		let context = Rc::new(RefCell::new(context));
 
+		// return Err(PulseError::Connect("Failed to connect context".into()));
+
 		context
 			.borrow_mut()
 			.connect(None, pulse::context::FlagSet::NOFLAGS, None)

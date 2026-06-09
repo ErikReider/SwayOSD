@@ -2,8 +2,7 @@ use mpris::{Metadata, PlaybackStatus, Player, PlayerFinder};
 use playerctld::PlayerctldProxyBlocking;
 use zbus::blocking::Connection;
 
-use super::config::user::ServerConfig;
-use crate::utils::get_player as get_player_raw;
+use crate::config::user::ServerConfig;
 use std::{error::Error, sync::Arc, thread::sleep, time::Duration};
 use PlaybackStatus::*;
 use PlayerctlAction::*;
@@ -20,9 +19,8 @@ pub enum PlayerctlAction {
 
 #[derive(Clone, Debug)]
 pub enum PlayerctlDeviceRaw {
-	None,
 	All,
-	Some(String),
+	Name(String),
 	Shift,
 	Unshift,
 }
@@ -40,7 +38,7 @@ pub struct Playerctl {
 	fmt_str: Option<String>,
 }
 
-fn get_player(player: PlayerctlDeviceRaw) -> Result<PlayerctlDevice, Box<dyn Error>> {
+fn get_player(player: Option<PlayerctlDeviceRaw>) -> Result<PlayerctlDevice, Box<dyn Error>> {
 	fn get_playerctld<'a>() -> Result<PlayerctldProxyBlocking<'a>, Box<dyn Error>> {
 		Ok(PlayerctldProxyBlocking::new(&Connection::session()?)?)
 	}
@@ -61,7 +59,7 @@ fn get_player(player: PlayerctlDeviceRaw) -> Result<PlayerctlDevice, Box<dyn Err
 	}
 
 	match player {
-		PlayerctlDeviceRaw::None => {
+		None => {
 			let fallback = || -> Result<PlayerctlDevice, Box<dyn Error>> {
 				Ok(PlayerctlDevice::Some(PlayerFinder::new()?.find_active()?))
 			};
@@ -73,21 +71,21 @@ fn get_player(player: PlayerctlDeviceRaw) -> Result<PlayerctlDevice, Box<dyn Err
 			};
 			get_single_player(player.to_string())
 		}
-		PlayerctlDeviceRaw::Some(name) => get_single_player(name),
-		PlayerctlDeviceRaw::All => Ok(PlayerctlDevice::All(PlayerFinder::new()?.find_all()?)),
+		Some(PlayerctlDeviceRaw::Name(name)) => get_single_player(name),
+		Some(PlayerctlDeviceRaw::All) => Ok(PlayerctlDevice::All(PlayerFinder::new()?.find_all()?)),
 
-		PlayerctlDeviceRaw::Shift => get_single_player(get_playerctld()?.shift()?),
-		PlayerctlDeviceRaw::Unshift => get_single_player(get_playerctld()?.unshift()?),
+		Some(PlayerctlDeviceRaw::Shift) => get_single_player(get_playerctld()?.shift()?),
+		Some(PlayerctlDeviceRaw::Unshift) => get_single_player(get_playerctld()?.unshift()?),
 	}
 }
 
 impl Playerctl {
 	pub fn new(
 		action: PlayerctlAction,
+		player_name: Option<PlayerctlDeviceRaw>,
 		config: Arc<ServerConfig>,
 	) -> Result<Playerctl, Box<dyn Error>> {
-		let player = get_player_raw();
-		let player = get_player(player)?;
+		let player = get_player(player_name)?;
 		let fmt_str = config.playerctl_format.clone();
 		Ok(Self {
 			player,
@@ -256,14 +254,13 @@ impl PlayerctlAction {
 }
 
 impl PlayerctlDeviceRaw {
-	pub fn from(player: String) -> Result<Self, ()> {
-		use PlayerctlDeviceRaw::*;
-		match player.as_str() {
-			"auto" | "" => Ok(None),
-			"all" => Ok(All),
-			"shift" => Ok(Shift),
-			"unshift" => Ok(Unshift),
-			_ => Ok(Some(player)),
+	pub fn from(player: Option<String>) -> Option<Self> {
+		match player.unwrap_or_default().as_str() {
+			"auto" | "" => None,
+			"all" => Some(PlayerctlDeviceRaw::All),
+			"shift" => Some(PlayerctlDeviceRaw::Shift),
+			"unshift" => Some(PlayerctlDeviceRaw::Unshift),
+			player => Some(PlayerctlDeviceRaw::Name(player.into())),
 		}
 	}
 }
