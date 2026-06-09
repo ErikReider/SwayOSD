@@ -119,11 +119,7 @@ impl SwayosdWindow {
 		self.window.close();
 	}
 
-	pub fn changed_volume(
-		&self,
-		action_options: &ActionOptions,
-		device: &DeviceInfo,
-	) {
+	pub fn changed_volume(&self, action_options: &ActionOptions, device: &DeviceInfo) {
 		let max_volume: f64 = (*action_options.max_volume.get()).into();
 		let show_percentage = action_options.show_percentage.get();
 		let duration = action_options.duration.get();
