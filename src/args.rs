@@ -11,6 +11,17 @@ fn value_parser_f32(min: f32, max: f32) -> impl Fn(&str) -> Result<f32, String> 
 	}
 }
 
+fn value_parser_volume(s: &str) -> Result<String, String> {
+	match (s, s.parse::<i8>()) {
+		// Parse custom step values
+		(_, Ok(num)) => Ok(num.to_string()),
+		("raise", _) | ("lower", _) | ("mute-toggle", _) | ("mute", _) | ("unmute", _) => {
+			Ok(s.into())
+		}
+		(e, _) => Err(format!("Unknown output volume mode: \"{}\"!...", e)),
+	}
+}
+
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 #[command(arg_required_else_help(false))]
@@ -28,7 +39,12 @@ pub struct ArgsServer {
 	pub top_margin: Option<f32>,
 
 	/// OSD display duration in milliseconds (200-60000)
-	#[arg(long, short = 'd', value_name = "200-60000", value_parser = clap::value_parser!(u64).range(200..=60000))]
+	#[arg(
+		long,
+		short = 'd',
+		value_name = "200-60000",
+		value_parser = clap::value_parser!(u64).range(200..=60000)
+	)]
 	pub duration: Option<u64>,
 }
 
@@ -74,16 +90,18 @@ pub struct ArgsClient {
 	/// Shows volume osd and raises, lowers or mutes default sink volume
 	#[arg(
 		long,
-		value_name = "raise|lower|mute-toggle|(±)number",
-		allow_negative_numbers = true
+		value_name = "raise|lower|mute-toggle|mute|unmute|(±)number",
+		allow_negative_numbers = true,
+		value_parser = value_parser_volume,
 	)]
 	pub output_volume: Option<String>,
 
 	/// Shows volume osd and raises, lowers or mutes default source volume
 	#[arg(
 		long,
-		value_name = "raise|lower|mute-toggle|(±)number",
-		allow_negative_numbers = true
+		value_name = "raise|lower|mute-toggle|mute|unmute|(±)number",
+		allow_negative_numbers = true,
+		value_parser = value_parser_volume,
 	)]
 	pub input_volume: Option<String>,
 
@@ -110,7 +128,12 @@ pub struct ArgsClient {
 	pub min_brightness: Option<String>,
 
 	/// OSD display duration in milliseconds (200-60000)
-	#[arg(long, short = 'd', value_name = "200-60000", value_parser = clap::value_parser!(u64).range(200..=60000))]
+	#[arg(
+		long,
+		short = 'd',
+		value_name = "200-60000",
+		value_parser = clap::value_parser!(u64).range(200..=60000)
+	)]
 	pub duration: Option<u64>,
 
 	/// Shows Playerctl osd and runs the playerctl command

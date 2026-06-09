@@ -555,6 +555,18 @@ impl SwayOSDApplication {
 				VolumeChangeType::MuteToggle,
 				None,
 			)?,
+			(ArgTypes::SinkVolumeMute, _) => self.adjust_volume(
+				&action_options,
+				DeviceKind::Sink,
+				VolumeChangeType::Mute,
+				None,
+			)?,
+			(ArgTypes::SinkVolumeUnMute, _) => self.adjust_volume(
+				&action_options,
+				DeviceKind::Sink,
+				VolumeChangeType::UnMute,
+				None,
+			)?,
 
 			// Pulse Source
 			(ArgTypes::SourceVolumeRaise, step) => self.adjust_volume(
@@ -573,6 +585,18 @@ impl SwayOSDApplication {
 				&action_options,
 				DeviceKind::Source,
 				VolumeChangeType::MuteToggle,
+				None,
+			)?,
+			(ArgTypes::SourceVolumeMute, _) => self.adjust_volume(
+				&action_options,
+				DeviceKind::Source,
+				VolumeChangeType::Mute,
+				None,
+			)?,
+			(ArgTypes::SourceVolumeUnMute, _) => self.adjust_volume(
+				&action_options,
+				DeviceKind::Source,
+				VolumeChangeType::UnMute,
 				None,
 			)?,
 

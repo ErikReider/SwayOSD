@@ -234,6 +234,8 @@ fn volume_parser(is_sink: bool, value: &str) -> Result<(ArgTypes, Option<String>
 		("raise", _) => (ArgTypes::SinkVolumeRaise, None),
 		("lower", _) => (ArgTypes::SinkVolumeLower, None),
 		("mute-toggle", _) => (ArgTypes::SinkVolumeMuteToggle, None),
+		("mute", _) => (ArgTypes::SinkVolumeMute, None),
+		("unmute", _) => (ArgTypes::SinkVolumeUnMute, None),
 		(e, _) => {
 			eprintln!("Unknown output volume mode: \"{}\"!...", e);
 			return Err(1);
@@ -244,8 +246,12 @@ fn volume_parser(is_sink: bool, value: &str) -> Result<(ArgTypes, Option<String>
 			v.0 = ArgTypes::SourceVolumeRaise;
 		} else if v.0 == ArgTypes::SinkVolumeLower {
 			v.0 = ArgTypes::SourceVolumeLower;
-		} else {
+		} else if v.0 == ArgTypes::SinkVolumeMuteToggle {
 			v.0 = ArgTypes::SourceVolumeMuteToggle;
+		} else if v.0 == ArgTypes::SinkVolumeMute {
+			v.0 = ArgTypes::SourceVolumeMute;
+		} else if v.0 == ArgTypes::SinkVolumeUnMute {
+			v.0 = ArgTypes::SourceVolumeUnMute;
 		}
 	}
 	Ok(v)

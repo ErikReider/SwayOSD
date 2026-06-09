@@ -152,6 +152,8 @@ pub enum VolumeChangeType {
 	Raise,
 	Lower,
 	MuteToggle,
+	Mute,
+	UnMute,
 }
 
 pub enum BrightnessChangeType {
@@ -210,6 +212,12 @@ pub fn change_device_volume(
 		}
 		VolumeChangeType::MuteToggle => {
 			ctrl.set_mute_by_index(kind, device.index, !device.mute);
+		}
+		VolumeChangeType::Mute => {
+			ctrl.set_mute_by_index(kind, device.index, true);
+		}
+		VolumeChangeType::UnMute => {
+			ctrl.set_mute_by_index(kind, device.index, false);
 		}
 	}
 
