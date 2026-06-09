@@ -39,6 +39,7 @@ lazy_static! {
 }
 
 #[allow(clippy::enum_variant_names)]
+#[derive(Clone, Copy)]
 pub enum KeysLocks {
 	CapsLock,
 	NumLock,

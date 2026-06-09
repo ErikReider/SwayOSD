@@ -20,6 +20,7 @@ use gtk::{
 	Application,
 };
 use std::cell::RefCell;
+use std::error::Error;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
@@ -403,167 +404,68 @@ impl SwayOSDApplication {
 		duration
 	}
 
+	fn adjust_volume(
+		&self,
+		kind: DeviceKind,
+		change_type: VolumeChangeType,
+		step: Option<String>,
+	) -> Result<(), Box<dyn Error>> {
+		let duration = self.get_duration();
+		let ctrl = &self.volume_ctrl;
+		if let Some(device) = change_device_volume(ctrl, kind, change_type, step) {
+			for window in self.choose_windows() {
+				window.changed_volume(&duration, &device);
+			}
+		}
+		reset_max_volume();
+		reset_device_name();
+		reset_monitor_name();
+		Ok(())
+	}
+
+	fn adjust_brightness(
+		&self,
+		change_type: BrightnessChangeType,
+		step: Option<String>,
+	) -> Result<(), Box<dyn Error>> {
+		let duration = self.get_duration();
+		let mut brightness_backend = change_brightness(change_type, step)?;
+		for window in self.choose_windows() {
+			window.changed_brightness(&duration, brightness_backend.as_mut());
+		}
+		reset_min_brightness();
+		reset_monitor_name();
+		Ok(())
+	}
+
+	fn adjust_keylock(
+		&self,
+		keylock_type: KeysLocks,
+		value: Option<String>,
+	) -> Result<(), Box<dyn Error>> {
+		let duration = self.get_duration();
+		let i32_value = value.clone().unwrap_or("-1".to_owned());
+		let state = match i32_value.parse::<i32>() {
+			Ok(value) if (0..=1).contains(&value) => value == 1,
+			_ => get_key_lock_state(keylock_type, value),
+		};
+		for window in self.choose_windows() {
+			window.changed_keylock(&duration, keylock_type, state)
+		}
+		reset_monitor_name();
+		Ok(())
+	}
+
 	fn action_activated(
 		&self,
 		server_config: Arc<ServerConfig>,
 		arg_type: ArgTypes,
 		value: Option<String>,
-	) -> Result<(), Box<dyn std::error::Error>> {
+	) -> Result<(), Box<dyn Error>> {
 		match (arg_type, value) {
-			(ArgTypes::SinkVolumeRaise, step) => {
-				let duration = self.get_duration();
-				let ctrl = &self.volume_ctrl;
-				if let Some(device) =
-					change_device_volume(ctrl, DeviceKind::Sink, VolumeChangeType::Raise, step)
-				{
-					for window in self.choose_windows() {
-						window.changed_volume(&duration, &device);
-					}
-				}
-				reset_max_volume();
-				reset_device_name();
-				reset_monitor_name();
-			}
-			(ArgTypes::SinkVolumeLower, step) => {
-				let duration = self.get_duration();
-				let ctrl = &self.volume_ctrl;
-				if let Some(device) =
-					change_device_volume(ctrl, DeviceKind::Sink, VolumeChangeType::Lower, step)
-				{
-					for window in self.choose_windows() {
-						window.changed_volume(&duration, &device);
-					}
-				}
-				reset_max_volume();
-				reset_device_name();
-				reset_monitor_name();
-			}
-			(ArgTypes::SinkVolumeMuteToggle, _) => {
-				let duration = self.get_duration();
-				let ctrl = &self.volume_ctrl;
-				if let Some(device) =
-					change_device_volume(ctrl, DeviceKind::Sink, VolumeChangeType::MuteToggle, None)
-				{
-					for window in self.choose_windows() {
-						window.changed_volume(&duration, &device);
-					}
-				}
-				reset_max_volume();
-				reset_device_name();
-				reset_monitor_name();
-			}
-			(ArgTypes::SourceVolumeRaise, step) => {
-				let duration = self.get_duration();
-				let ctrl = &self.volume_ctrl;
-				if let Some(device) =
-					change_device_volume(ctrl, DeviceKind::Source, VolumeChangeType::Raise, step)
-				{
-					for window in self.choose_windows() {
-						window.changed_volume(&duration, &device);
-					}
-				}
-				reset_max_volume();
-				reset_device_name();
-				reset_monitor_name();
-			}
-			(ArgTypes::SourceVolumeLower, step) => {
-				let duration = self.get_duration();
-				let ctrl = &self.volume_ctrl;
-				if let Some(device) =
-					change_device_volume(ctrl, DeviceKind::Source, VolumeChangeType::Lower, step)
-				{
-					for window in self.choose_windows() {
-						window.changed_volume(&duration, &device);
-					}
-				}
-				reset_max_volume();
-				reset_device_name();
-				reset_monitor_name();
-			}
-			(ArgTypes::SourceVolumeMuteToggle, _) => {
-				let duration = self.get_duration();
-				let ctrl = &self.volume_ctrl;
-				if let Some(device) = change_device_volume(
-					ctrl,
-					DeviceKind::Source,
-					VolumeChangeType::MuteToggle,
-					None,
-				) {
-					for window in self.choose_windows() {
-						window.changed_volume(&duration, &device);
-					}
-				}
-				reset_max_volume();
-				reset_device_name();
-				reset_monitor_name();
-			}
-			// TODO: Brightness
-			(ArgTypes::BrightnessRaise, step) => {
-				let duration = self.get_duration();
-				let mut brightness_backend = change_brightness(BrightnessChangeType::Raise, step)?;
-				for window in self.choose_windows() {
-					window.changed_brightness(&duration, brightness_backend.as_mut());
-				}
-				reset_min_brightness();
-				reset_monitor_name();
-			}
-			(ArgTypes::BrightnessLower, step) => {
-				let duration = self.get_duration();
-				if let Ok(mut brightness_backend) =
-					change_brightness(BrightnessChangeType::Lower, step)
-				{
-					for window in self.choose_windows() {
-						window.changed_brightness(&duration, brightness_backend.as_mut());
-					}
-				}
-				reset_min_brightness();
-				reset_monitor_name();
-			}
-			(ArgTypes::BrightnessSet, value) => {
-				let duration = self.get_duration();
-				let mut brightness_backend = change_brightness(BrightnessChangeType::Set, value)?;
-				for window in self.choose_windows() {
-					window.changed_brightness(&duration, brightness_backend.as_mut());
-				}
-				reset_min_brightness();
-				reset_monitor_name();
-			}
-			(ArgTypes::CapsLock, value) => {
-				let duration = self.get_duration();
-				let i32_value = value.clone().unwrap_or("-1".to_owned());
-				let state = match i32_value.parse::<i32>() {
-					Ok(value) if (0..=1).contains(&value) => value == 1,
-					_ => get_key_lock_state(KeysLocks::CapsLock, value),
-				};
-				for window in self.choose_windows() {
-					window.changed_keylock(&duration, KeysLocks::CapsLock, state)
-				}
-				reset_monitor_name();
-			}
-			(ArgTypes::NumLock, value) => {
-				let duration = self.get_duration();
-				let i32_value = value.clone().unwrap_or("-1".to_owned());
-				let state = match i32_value.parse::<i32>() {
-					Ok(value) if (0..=1).contains(&value) => value == 1,
-					_ => get_key_lock_state(KeysLocks::NumLock, value),
-				};
-				for window in self.choose_windows() {
-					window.changed_keylock(&duration, KeysLocks::NumLock, state)
-				}
-				reset_monitor_name();
-			}
-			(ArgTypes::ScrollLock, value) => {
-				let duration = self.get_duration();
-				let i32_value = value.clone().unwrap_or("-1".to_owned());
-				let state = match i32_value.parse::<i32>() {
-					Ok(value) if (0..=1).contains(&value) => value == 1,
-					_ => get_key_lock_state(KeysLocks::ScrollLock, value),
-				};
-				for window in self.choose_windows() {
-					window.changed_keylock(&duration, KeysLocks::ScrollLock, state)
-				}
-				reset_monitor_name();
-			}
+			//
+			// Options
+			//
 			(ArgTypes::MaxVolume, max) => {
 				let volume: u8 = match max {
 					Some(max) => match max.parse() {
@@ -585,6 +487,67 @@ impl SwayOSDApplication {
 				set_min_brightness(brightness)
 			}
 			(ArgTypes::Player, name) => set_player(name.unwrap_or("".to_string())),
+			(ArgTypes::DeviceName, name) => {
+				set_device_name(name.unwrap_or(DEVICE_NAME_DEFAULT.to_string()))
+			}
+			(ArgTypes::MonitorName, name) => {
+				if let Some(name) = name {
+					set_monitor_name(name)
+				}
+			}
+			(ArgTypes::CustomProgressText, text) => set_progress_text(text),
+			(ArgTypes::CustomIcon, icon) => {
+				set_icon_name(icon.unwrap_or(ICON_NAME_DEFAULT.to_string()))
+			}
+			(ArgTypes::Duration, duration) => {
+				if let Some(duration) = duration.and_then(|d| d.parse().ok()) {
+					set_duration_override(duration);
+				}
+			}
+
+			//
+			// Actions
+			//
+
+			// Pulse Sink
+			(ArgTypes::SinkVolumeRaise, step) => {
+				self.adjust_volume(DeviceKind::Sink, VolumeChangeType::Raise, step)?;
+			}
+			(ArgTypes::SinkVolumeLower, step) => {
+				self.adjust_volume(DeviceKind::Sink, VolumeChangeType::Lower, step)?;
+			}
+			(ArgTypes::SinkVolumeMuteToggle, _) => {
+				self.adjust_volume(DeviceKind::Sink, VolumeChangeType::MuteToggle, None)?;
+			}
+			// Pulse Source
+			(ArgTypes::SourceVolumeRaise, step) => {
+				self.adjust_volume(DeviceKind::Source, VolumeChangeType::Raise, step)?;
+			}
+			(ArgTypes::SourceVolumeLower, step) => {
+				self.adjust_volume(DeviceKind::Source, VolumeChangeType::Lower, step)?;
+			}
+			(ArgTypes::SourceVolumeMuteToggle, _) => {
+				self.adjust_volume(DeviceKind::Source, VolumeChangeType::MuteToggle, None)?
+			}
+			// Brightness
+			(ArgTypes::BrightnessRaise, step) => {
+				self.adjust_brightness(BrightnessChangeType::Raise, step)?;
+			}
+			(ArgTypes::BrightnessLower, step) => {
+				self.adjust_brightness(BrightnessChangeType::Lower, step)?;
+			}
+			(ArgTypes::BrightnessSet, value) => {
+				self.adjust_brightness(BrightnessChangeType::Set, value)?;
+			}
+			(ArgTypes::CapsLock, value) => {
+				self.adjust_keylock(KeysLocks::CapsLock, value)?;
+			}
+			(ArgTypes::NumLock, value) => {
+				self.adjust_keylock(KeysLocks::NumLock, value)?;
+			}
+			(ArgTypes::ScrollLock, value) => {
+				self.adjust_keylock(KeysLocks::ScrollLock, value)?;
+			}
 			(ArgTypes::Playerctl, value) => {
 				let duration = self.get_duration();
 				let value = &value.unwrap_or("".to_string());
@@ -618,14 +581,6 @@ impl SwayOSDApplication {
 					}
 				}
 				reset_monitor_name();
-			}
-			(ArgTypes::DeviceName, name) => {
-				set_device_name(name.unwrap_or(DEVICE_NAME_DEFAULT.to_string()))
-			}
-			(ArgTypes::MonitorName, name) => {
-				if let Some(name) = name {
-					set_monitor_name(name)
-				}
 			}
 			(ArgTypes::CustomMessage, message) => {
 				let duration = self.get_duration();
@@ -676,15 +631,6 @@ impl SwayOSDApplication {
 				reset_progress_text();
 				reset_icon_name();
 				reset_monitor_name();
-			}
-			(ArgTypes::CustomProgressText, text) => set_progress_text(text),
-			(ArgTypes::CustomIcon, icon) => {
-				set_icon_name(icon.unwrap_or(ICON_NAME_DEFAULT.to_string()))
-			}
-			(ArgTypes::Duration, duration) => {
-				if let Some(duration) = duration.and_then(|d| d.parse().ok()) {
-					set_duration_override(duration);
-				}
 			}
 			(arg_type, data) => {
 				eprintln!(
