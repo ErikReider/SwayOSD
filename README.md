@@ -193,5 +193,5 @@ meson compile -C build
 ```sh
 # Sets the correct environment variables
 meson devenv -C build -w .
-# Now you can start nvim, vscode, etc in the current shell to reduce duplicated builds
+# Now you can start nvim, vscode, etc in the current shell
 ```
