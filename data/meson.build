@@ -69,3 +69,12 @@ message(style_css.full_path())
 install_data(['config/config.toml', 'config/backend.toml'],
   install_dir : config_path
 )
+
+# Fish completions
+install_data(
+  [
+    join_paths('completions', 'fish', 'swayosd-client.fish'),
+    join_paths('completions', 'fish', 'swayosd-server.fish')
+  ],
+  install_dir: join_paths(datadir, 'fish', 'vendor_completions.d')
+)
