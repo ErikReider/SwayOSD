@@ -200,6 +200,17 @@ impl SwayOSDApplication {
 							Some(evdev_rs::enums::EV_KEY::KEY_SCROLLLOCK) => {
 								(ArgTypes::ScrollLock, Some(state.to_string()))
 							}
+							Some(evdev_rs::enums::EV_KEY::KEY_VOLUMEUP) => {
+								(ArgTypes::SinkVolumeRaise, None)
+							}
+							Some(evdev_rs::enums::EV_KEY::KEY_VOLUMEDOWN) => {
+								(ArgTypes::SinkVolumeLower, None)
+							}
+							Some(evdev_rs::enums::EV_KEY::KEY_MUTE)
+							| Some(evdev_rs::enums::EV_KEY::KEY_UNMUTE) => (ArgTypes::SinkVolumeMuteToggle, None),
+							Some(evdev_rs::enums::EV_KEY::KEY_MICMUTE) => {
+								(ArgTypes::SourceVolumeMuteToggle, None)
+							}
 							_ => continue,
 						};
 					if let Err(error) =
