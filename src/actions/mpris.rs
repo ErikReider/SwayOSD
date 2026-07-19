@@ -72,7 +72,13 @@ fn get_player(player: Option<PlayerctlDeviceRaw>) -> Result<PlayerctlDevice, Box
 			get_single_player(player.to_string())
 		}
 		Some(PlayerctlDeviceRaw::Name(name)) => get_single_player(name),
-		Some(PlayerctlDeviceRaw::All) => Ok(PlayerctlDevice::All(PlayerFinder::new()?.find_all()?)),
+		Some(PlayerctlDeviceRaw::All) => Ok(PlayerctlDevice::All(
+			PlayerFinder::new()?
+				.find_all()?
+				.into_iter()
+				.filter(|player| player.bus_name() != "org.mpris.MediaPlayer2.playerctld")
+				.collect(),
+		)),
 
 		Some(PlayerctlDeviceRaw::Shift) => get_single_player(get_playerctld()?.shift()?),
 		Some(PlayerctlDeviceRaw::Unshift) => get_single_player(get_playerctld()?.unshift()?),
@@ -97,7 +103,7 @@ impl Playerctl {
 	}
 	pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
 		let mut metadata = None;
-		let mut icon = Err("some errro");
+		let mut icon = Err("some error");
 		match &self.player {
 			PlayerctlDevice::Some(player) => {
 				icon = Ok(self.run_single(player)?);
