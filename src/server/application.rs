@@ -122,7 +122,7 @@ impl SwayOSDApplication {
 
 		// Apply Server Config
 		if let Some(margin) = server_config.top_margin
-			&& (0_f32..1_f32).contains(&margin)
+			&& (0_f32..=1_f32).contains(&margin)
 		{
 			action_options.top_margin.set_default(margin);
 		}
