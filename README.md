@@ -83,6 +83,26 @@ Using Systemd: `sudo systemctl enable --now swayosd-libinput-backend.service`
 
 Other users can run: `pkexec swayosd-libinput-backend`
 
+The system service reads its configuration from
+`/etc/xdg/swayosd/backend.toml`. To suppress every Caps Lock OSD when the key is
+remapped to something unrelated to the lock state, such as Escape, use:
+
+```toml
+[input]
+ignore_caps_lock_key = true
+```
+
+With XKB's `grp:caps_toggle` option, Caps Lock changes the keyboard layout and
+Shift+Caps Lock toggles the lock state. To suppress only the layout-switch OSD
+while retaining the lock-state OSD, use:
+
+```toml
+[input]
+ignore_caps_lock_key_without_shift = true
+```
+
+Restart the service after changing the configuration.
+
 ### Sway examples
 
 #### Start Server
