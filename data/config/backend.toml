@@ -1,3 +1,9 @@
 [input]
-## completely ignore the caps lock key (useful if it's rebound to something else like escape)
+## Completely ignore the Caps Lock key. This is useful when it is remapped to
+## something unrelated to the lock state, such as Escape.
 # ignore_caps_lock_key = false
+
+## Ignore Caps Lock unless Shift was held when Caps Lock was pressed. This is
+## useful with XKB's grp:caps_toggle option, where Caps Lock changes the layout
+## and Shift+Caps Lock toggles the lock state.
+# ignore_caps_lock_key_without_shift = false

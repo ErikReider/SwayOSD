@@ -3,10 +3,12 @@ use config::DBUS_PATH;
 use dbus_server::DbusServer;
 use evdev_rs::enums::{int_to_ev_key, EventCode, EV_KEY, EV_LED};
 use evdev_rs::DeviceWrapper;
+use input::event::device::DeviceEvent;
 use input::event::keyboard::KeyboardEventTrait;
 use input::event::tablet_pad::KeyState;
 use input::event::{EventTrait, KeyboardEvent};
 use input::{Event, Libinput, LibinputInterface};
+use input_state::InputState;
 use libc::O_RDWR;
 use nix::poll::{poll, PollFd, PollFlags};
 use std::fs::{File, OpenOptions};
@@ -20,6 +22,7 @@ use zbus::object_server::InterfaceRef;
 #[path = "../config.rs"]
 mod config;
 mod dbus_server;
+mod input_state;
 
 struct EventInfo {
 	device_path: String,
@@ -62,8 +65,9 @@ fn main() -> Result<(), zbus::Error> {
 	assert!(fd != -1);
 	let borrowed_fd = unsafe { BorrowedFd::borrow_raw(fd) };
 	let pollfd = PollFd::new(borrowed_fd, PollFlags::POLLIN);
+	let mut input_state = InputState::default();
 	while poll(&mut [pollfd.clone()], None::<u8>).is_ok() {
-		if let Err(error) = event(&input_config, &mut input, &iface_ref) {
+		if let Err(error) = event(&input_config, &mut input_state, &mut input, &iface_ref) {
 			eprintln!("Event error: {:?}", error);
 		}
 	}
@@ -73,67 +77,72 @@ fn main() -> Result<(), zbus::Error> {
 
 fn event(
 	input_config: &config::backend::InputBackendConfig,
+	input_state: &mut InputState,
 	input: &mut Libinput,
 	iface_ref: &InterfaceRef<DbusServer>,
 ) -> Result<(), Box<dyn std::error::Error>> {
 	input.dispatch()?;
 	for event in input {
 		let event = match event {
+			Event::Device(DeviceEvent::Added(event)) => {
+				initialize_device_state(input_state, event.device());
+				continue;
+			}
+			Event::Device(DeviceEvent::Removed(event)) => {
+				input_state.remove_device(event.device().sysname());
+				continue;
+			}
 			Event::Keyboard(KeyboardEvent::Key(event)) => event,
 			_ => continue,
 		};
-		if event.key_state() == KeyState::Pressed {
+		let device = event.device();
+		let device_id = device.sysname().to_owned();
+		let Some(ev_key) = int_to_ev_key(event.key()) else {
+			continue;
+		};
+		if !input_state.handle_key_event(input_config, &device_id, ev_key, event.key_state()) {
 			continue;
 		}
-		let device = match unsafe { event.device().udev_device() } {
-			Some(device) => device,
-			None => continue,
-		};
 
-		let ev_key = match int_to_ev_key(event.key()) {
+		let ev_key = match ev_key {
 				// Basic Lock keys
-				Some(key @ EV_KEY::KEY_CAPSLOCK) |
-				Some(key @ EV_KEY::KEY_NUMLOCK) |
-				Some(key @ EV_KEY::KEY_SCROLLLOCK) |
+				key @ EV_KEY::KEY_CAPSLOCK |
+				key @ EV_KEY::KEY_NUMLOCK |
+				key @ EV_KEY::KEY_SCROLLLOCK |
 				// Display Brightness
-				Some(key @ EV_KEY::KEY_BRIGHTNESSUP) |
-				Some(key @ EV_KEY::KEY_BRIGHTNESSDOWN) |
-				Some(key @ EV_KEY::KEY_BRIGHTNESS_MIN) |
-				Some(key @ EV_KEY::KEY_BRIGHTNESS_MAX) |
-				Some(key @ EV_KEY::KEY_BRIGHTNESS_AUTO) |
-				Some(key @ EV_KEY::KEY_BRIGHTNESS_CYCLE) |
+				key @ EV_KEY::KEY_BRIGHTNESSUP |
+				key @ EV_KEY::KEY_BRIGHTNESSDOWN |
+				key @ EV_KEY::KEY_BRIGHTNESS_MIN |
+				key @ EV_KEY::KEY_BRIGHTNESS_MAX |
+				key @ EV_KEY::KEY_BRIGHTNESS_AUTO |
+				key @ EV_KEY::KEY_BRIGHTNESS_CYCLE |
 				// Keyboard Illumination
-				Some(key @ EV_KEY::KEY_KBDILLUMUP) |
-				Some(key @ EV_KEY::KEY_KBDILLUMDOWN) |
-				Some(key @ EV_KEY::KEY_KBDILLUMTOGGLE) => key,
+				key @ EV_KEY::KEY_KBDILLUMUP |
+				key @ EV_KEY::KEY_KBDILLUMDOWN |
+				key @ EV_KEY::KEY_KBDILLUMTOGGLE => key,
 				// Keyboard Layout
-				Some(key @ EV_KEY::KEY_KBD_LAYOUT_NEXT) => key,
+				key @ EV_KEY::KEY_KBD_LAYOUT_NEXT => key,
 				// Audio Keys
-				Some(key @ EV_KEY::KEY_VOLUMEUP) |
-				Some(key @ EV_KEY::KEY_VOLUMEDOWN) |
-				Some(key @ EV_KEY::KEY_MUTE) |
-				Some(key @ EV_KEY::KEY_UNMUTE) |
-				Some(key @ EV_KEY::KEY_MICMUTE) => key,
+				key @ EV_KEY::KEY_VOLUMEUP |
+				key @ EV_KEY::KEY_VOLUMEDOWN |
+				key @ EV_KEY::KEY_MUTE |
+				key @ EV_KEY::KEY_UNMUTE |
+				key @ EV_KEY::KEY_MICMUTE => key,
 				// Touchpad
-				Some(key @ EV_KEY::KEY_TOUCHPAD_ON) |
-				Some(key @ EV_KEY::KEY_TOUCHPAD_OFF) |
-				Some(key @ EV_KEY::KEY_TOUCHPAD_TOGGLE) |
+				key @ EV_KEY::KEY_TOUCHPAD_ON |
+				key @ EV_KEY::KEY_TOUCHPAD_OFF |
+				key @ EV_KEY::KEY_TOUCHPAD_TOGGLE |
 				// Media Keys
-				Some(key @ EV_KEY::KEY_PREVIOUSSONG) |
-				Some(key @ EV_KEY::KEY_PLAYPAUSE) |
-				Some(key @ EV_KEY::KEY_PLAY) |
-				Some(key @ EV_KEY::KEY_PAUSE) |
-				Some(key @ EV_KEY::KEY_NEXTSONG) => key,
+				key @ EV_KEY::KEY_PREVIOUSSONG |
+				key @ EV_KEY::KEY_PLAYPAUSE |
+				key @ EV_KEY::KEY_PLAY |
+				key @ EV_KEY::KEY_PAUSE |
+				key @ EV_KEY::KEY_NEXTSONG => key,
 				_ => continue,
 			};
 
-		// Special case because several people have the caps lock key
-		// bound to escape, so it doesn't affect the caps lock status
-		if ev_key == EV_KEY::KEY_CAPSLOCK && input_config.ignore_caps_lock_key.unwrap_or(false) {
-			continue;
-		}
-
-		if let Some(path) = device.devnode()
+		if let Some(device) = unsafe { device.udev_device() }
+			&& let Some(path) = device.devnode()
 			&& let Some(path) = path.to_str()
 		{
 			let event_info = EventInfo {
@@ -144,6 +153,25 @@ fn event(
 		}
 	}
 	Ok(())
+}
+
+fn initialize_device_state(input_state: &mut InputState, device: input::Device) {
+	let Some(udev_device) = (unsafe { device.udev_device() }) else {
+		return;
+	};
+	let Some(device_path) = udev_device.devnode() else {
+		return;
+	};
+	let Ok(evdev_device) = evdev_rs::Device::new_from_path(device_path) else {
+		return;
+	};
+
+	let pressed_shift_keys = [EV_KEY::KEY_LEFTSHIFT, EV_KEY::KEY_RIGHTSHIFT]
+		.into_iter()
+		.filter(|key| {
+			evdev_device.event_value(&EventCode::EV_KEY(*key)) == Some(KeyState::Pressed as i32)
+		});
+	input_state.add_device(device.sysname(), pressed_shift_keys);
 }
 
 async fn call(event_info: EventInfo, iface_ref: InterfaceRef<DbusServer>) {

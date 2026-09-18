@@ -7,6 +7,7 @@ use std::path::PathBuf;
 #[serde(deny_unknown_fields)]
 pub struct InputBackendConfig {
 	pub ignore_caps_lock_key: Option<bool>,
+	pub ignore_caps_lock_key_without_shift: Option<bool>,
 }
 
 #[derive(Deserialize, Default, Debug)]
@@ -36,4 +37,17 @@ pub fn read_backend_config() -> Result<BackendConfig, Box<dyn Error>> {
 	let config_file = std::fs::read_to_string(path)?;
 	let config: BackendConfig = toml::from_str(&config_file)?;
 	Ok(config)
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn parses_conditional_caps_lock_filter() {
+		let config: BackendConfig =
+			toml::from_str("[input]\nignore_caps_lock_key_without_shift = true\n").unwrap();
+
+		assert_eq!(config.input.ignore_caps_lock_key_without_shift, Some(true));
+	}
 }
