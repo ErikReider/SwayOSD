@@ -100,11 +100,13 @@ impl Playerctl {
 		let mut icon = Err("some errro");
 		match &self.player {
 			PlayerctlDevice::Some(player) => {
+				let before = player.get_metadata().ok().as_ref().and_then(track_key);
 				icon = Ok(self.run_single(player)?);
-				metadata = self.get_metadata(player);
+				metadata = self.get_metadata(player, before);
 			}
 			PlayerctlDevice::All(players) => {
 				for player in players {
+					let before = player.get_metadata().ok().as_ref().and_then(track_key);
 					let icon_new = self.run_single(player);
 					if let Ok(icon_new) = icon_new
 						&& icon.is_err()
@@ -112,7 +114,7 @@ impl Playerctl {
 						icon = Ok(icon_new);
 					};
 					if metadata.is_none() {
-						metadata = self.get_metadata(player);
+						metadata = self.get_metadata(player, before);
 					}
 				}
 			}
@@ -167,7 +169,7 @@ impl Playerctl {
 		};
 		Ok(out)
 	}
-	fn get_metadata(&self, player: &Player) -> Option<Metadata> {
+	fn get_metadata(&self, player: &Player, before: Option<String>) -> Option<Metadata> {
 		match self.action {
 			Next | Prev => {
 				if let Ok(track_list) = player.get_track_list()
@@ -176,13 +178,14 @@ impl Playerctl {
 					return player.get_track_metadata(track).ok();
 				}
 				let metadata = player.get_metadata().ok()?;
-				let name1 = metadata.url()?;
+				let Some(name1) = before else {
+					return Some(metadata);
+				};
 				let mut counter = 0;
 				while counter < 1000 {
 					// 1000 * 5ms = 5s
 					let metadata = player.get_metadata().ok()?;
-					let name2 = metadata.url()?;
-					if name1 != name2 {
+					if track_key(&metadata).is_some_and(|name2| name1 != name2) {
 						return Some(metadata);
 					}
 					sleep(Duration::from_millis(5));
@@ -263,4 +266,13 @@ impl PlayerctlDeviceRaw {
 			player => Some(PlayerctlDeviceRaw::Name(player.into())),
 		}
 	}
+}
+
+// Track identity before/after next/prev: xesam:url, or mpris:trackid for
+// players that don't set a URL (e.g. Cassette).
+fn track_key(metadata: &Metadata) -> Option<String> {
+	metadata
+		.url()
+		.map(str::to_string)
+		.or_else(|| metadata.track_id().map(|id| id.to_string()))
 }
