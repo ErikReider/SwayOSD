@@ -344,15 +344,11 @@ impl SwayosdWindow {
 			let icon = self.build_icon_widget(icon_name);
 			self.container.append(&icon);
 			self.container.append(&label);
-			let box_spacing = self.container.spacing();
-			icon.connect_realize(move |icon| {
-				label.set_margin_end(
-					icon.allocation().width()
-						+ icon.margin_start()
-						+ icon.margin_end()
-						+ box_spacing,
-				);
-			});
+			// allocation is still 0 when the window is already visible, measure instead
+			let (_, icon_width, _, _) = icon.measure(gtk::Orientation::Horizontal, -1);
+			label.set_margin_end(
+				icon_width + icon.margin_start() + icon.margin_end() + self.container.spacing(),
+			);
 		} else {
 			self.container.append(&label);
 		}
