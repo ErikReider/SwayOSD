@@ -138,6 +138,9 @@ bindsym XF86MonBrightnessDown exec swayosd-client --brightness -10
 bindsym XF86AudioPlay exec swayosd-client --playerctl play-pause
 # Next song for current player
 bindsym XF86AudioNext exec swayosd-client --playerctl next
+
+# Keyboard layout indicator (specify the layouts in the same order and way like you did in your compositor config)
+byndsym --locked mod4+Space exec swayosd-client --keyboard-layout "us,fr"
 ```
 
 ### Notes on using `--device`:
@@ -167,6 +170,11 @@ swayosd-client --monitor "$(swaymsg -t get_outputs | jq -r '.[] | select(.focuse
 # Hyprland
 swayosd-client --monitor "$(hyprctl monitors -j | jq -r '.[] | select(.focused == true).name')" --output-volume raise
 ```
+
+### Notes on using `--keyboard-layout`:
+
+Since there's no universal way of getting the current keyboard layout on wayland, SwayOSD has to keep its own track of it.
+To prevent the compositor layout and SwayOSD layout from getting out of sync you must make sure the keybind for `--keyboard-layout` is available at all times, like in lockscreen.
 
 ## Theming
 
