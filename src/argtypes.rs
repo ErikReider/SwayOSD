@@ -24,6 +24,7 @@ pub enum ArgTypes {
 	CustomProgress,
 	CustomSegmentedProgress,
 	KbdBacklight,
+	KbdLayout,
 }
 
 impl fmt::Display for ArgTypes {
@@ -50,6 +51,7 @@ impl fmt::Display for ArgTypes {
 			ArgTypes::CustomProgress => "CUSTOM-PROGRESS",
 			ArgTypes::CustomSegmentedProgress => "CUSTOM-SEGMENTED-PROGRESS",
 			ArgTypes::KbdBacklight => "KBD-BACKLIGHT",
+			ArgTypes::KbdLayout => "KBD-LAYOUT",
 		};
 		write!(f, "{}", string)
 	}
@@ -81,6 +83,7 @@ impl str::FromStr for ArgTypes {
 			"CUSTOM-PROGRESS" => ArgTypes::CustomProgress,
 			"CUSTOM-SEGMENTED-PROGRESS" => ArgTypes::CustomSegmentedProgress,
 			"KBD-BACKLIGHT" => ArgTypes::KbdBacklight,
+			"KBD-LAYOUT" => ArgTypes::KbdLayout,
 			other_type => return Err(other_type.to_owned()),
 		};
 		Ok(result)

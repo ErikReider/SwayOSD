@@ -115,6 +115,11 @@ fn parse_args(args: &ArgsClient, proxy: &ServerProxyBlocking<'_>) {
 	// Main options
 	//
 
+	// Keyboard layout
+	if let Some(value) = args.keyboard_layout.to_owned() {
+		actions.push((ArgTypes::KbdLayout, Some(value)));
+	}
+
 	// Caps lock
 	if args.caps_lock {
 		actions.push((ArgTypes::CapsLock, None));

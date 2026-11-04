@@ -237,6 +237,21 @@ impl SwayosdWindow {
 		self.run_timeout(duration);
 	}
 
+	pub fn changed_kbd_layout(&self, action_options: &ActionOptions, layout: &str) {
+		let duration = action_options.duration.get();
+
+		self.clear_osd();
+
+		let icon = self.build_icon_widget("keyboard-layout-symbolic");
+		self.container.append(&icon);
+
+		let label = self.build_text_widget(&Some(layout.into()), None);
+		label.set_hexpand(true);
+		self.container.append(&label);
+
+		self.run_timeout(duration);
+	}
+
 	pub fn changed_keylock(&self, action_options: &ActionOptions, key: KeysLocks, state: bool) {
 		let duration = action_options.duration.get();
 

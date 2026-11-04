@@ -30,5 +30,7 @@
     <file>icons/scalable/status/keyboard-brightness-high-symbolic.svg</file>
     <file>icons/scalable/status/keyboard-brightness-medium-symbolic.svg</file>
     <file>icons/scalable/status/keyboard-brightness-off-symbolic.svg</file>
+
+    <file>icons/scalable/status/keyboard-layout-symbolic.svg</file>
   </gresource>
 </gresources>

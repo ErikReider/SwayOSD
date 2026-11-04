@@ -17,6 +17,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::actions::mpris::{Playerctl, PlayerctlAction, PlayerctlDeviceRaw};
 use crate::actions::pulse::{DeviceKind, VolumeController};
+use crate::actions::xkbregistry::KbdLayoutDescRegistry;
 use crate::argflags::ArgFlags;
 use crate::args::ArgsServer;
 use crate::argtypes::ArgTypes;
@@ -67,6 +68,9 @@ pub struct SwayOSDApplication {
 	action_options: Rc<ActionOptions>,
 
 	volume_ctrl: Rc<RefCell<Option<VolumeController>>>,
+
+	current_kbd_layout: Rc<RefCell<Option<String>>>,
+	kbd_layout_desc_registry: Rc<RefCell<Option<KbdLayoutDescRegistry>>>,
 }
 
 /// Iterate the "correct" monitors
@@ -149,6 +153,9 @@ impl SwayOSDApplication {
 			action_options: Rc::new(action_options),
 
 			volume_ctrl: Rc::new(RefCell::new(None)),
+
+			current_kbd_layout: Rc::new(RefCell::new(None)),
+			kbd_layout_desc_registry: Rc::new(RefCell::new(None)),
 		};
 
 		// Listen for any actions sent from swayosd-client
@@ -654,6 +661,41 @@ impl SwayOSDApplication {
 					iter_windows!(self, action_options, (window), {
 						window.changed_kbd_backlight(&action_options, value, n_segments);
 					});
+				}
+			}
+
+			// Keyboard layout
+			(ArgTypes::KbdLayout, layouts) => {
+				if let Some(layouts) = layouts {
+					let mut kbd_desc_registry = self.kbd_layout_desc_registry.borrow_mut();
+					let kbd_desc_registry =
+						kbd_desc_registry.get_or_insert(KbdLayoutDescRegistry::create()?);
+					let mut current_layout = self.current_kbd_layout.borrow().to_owned();
+					let layouts: Vec<_> = layouts
+						.split(',')
+						.map(|s| s.trim())
+						.filter(|s| !s.is_empty())
+						.collect();
+					if !layouts.is_empty() {
+						if current_layout.is_none() {
+							current_layout = Some(layouts[0].to_string());
+						};
+						for (i, layout) in layouts.iter().enumerate() {
+							if layout != current_layout.as_ref().unwrap() {
+								continue;
+							};
+							let new_layout = layouts[(i + 1) % layouts.len()].to_string();
+							let layout_description =
+								kbd_desc_registry.description_from_name(&new_layout);
+							iter_windows!(self, action_options, (window), {
+								window.changed_kbd_layout(&action_options, &layout_description);
+							});
+							*self.current_kbd_layout.borrow_mut() = Some(new_layout);
+							break;
+						}
+					} else {
+						eprintln!("The layout list is empty!")
+					}
 				}
 			}
 
