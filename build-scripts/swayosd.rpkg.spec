@@ -21,10 +21,12 @@ BuildRequires:  pkgconfig(glib-2.0) >= 2.50
 BuildRequires:  pkgconfig(gobject-introspection-1.0) >= 1.68
 BuildRequires:  pkgconfig(gee-0.8) >= 0.20
 BuildRequires:  pkgconfig(libpulse)
+BuildRequires:  pkgconfig(xkbregistry)
 BuildRequires:  pkgconfig(libudev)
 BuildRequires:  pkgconfig(libevdev)
 BuildRequires:  pkgconfig(libinput)
 BuildRequires:  pkgconfig(dbus-1)
+BuildRequires:  clang
 BuildRequires:  systemd-devel
 BuildRequires:  systemd
 BuildRequires:  sassc

@@ -87,6 +87,12 @@ pub struct ArgsClient {
 	#[arg(long, value_name = "LED class name (/sys/class/leds/NAME)")]
 	pub scroll_lock_led: Option<String>,
 
+	/// Shows the current keyboard layout.
+	/// Specify your layouts in order separated by commas, e.g like in xkb_layout on sway.
+	/// Note: Doesn't change the layout.
+	#[arg(long)]
+	pub keyboard_layout: Option<String>,
+
 	/// Shows volume osd and raises, lowers or mutes default sink volume
 	#[arg(
 		long,

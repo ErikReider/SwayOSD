@@ -101,9 +101,7 @@ pub fn get_key_lock_state(key: KeysLocks, led: Option<String>) -> bool {
 	match fs::read_dir(BASE_PATH) {
 		Ok(paths) => {
 			let mut paths: Vec<String> = paths
-				.map_while(|path| {
-					path.map_or_else(|_| None, |p| Some(p.path().display().to_string()))
-				})
+				.map_while(|path| path.map_or(None, |p| Some(p.path().display().to_string())))
 				.collect();
 
 			if let Some(led) = led {
